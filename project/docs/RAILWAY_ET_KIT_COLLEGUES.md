@@ -45,9 +45,9 @@ Hello l'équipe 👋,
 Le serveur d'Analytics & IA centralisé **Open Analytics AI** est désormais en ligne sur Railway. Vous pouvez dès maintenant l'intégrer dans vos applications (*Farmtinz, CRMtinz, Sharetinz, etc.*).
 
 #### 📍 1. Liens Utiles
-- **URL de Base API** : `https://<VOTRE-APP-RAILWAY>.up.railway.app`
-- **Documentation Swagger (Interactive)** : `https://<VOTRE-APP-RAILWAY>.up.railway.app/docs`
-- **Health Check** : `https://<VOTRE-APP-RAILWAY>.up.railway.app/api/v1/health`
+- **URL de Base API** : `https://scintillating-kindness-production-d038.up.railway.app`
+- **Documentation Swagger (Interactive)** : `https://scintillating-kindness-production-d038.up.railway.app/docs`
+- **Health Check** : `https://scintillating-kindness-production-d038.up.railway.app/api/v1/health`
 
 #### 🔑 2. Authentification & Clé API
 Chaque requête d'analyse doit inclure le Header HTTP suivant :
@@ -63,7 +63,7 @@ Vous devez soumettre vos données au format JSON à l'endpoint `POST /api/v1/ana
 
 ##### 🟡 Exemple 1 : JavaScript (Fetch - React / Next.js / Vue / Node)
 ```javascript
-const response = await fetch("https://<VOTRE-APP-RAILWAY>.up.railway.app/api/v1/analyze", {
+const response = await fetch("https://scintillating-kindness-production-d038.up.railway.app/api/v1/analyze", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -93,7 +93,7 @@ console.log("Analyse IA :", result.data.ai_interpretation);
 ```python
 import requests
 
-url = "https://<VOTRE-APP-RAILWAY>.up.railway.app/api/v1/analyze"
+url = "https://scintillating-kindness-production-d038.up.railway.app/api/v1/analyze"
 headers = {
     "Content-Type": "application/json",
     "X-API-Key": "anal_votre_cle_api_ici"
