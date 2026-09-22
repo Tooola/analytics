@@ -78,7 +78,7 @@ for method, path, desc in endpoints:
     try:
         if method == "GET":
             r = requests.get(full_url, headers=headers, timeout=5)
-            status_code = r.status_code
+            status_code = str(r.status_code)
         else:
             status_code = "N/A (POST)"
     except requests.ConnectionError:
@@ -86,7 +86,7 @@ for method, path, desc in endpoints:
     endpoint_data.append({"Method": method, "Path": path, "Description": desc, "Status": status_code})
 
 import pandas as pd
-st.dataframe(pd.DataFrame(endpoint_data), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(endpoint_data), hide_index=True)
 
 st.markdown("---")
 

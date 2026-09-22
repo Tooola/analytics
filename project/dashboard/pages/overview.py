@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import requests
+import requests as _r
 import streamlit as st
 
 st.title("Overview")
@@ -83,6 +83,6 @@ if an_resp and an_resp.status_code == 200:
         import pandas as pd
         df = pd.DataFrame(runs)
         display_cols = [c for c in ["id", "status", "row_count", "created_at"] if c in df.columns]
-        st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
+        st.dataframe(df[display_cols], hide_index=True)
     else:
         st.info("No analyses have been run yet.")
