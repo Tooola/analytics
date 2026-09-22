@@ -5,7 +5,10 @@ from __future__ import annotations
 import requests as _r
 import streamlit as st
 
-API = st.session_state.get("api_base", "http://localhost:8000")
+DEFAULT_API = "https://scintillating-kindness-production-d038.up.railway.app"
+API = st.session_state.get("api_base")
+if not API or API in ["http://localhost:8000", "http://127.0.0.1:8000"]:
+    API = DEFAULT_API
 
 
 def _get_headers():

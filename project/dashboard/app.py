@@ -42,7 +42,9 @@ try:
 except Exception:
     pass
 
-st.session_state.setdefault("api_base", API_BASE)
+current_api = st.session_state.get("api_base")
+if not current_api or current_api in ["http://localhost:8000", "http://127.0.0.1:8000"]:
+    st.session_state["api_base"] = API_BASE
 st.session_state.setdefault("api_key", "")
 
 

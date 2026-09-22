@@ -8,7 +8,10 @@ import streamlit as st
 
 
 def _get_api_base():
-    return st.session_state.get("api_base", "http://127.0.0.1:8000")
+    api = st.session_state.get("api_base")
+    if not api or api in ["http://localhost:8000", "http://127.0.0.1:8000"]:
+        return "https://scintillating-kindness-production-d038.up.railway.app"
+    return api
 
 
 def _get_headers():
