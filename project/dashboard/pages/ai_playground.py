@@ -93,7 +93,7 @@ if st.button("Run Full Pipeline", type="primary"):
         st.warning("Please select Application, Dataset, provide Data, and ensure API Key is provided.")
         st.stop()
 
-    API = st.session_state.get("api_base", "http://127.0.0.1:8000")
+    API = st.session_state.get("api_base", DEFAULT_API)
     with st.spinner("Running analytics + AI interpretation..."):
         try:
             r = _r.post(
