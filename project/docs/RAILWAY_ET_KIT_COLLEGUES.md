@@ -14,7 +14,7 @@ Ce document récapitule les étapes pour déployer le Backend **Open Analytics A
    - **Root Directory** : Définissez `backend` (ou laissez la racine si vous utilisez le Procfile/Dockerfile du backend).
    - **Build Command** : Railway détectera automatiquement le `Dockerfile` dans `backend`.
 
-### 2. Variables d'Environnement à configurer sur Railway
+### 2. Variables d'Environnement à configurer sur Railway 
 Dans l'onglet **Variables** de Railway, ajoutez :
 
 | Variable | Valeur recommandée | Rôle |
@@ -132,4 +132,4 @@ print(response.json())
 > - La liste `analysis` doit contenir au moins un des choix : `"summary"`, `"trend"`, `"anomaly"`.
 
 ### Q4 : *"Est-ce que nos données confidentielles sont envoyées à OpenAI ou Gemini ?"*
-> **Réponse** : **Non !** Le système utilise une architecture Privacy-First. Le backend calcule d'abord les agrégats statistiques anonymes (moyennes, nombres d'anomalies, pourcentages), et c'est **uniquement cet agrégat anonyme** (`AnalyticalContext`) qui est envoyé au modèle d'IA pour obtenir le paragraphe d'analyse.
+> **Réponse** : **Non !** Le système utilise une architecture Privacy-First. Le backend calcule d'abord les agrégats statistiques anonymes (moyennes, nombres d'anomalies, pourcentages), et c'est **uniquement cet agrégat anonyme** (`AnalyticalContext`) qui est envoyé au modèle d'IA pour obtenir le paragraphe d'analyse. 
