@@ -16,19 +16,22 @@ st.set_page_config(
 )
 
 import os
+from pathlib import Path
 
-API_BASE = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
+DEFAULT_API_BASE = "https://scintillating-kindness-production-d038.up.railway.app"
+API_BASE = os.environ.get("API_BASE_URL", DEFAULT_API_BASE)
+
 try:
-    if hasattr(st, "secrets") and "api_base_url" in st.secrets:
-        API_BASE = st.secrets["api_base_url"]
+    if hasattr(st, "secrets"):
+        if "api_base_url" in st.secrets:
+            API_BASE = st.secrets["api_base_url"]
+        elif "API_BASE_URL" in st.secrets:
+            API_BASE = st.secrets["API_BASE_URL"]
 except Exception:
     pass
 
-# Try loading from env file
+# Try loading from env file if running locally
 try:
-    import os
-    from pathlib import Path
-
     env_path = Path(__file__).parent.parent / ".env"
     if env_path.exists():
         for line in env_path.read_text().splitlines():
@@ -136,14 +139,18 @@ with st.sidebar.expander("Settings"):
         st.rerun()
 
 # Route to the selected page
-page_file = PAGES[selection]
-page_path = f"pages/{page_file.split('/')[-1]}"
+page_filename = PAGES[selection].split('/')[-1]
+base_dir = Path(__file__).parent
+page_file_path = base_dir / "pages" / page_filename
+
 try:
     import importlib.util
-    spec = importlib.util.spec_from_file_location("page", page_path)
+    spec = importlib.util.spec_from_file_location("page", str(page_file_path))
     if spec and spec.loader:
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+    else:
+        st.warning(f"Page '{selection}' is not yet available.")
 except FileNotFoundError:
     st.warning(f"Page '{selection}' is not yet available.")
 except Exception as e:
