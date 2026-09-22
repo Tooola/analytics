@@ -1,0 +1,58 @@
+# ─── Python ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+
+# ─── Virtual Environment ────────────────────────────────
+.venv/
+venv/
+ENV/
+
+# ─── Environment ────────────────────────────────────────
+.env
+
+# ─── IDE ────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Testing ────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ─── Type Checking ──────────────────────────────────────
+.mypy_cache/
+
+# ─── Database ───────────────────────────────────────────
+*.db
+*.sqlite3
+
+# ─── Alembic ────────────────────────────────────────────
+alembic/versions/*.py
+!alembic/versions/.gitkeep
+
+# ─── Docker ─────────────────────────────────────────────
+docker/data/
+
+# ─── OS ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Notes personnelles ─────────────────────────────────
+COMMANDES.md
+
+# ─── Bolt Scaffold (remove after cleanup) ───────────────
+node_modules/
+package.json
+package-lock.json
+index.js
+.bolt/
