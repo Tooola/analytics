@@ -19,8 +19,12 @@ async def lifespan(app: FastAPI):
     setup_logging()
     logger = get_logger("app")
     logger.info("Starting %s in %s mode", settings.app_name, settings.app_env)
-    # Create tables if they don't exist (dev convenience — use Alembic for prod)
-    Base.metadata.create_all(bind=engine)
+    # Create tables if they don't exist
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized successfully.")
+    except Exception as exc:
+        logger.error("Failed to initialize database tables: %s", exc)
     yield
     logger.info("Shutting down %s", settings.app_name)
 

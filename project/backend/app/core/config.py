@@ -22,9 +22,7 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # Database
-    database_url: str = (
-        "postgresql+psycopg2://analytics:analytics@localhost:5432/open_analytics"
-    )
+    database_url: str = "sqlite:///./analytics.db"
 
     # API
     api_v1_prefix: str = "/api/v1"
@@ -37,10 +35,8 @@ class Settings(BaseSettings):
     api_key_prefix: str = "anal_"
     rate_limit_per_minute: int = 60
 
-    # CORS — comma-separated list of allowed origins.
-    # Dev default: Streamlit dashboard only.
-    # Production example: CORS_ORIGINS=https://dashboard.example.com,https://api.example.com
-    cors_origins: list[str] = ["http://localhost:8501", "http://localhost:3000"]
+    # CORS — default allows all origins for seamless client integration.
+    cors_origins: list[str] = ["*"]
 
     # AI Provider
     ai_provider: str = "mock"
