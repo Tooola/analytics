@@ -15,7 +15,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-API_BASE = "http://127.0.0.1:8000"
+import os
+
+API_BASE = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
 try:
     if hasattr(st, "secrets") and "api_base_url" in st.secrets:
         API_BASE = st.secrets["api_base_url"]
