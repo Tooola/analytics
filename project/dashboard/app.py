@@ -30,17 +30,7 @@ try:
 except Exception:
     pass
 
-# Try loading from env file if running locally
-try:
-    env_path = Path(__file__).parent.parent / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            if "=" in line and not line.startswith("#"):
-                key, _, val = line.partition("=")
-                if key.strip() == "API_BASE_URL":
-                    API_BASE = val.strip()
-except Exception:
-    pass
+
 
 # Always overwrite session state so stale cached values (e.g. localhost:8000) are never used
 st.session_state["api_base"] = API_BASE
