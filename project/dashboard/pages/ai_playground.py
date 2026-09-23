@@ -172,33 +172,80 @@ if st.button("Run Full Pipeline", type="primary"):
 
     # ─── 4. AI Interpretation ──────────────────────────
 
-    st.subheader("4. AI Interpretation & Solution Proposals")
+    st.subheader("4. 🤖 Interprétation IA & Rapport")
     if result.get("ai_interpretation"):
         try:
             ai = json.loads(result["ai_interpretation"])
-            st.markdown(f"**Provider:** `{ai.get('provider', '—')}` | **Confidence:** `{ai.get('confidence', 0):.0%}`")
-            if ai.get("risk_assessment"):
-                st.info(f"⚡ **Risk Assessment:** {ai['risk_assessment']}")
-            st.markdown("---")
-            st.markdown(f"### Executive Summary\n{ai.get('summary', '')}")
 
+            # ── Métriques d'en-tête ──────────────────────────
+            col_m1, col_m2, col_m3 = st.columns(3)
+            risk = ai.get("risk_assessment", "")
+            confidence = ai.get("confidence", 0)
+            with col_m1:
+                st.metric("🧠 Provider", ai.get("provider", "IA"))
+            with col_m2:
+                st.metric("📊 Confiance", f"{confidence:.0%}")
+            with col_m3:
+                risk_label = "🔴 Élevé" if "Élevé" in risk or "Critique" in risk or "High" in risk \
+                    else ("🟡 Modéré" if "Modéré" in risk or "Moderate" in risk else "🟢 Faible")
+                st.metric("⚠️ Risque", risk_label)
+
+            st.markdown("---")
+
+            # ── Résumé exécutif ──────────────────────────────
+            with st.container(border=True):
+                st.markdown("### 📋 Résumé Exécutif")
+                st.info(ai.get("summary", ""))
+
+            # ── Évaluation des risques ───────────────────────
+            if risk:
+                with st.container(border=True):
+                    st.markdown("### ⚡ Évaluation des Risques")
+                    if "Élevé" in risk or "Critique" in risk or "High" in risk:
+                        st.error(f"**{risk}**")
+                    elif "Modéré" in risk or "Moderate" in risk:
+                        st.warning(f"**{risk}**")
+                    else:
+                        st.success(f"**{risk}**")
+
+            # ── Corps du rapport ─────────────────────────────
             col_a, col_b = st.columns(2)
             with col_a:
-                if ai.get("key_findings"):
-                    st.markdown("#### 📊 Key Findings")
-                    for f in ai["key_findings"]:
-                        st.markdown(f"- {f}")
+                with st.container(border=True):
+                    st.markdown("### 🔍 Constats Clés")
+                    findings = ai.get("key_findings", [])
+                    if findings:
+                        for i, f in enumerate(findings, 1):
+                            st.markdown(f"**{i}.** {f}")
+                    else:
+                        st.caption("Aucun constat.")
 
-                if ai.get("recommendations"):
-                    st.markdown("#### 💡 Strategic Advice")
-                    for rec in ai["recommendations"]:
-                        st.markdown(f"- {rec}")
+                with st.container(border=True):
+                    st.markdown("### 💡 Recommandations Stratégiques")
+                    recs = ai.get("recommendations", [])
+                    if recs:
+                        for rec in recs:
+                            st.markdown(f"✅ {rec}")
+                    else:
+                        st.caption("Aucune recommandation.")
 
             with col_b:
-                if ai.get("action_plan"):
-                    st.markdown("#### 🛠️ Proposition de Solutions (Action Plan)")
-                    for act in ai["action_plan"]:
-                        st.markdown(f"- {act}")
+                with st.container(border=True):
+                    st.markdown("### 🛠️ Plan d'Action Priorisé")
+                    plans = ai.get("action_plan", [])
+                    if plans:
+                        for act in plans:
+                            if "IMMÉDIAT" in act.upper() or "🔴" in act:
+                                st.error(act)
+                            elif "COURT TERME" in act.upper() or "🟡" in act:
+                                st.warning(act)
+                            elif "LONG TERME" in act.upper() or "🟢" in act:
+                                st.success(act)
+                            else:
+                                st.markdown(f"▶️ {act}")
+                    else:
+                        st.caption("Aucun plan d'action.")
+
         except (json.JSONDecodeError, TypeError):
             st.text(result["ai_interpretation"])
     else:

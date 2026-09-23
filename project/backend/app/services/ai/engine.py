@@ -2,6 +2,12 @@
 
 Selects the configured provider and builds the AnalyticalContext that gets
 passed to it. The context is built from analysis results — never from raw data.
+
+Provider priority:
+  1. groq     — if AI_PROVIDER=groq and GROQ_API_KEY set
+  2. gemini   — if AI_PROVIDER=gemini and GEMINI_API_KEY set
+  3. local_llm — if AI_PROVIDER=local_llm
+  4. mock     — fallback (no external API required)
 """
 
 from __future__ import annotations
@@ -24,6 +30,10 @@ class AIEngine:
     def __init__(self, provider: AIProvider | None = None) -> None:
         if provider is not None:
             self._provider = provider
+        elif settings.ai_provider == "groq" and settings.groq_api_key:
+            from app.services.ai.groq_provider import GroqAIProvider
+            self._provider = GroqAIProvider(api_key=settings.groq_api_key)
+            logger.info("AI provider: groq (LLaMA 3.3 70B)")
         elif settings.ai_provider == "gemini" and settings.gemini_api_key:
             from app.services.ai.gemini_provider import GeminiAIProvider
             self._provider = GeminiAIProvider(api_key=settings.gemini_api_key)
@@ -33,9 +43,14 @@ class AIEngine:
                 model=settings.ollama_model,
             )
         else:
+            if settings.ai_provider not in ("mock", "groq", "gemini", "local_llm"):
+                logger.warning(
+                    "Unknown AI provider '%s'. Falling back to mock.",
+                    settings.ai_provider,
+                )
             self._provider = MockAIProvider()
 
-        logger.info("AI provider: %s", self._provider.name)
+        logger.info("AI provider actif: %s", self._provider.name)
 
     @property
     def provider_name(self) -> str:
