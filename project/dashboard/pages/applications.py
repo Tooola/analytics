@@ -8,8 +8,18 @@ import streamlit as st
 import os
 
 
+def _clean_api_url(url: str) -> str:
+    if not url:
+        return ""
+    url = str(url).strip()
+    if url.startswith("API_BASE_URL="):
+        url = url[len("API_BASE_URL="):].strip()
+    return url.rstrip("/")
+
+
 def _get_api_base():
-    return st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+    raw = st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+    return _clean_api_url(raw)
 
 
 

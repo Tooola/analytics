@@ -18,20 +18,31 @@ st.set_page_config(
 import os
 from pathlib import Path
 
+def _clean_api_url(url: str) -> str:
+    if not url:
+        return ""
+    url = str(url).strip()
+    if url.startswith("API_BASE_URL="):
+        url = url[len("API_BASE_URL="):].strip()
+    return url.rstrip("/")
+
+
 DEFAULT_API_BASE = os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
-API_BASE = DEFAULT_API_BASE
+API_BASE = _clean_api_url(DEFAULT_API_BASE)
 
 try:
     if hasattr(st, "secrets"):
         if "api_base_url" in st.secrets:
-            API_BASE = st.secrets["api_base_url"]
+            API_BASE = _clean_api_url(st.secrets["api_base_url"])
         elif "API_BASE_URL" in st.secrets:
-            API_BASE = st.secrets["API_BASE_URL"]
+            API_BASE = _clean_api_url(st.secrets["API_BASE_URL"])
 except Exception:
     pass
 
 if "api_base" not in st.session_state or not st.session_state["api_base"]:
     st.session_state["api_base"] = API_BASE
+else:
+    st.session_state["api_base"] = _clean_api_url(st.session_state["api_base"])
 st.session_state.setdefault("api_key", "")
 
 
@@ -118,7 +129,7 @@ selection = st.sidebar.radio("Navigate", list(PAGES.keys()))
 
 # API base URL override
 with st.sidebar.expander("Settings"):
-    new_base = st.text_input("API Base URL", value=st.session_state.api_base)
+    new_base = _clean_api_url(st.text_input("API Base URL", value=st.session_state.api_base))
     if new_base != st.session_state.api_base:
         st.session_state.api_base = new_base
         st.rerun()
