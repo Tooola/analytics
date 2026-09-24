@@ -168,13 +168,13 @@ if st.button("Lancer l'analyse", type="primary"):
                 if results.get("summary"):
                     st.subheader("Summary Statistics")
                     summary_df = pd.DataFrame(results["summary"])
-                    st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                    st.dataframe(summary_df, width="stretch", hide_index=True)
 
                 # Trend
                 if results.get("trend"):
                     st.subheader("Trend Analysis")
                     trend_df = pd.DataFrame(results["trend"])
-                    st.dataframe(trend_df, use_container_width=True, hide_index=True)
+                    st.dataframe(trend_df, width="stretch", hide_index=True)
 
                 # Anomaly
                 if results.get("anomaly"):

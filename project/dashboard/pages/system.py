@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import requests
 import streamlit as st
 import time
@@ -73,7 +74,7 @@ if st.session_state.get("api_key"):
     headers["X-API-Key"] = st.session_state.api_key
 
 for method, path, desc in endpoints:
-    full_url = f"{API}{path}"
+    full_url = f"{_get_api_base()}{path}"
     try:
         if method == "GET":
             r = requests.get(full_url, headers=headers, timeout=5)
@@ -95,7 +96,7 @@ st.subheader("Configuration")
 
 with st.expander("Current Settings"):
     st.code(f"""
-API Base URL:       {API}
+API Base URL:       {_get_api_base()}
 Dashboard Port:     8501
 Default Page:       Overview
     """, language="text")

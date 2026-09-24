@@ -104,7 +104,7 @@ if resp and resp.status_code == 200:
         import pandas as pd
         df = pd.DataFrame(apps)
         display_cols = [c for c in ["name", "slug", "status", "description", "created_at"] if c in df.columns]
-        st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
+        st.dataframe(df[display_cols], width='stretch', hide_index=True)
 
         st.markdown("---")
         st.subheader("Manage API Keys & Applications")
@@ -160,4 +160,4 @@ if resp and resp.status_code == 200:
 elif resp and resp.status_code == 401:
     st.warning("API Key authentication required. Enter your X-API-Key in sidebar Settings.")
 else:
-    st.warning("Cannot reach the API. Make sure the backend is running at " + API)
+    st.warning("Cannot reach the API. Make sure the backend is running at " + _get_api_base())

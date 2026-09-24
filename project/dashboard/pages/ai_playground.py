@@ -139,13 +139,13 @@ if st.button("Run Full Pipeline", type="primary"):
 
     with tab_sum:
         if results.get("summary"):
-            st.dataframe(pd.DataFrame(results["summary"]), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(results["summary"]), width="stretch", hide_index=True)
         else:
             st.caption("No summary results.")
 
     with tab_trend:
         if results.get("trend"):
-            st.dataframe(pd.DataFrame(results["trend"]), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(results["trend"]), width="stretch", hide_index=True)
         else:
             st.caption("No trend results.")
 

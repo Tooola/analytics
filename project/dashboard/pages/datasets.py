@@ -245,7 +245,7 @@ if filter_app == "Toutes les applications":
                         }
                         for f in fields
                     ])
-                    st.dataframe(field_df, use_container_width=True, hide_index=True)
+                    st.dataframe(field_df, width="stretch", hide_index=True)
                 else:
                     st.caption("Aucun champ défini.")
                 st.caption(f"ID : `{ds['id']}` | Créé le : {ds.get('created_at', '—')[:10]}")
@@ -265,7 +265,7 @@ else:
                     }
                     for f in fields
                 ])
-                st.dataframe(field_df, use_container_width=True, hide_index=True)
+                st.dataframe(field_df, width="stretch", hide_index=True)
             else:
                 st.caption("Aucun champ défini.")
             st.caption(f"ID : `{ds['id']}` | Créé le : {ds.get('created_at', '—')[:10]}")
