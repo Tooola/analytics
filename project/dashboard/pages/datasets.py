@@ -64,9 +64,9 @@ apps = apps_resp.json() if apps_resp and apps_resp.status_code == 200 else []
 app_map = {a["slug"]: a for a in apps}  # slug → app dict
 
 # ─── Register New Dataset ──────────────────────────────
-with st.expander("➕ Enregistrer un nouveau Dataset", expanded=True if not apps else False):
+with st.expander("Enregistrer un nouveau Dataset", expanded=True if not apps else False):
     if not apps:
-        st.warning("⚠️ Aucune application enregistrée. Créez d'abord une application dans la page **Applications**.")
+        st.warning("Aucune application enregistrée. Créez d'abord une application dans la page **Applications**.")
     else:
         # Sélecteur d'application dans le formulaire
         app_slug_options = [a["slug"] for a in apps]
@@ -107,13 +107,13 @@ with st.expander("➕ Enregistrer un nouveau Dataset", expanded=True if not apps
                 help="La clé API doit appartenir à l'application sélectionnée ci-dessus.",
             )
 
-            ds_submitted = st.form_submit_button("📥 Enregistrer le Dataset")
+            ds_submitted = st.form_submit_button("Enregistrer le Dataset")
 
             if ds_submitted:
                 if not ds_name or not ds_slug:
                     st.error("Veuillez renseigner le Nom et le Slug du dataset.")
                 elif not api_key_for_app:
-                    st.error("🔒 La clé API est requise pour enregistrer un dataset.")
+                    st.error("La clé API est requise pour enregistrer un dataset.")
                 else:
                     try:
                         parsed_fields = json.loads(fields_json) if fields_json.strip() else []
@@ -123,7 +123,7 @@ with st.expander("➕ Enregistrer un nouveau Dataset", expanded=True if not apps
 
                     if parsed_fields is not None:
                         if not isinstance(parsed_fields, list) or len(parsed_fields) == 0:
-                            st.error("⚠️ Au moins un champ est requis dans le tableau JSON.")
+                            st.error("Au moins un champ est requis dans le tableau JSON.")
                         else:
                             with st.spinner("Enregistrement du dataset..."):
                                 resp = _post(
@@ -141,13 +141,13 @@ with st.expander("➕ Enregistrer un nouveau Dataset", expanded=True if not apps
                                 st.session_state["api_key"] = api_key_for_app
                                 st.session_state["ds_notification"] = {
                                     "type": "success",
-                                    "msg": f"✅ Dataset '{ds_name}' (`{ds_slug}`) enregistré pour l'application **{selected_app_slug}** !",
+                                    "msg": f"Dataset '{ds_name}' (`{ds_slug}`) enregistré pour l'application **{selected_app_slug}** !",
                                 }
                                 st.rerun()
                             elif resp and resp.status_code == 409:
-                                st.error("⚠️ Un dataset avec ce slug existe déjà pour cette application.")
+                                st.error("Un dataset avec ce slug existe déjà pour cette application.")
                             elif resp and resp.status_code == 401:
-                                st.error("❌ Clé API invalide ou ne correspondant pas à l'application sélectionnée.")
+                                st.error("Clé API invalide ou ne correspondant pas à l'application sélectionnée.")
                             else:
                                 try:
                                     detail = resp.json().get("detail") if resp else None
@@ -155,16 +155,16 @@ with st.expander("➕ Enregistrer un nouveau Dataset", expanded=True if not apps
                                         errors_str = ", ".join(
                                             f"{e.get('loc', [])[-1]}: {e.get('msg')}" for e in detail
                                         )
-                                        st.error(f"❌ Erreur de validation : {errors_str}")
+                                        st.error(f"Erreur de validation : {errors_str}")
                                     else:
-                                        st.error(f"❌ Échec : {detail or (resp.text if resp else 'Erreur de connexion')}")
+                                        st.error(f"Échec : {detail or (resp.text if resp else 'Erreur de connexion')}")
                                 except Exception:
-                                    st.error("❌ Échec de l'enregistrement du dataset.")
+                                    st.error("Échec de l'enregistrement du dataset.")
 
 st.markdown("---")
 
 # ─── Filtrer par application ────────────────────────────
-st.subheader("🗂️ Datasets enregistrés")
+st.subheader("Datasets enregistrés")
 
 filter_col1, filter_col2 = st.columns([2, 1])
 with filter_col1:
@@ -216,7 +216,7 @@ if filter_app == "Toutes les applications":
         grouped[app_label].append(ds)
 
     for app_label, ds_list in grouped.items():
-        st.markdown(f"### 📦 Application : `{app_label}`")
+        st.markdown(f"### Application : `{app_label}`")
         for ds in ds_list:
             with st.expander(f"**{ds['name']}** — slug : `{ds['slug']}`", expanded=False):
                 st.write(ds.get("description") or "_Aucune description_")
@@ -228,7 +228,7 @@ if filter_app == "Toutes les applications":
                             "Type technique": f["technical_type"],
                             "Type sémantique": f.get("semantic_type") or "—",
                             "Unité": f.get("unit") or "—",
-                            "Requis": "✅" if f.get("required", True) else "❌",
+                            "Requis": " " if f.get("required", True) else "",
                         }
                         for f in fields
                     ])
@@ -248,7 +248,7 @@ else:
                         "Type technique": f["technical_type"],
                         "Type sémantique": f.get("semantic_type") or "—",
                         "Unité": f.get("unit") or "—",
-                        "Requis": "✅" if f.get("required", True) else "❌",
+                        "Requis": "" if f.get("required", True) else "",
                     }
                     for f in fields
                 ])
@@ -256,3 +256,4 @@ else:
             else:
                 st.caption("Aucun champ défini.")
             st.caption(f"ID : `{ds['id']}` | Créé le : {ds.get('created_at', '—')[:10]}")
+
