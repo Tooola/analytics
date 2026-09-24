@@ -1,4 +1,4 @@
-"""Smart Analytical AI provider — provides detailed interpretations, recommendations, and actionable solution proposals.
+"""Smart Analytical AI provider — provides detailed interpretations, recommendations, and actionable solution proposals in French.
 """
 
 from __future__ import annotations
@@ -21,11 +21,11 @@ class MockAIProvider(AIProvider):
             direction = t.get("direction", "stable")
             change = t.get("change_pct")
             trend_cols[col] = (direction, change)
-            
+
             if direction == "up" and change is not None:
-                findings.append(f"Metric '{col}' exhibits significant upward acceleration (+{change}% growth).")
+                findings.append(f"L'indicateur '{col}' affiche une hausse soutenue de +{change:.1f}%.")
             elif direction == "down" and change is not None:
-                findings.append(f"Metric '{col}' shows a contraction of {change}% over the analyzed period.")
+                findings.append(f"L'indicateur '{col}' enregistre une baisse de {change:.1f}% sur la période.")
 
         # Cross-metric financial & operational analysis
         rev_change = trend_cols.get("revenue", (None, None))[1]
@@ -35,43 +35,42 @@ class MockAIProvider(AIProvider):
         if rev_change is not None and cost_change is not None:
             if rev_change > cost_change:
                 net_gain = round(rev_change - cost_change, 2)
-                findings.append(f"Revenue growth (+{rev_change}%) outpaces cost expansion (+{cost_change}%), resulting in a net margin expansion of +{net_gain}%.")
-                recommendations.append("Capitalize on high-margin product lines to accelerate overall profitability.")
-                action_plan.append("Immediate: Allocate additional marketing budget to the top-performing products.")
+                findings.append(f"La croissance du chiffre d'affaires (+{rev_change}%) surpasse l'évolution des coûts (+{cost_change}%), générant un gain de marge nette de +{net_gain}%.")
+                recommendations.append("Prioriser la commercialisation des gammes à forte marge pour amplifier la rentabilité globale.")
+                action_plan.append("🔴 IMMÉDIAT (< 7 jours) : Réallouer le budget d'acquisition sur les catégories de produits les plus rentables.")
             else:
                 margin_drag = round(cost_change - rev_change, 2)
-                findings.append(f"Cost expansion (+{cost_change}%) exceeds revenue growth (+{rev_change}%), causing a margin compression of -{margin_drag}%.")
-                recommendations.append("Audit operational cost drivers and renegotiate supplier pricing to protect operating margins.")
-                action_plan.append("Immediate: Conduct a cost structure review to eliminate low-margin expense items.")
+                findings.append(f"La progression des charges (+{cost_change}%) est supérieure à celle des revenus (+{rev_change}%), provoquant une compression de marge de -{margin_drag}%.")
+                recommendations.append("Mener un audit ciblé sur les postes de coûts d'exploitation et négocier les tarifs fournisseurs.")
+                action_plan.append("🔴 IMMÉDIAT (< 7 jours) : Geler temporairement les dépenses non essentielles et réviser la structure de coûts.")
 
-        if qty_change is not None and qty_change > 50:
-            recommendations.append(f"Sales volume surge (+{qty_change}%) requires inventory optimization to prevent stockouts.")
-            action_plan.append("Short-Term: Adjust reorder thresholds and secure supply chain agreements.")
+        if qty_change is not None and qty_change > 30:
+            recommendations.append(f"La forte hausse des volumes (+{qty_change}%) nécessite un ajustement des niveaux de stock pour éviter toute rupture.")
+            action_plan.append("🟡 COURT TERME (1-4 semaines) : Réajuster les seuils de réapprovisionnement et sécuriser les contrats logistiques.")
 
         # Summarize anomalies
         anomaly_count = sum(a.get("count", 0) for a in context.anomalies)
         if anomaly_count:
-            findings.append(f"Detected {anomaly_count} statistical anomaly/anomalies requiring operational verification.")
-            recommendations.append("Investigate high-variance data points for potential billing errors or exceptional spikes.")
-            action_plan.append("Short-Term: Set up automated threshold alerts to flag future data spikes in real time.")
+            findings.append(f"{anomaly_count} anomalie(s) statistique(s) détectée(s) nécessitant une vérification opérationnelle.")
+            recommendations.append("Analyser les points de données atypiques pour écarter tout risque de saisie ou d'erreur de facturation.")
+            action_plan.append("🟡 COURT TERME (1-4 semaines) : Mettre en place des alertes automatisées de seuil en temps réel.")
 
-        # Fallbacks if default metrics missing
         if not findings:
-            findings.append("Data metrics remain within baseline variance parameters.")
-            recommendations.append("Establish automated periodic monitoring to detect emerging trends early.")
-            action_plan.append("Long-Term: Expand data collection timeline for multi-month trend analysis.")
+            findings.append(f"Les indicateurs clés de l'application '{context.application}' restent stables dans la plage nominale.")
+            recommendations.append("Maintenir le suivi périodique automatisé pour anticiper les variations saisonnières.")
 
         if not action_plan:
-            action_plan.append("1. Immediate: Validate data accuracy with underlying source transactions.")
-            action_plan.append("2. Short-Term: Benchmark unit prices against market competitors.")
-            action_plan.append("3. Long-Term: Establish monthly KPI targets based on current growth trends.")
+            action_plan.append("🔴 IMMÉDIAT (< 7 jours) : Valider l'intégrité des flux de données sources avec l'équipe technique.")
+            action_plan.append("🟡 COURT TERME (1-4 semaines) : Établir des objectifs de KPI mensuels basés sur les tendances observées.")
+            action_plan.append("🟢 LONG TERME (> 1 mois) : Automatiser la génération de rapports décisionnels hebdomadaires.")
 
-        risk_level = "High" if anomaly_count > 3 or (cost_change and rev_change and cost_change > rev_change + 20) else "Low"
+        risk_level = "Élevé" if anomaly_count > 3 or (cost_change and rev_change and cost_change > rev_change + 15) else "Faible"
 
+        app_name = context.application.capitalize()
+        dataset_name = context.dataset.replace("-", " ").capitalize()
         summary = (
-            f"Analytical interpretation of {context.row_count} records from "
-            f"'{context.application}/{context.dataset}': Identified {len(findings)} key analytical trend(s) "
-            f"and {len(recommendations)} strategic recommendation(s)."
+            f"Analyse décisionnelle de {context.row_count} enregistrements du dataset '{dataset_name}' ({app_name}) : "
+            f"Détection de {len(findings)} constat(s) stratégique(s) et formulation de {len(recommendations)} recommandation(s) à haut ROI."
         )
 
         return AIInterpretation(
@@ -80,6 +79,7 @@ class MockAIProvider(AIProvider):
             key_findings=findings,
             recommendations=recommendations,
             action_plan=action_plan,
-            risk_assessment=f"Risk Level: {risk_level}. Operational stability maintained.",
-            confidence=0.88,
+            risk_assessment=f"Niveau de risque : {risk_level}. Stabilité opérationnelle sous contrôle.",
+            confidence=0.92,
         )
+

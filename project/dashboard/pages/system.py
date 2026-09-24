@@ -10,10 +10,9 @@ from datetime import datetime
 st.title("System")
 st.markdown("Monitor API health, database connectivity, AI provider status, and recent activity.")
 
-DEFAULT_API = "https://scintillating-kindness-production-d038.up.railway.app"
-API = st.session_state.get("api_base")
-if not API or API in ["http://localhost:8000", "http://127.0.0.1:8000"]:
-    API = DEFAULT_API
+def _get_api_base():
+    return st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+
 
 
 def _get(path: str):
@@ -22,7 +21,7 @@ def _get(path: str):
     if key:
         headers["X-API-Key"] = key
     try:
-        return requests.get(f"{API}{path}", headers=headers, timeout=10)
+        return requests.get(f"{_get_api_base()}{path}", headers=headers, timeout=10)
     except requests.ConnectionError:
         return None
 

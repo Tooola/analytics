@@ -1,0 +1,10 @@
+[
+  { "date": "2026-09-01", "parcel_id": "P_01", "crop_type": "Maïs", "surface_ha": 12.5, "yield_kg": 4500, "temperature_c": 24.5, "rainfall_mm": 12.0, "humidity_pct": 65 },
+  { "date": "2026-09-02", "parcel_id": "P_02", "crop_type": "Blé", "surface_ha": 8.0, "yield_kg": 3200, "temperature_c": 22.0, "rainfall_mm": 5.5, "humidity_pct": 58 },
+  { "date": "2026-09-03", "parcel_id": "P_03", "crop_type": "Soja", "surface_ha": 15.0, "yield_kg": 5100, "temperature_c": 26.1, "rainfall_mm": 0.0, "humidity_pct": 50 },
+  { "date": "2026-09-04", "parcel_id": "P_01", "crop_type": "Maïs", "surface_ha": 12.5, "yield_kg": 4650, "temperature_c": 25.0, "rainfall_mm": 25.0, "humidity_pct": 80 },
+  { "date": "2026-09-05", "parcel_id": "P_04", "crop_type": "Tournesol", "surface_ha": 10.0, "yield_kg": 2800, "temperature_c": 28.4, "rainfall_mm": 0.0, "humidity_pct": 42 },
+  { "date": "2026-09-06", "parcel_id": "P_02", "crop_type": "Blé", "surface_ha": 8.0, "yield_kg": 3400, "temperature_c": 21.5, "rainfall_mm": 8.0, "humidity_pct": 62 },
+  { "date": "2026-09-07", "parcel_id": "P_03", "crop_type": "Soja", "surface_ha": 15.0, "yield_kg": 12000, "temperature_c": 27.0, "rainfall_mm": 45.0, "humidity_pct": 88 },
+  { "date": "2026-09-08", "parcel_id": "P_01", "crop_type": "Maïs", "surface_ha": 12.5, "yield_kg": 4800, "temperature_c": 23.8, "rainfall_mm": 2.0, "humidity_pct": 55 }
+]

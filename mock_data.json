@@ -1,0 +1,89 @@
+{
+  "users": [
+    {
+      "id": "usr_001",
+      "name": "Alice Dupont",
+      "email": "alice.d@example.com",
+      "signup_date": "2026-08-15T10:30:00Z",
+      "subscription_tier": "premium",
+      "country": "France"
+    },
+    {
+      "id": "usr_002",
+      "name": "Jean Martin",
+      "email": "jean.m@example.com",
+      "signup_date": "2026-09-01T14:45:00Z",
+      "subscription_tier": "free",
+      "country": "Belgium"
+    },
+    {
+      "id": "usr_003",
+      "name": "Marie Curie",
+      "email": "marie.c@example.com",
+      "signup_date": "2026-09-10T09:15:00Z",
+      "subscription_tier": "pro",
+      "country": "Switzerland"
+    }
+  ],
+  "sessions": [
+    {
+      "session_id": "sess_1001",
+      "user_id": "usr_001",
+      "start_time": "2026-09-24T08:00:00Z",
+      "end_time": "2026-09-24T08:45:00Z",
+      "device_type": "mobile",
+      "browser": "Chrome Mobile",
+      "os": "Android"
+    },
+    {
+      "session_id": "sess_1002",
+      "user_id": "usr_002",
+      "start_time": "2026-09-24T09:15:00Z",
+      "end_time": "2026-09-24T09:30:00Z",
+      "device_type": "desktop",
+      "browser": "Firefox",
+      "os": "Windows"
+    }
+  ],
+  "events": [
+    {
+      "event_id": "evt_5001",
+      "session_id": "sess_1001",
+      "user_id": "usr_001",
+      "event_type": "page_view",
+      "timestamp": "2026-09-24T08:05:00Z",
+      "page_url": "/home",
+      "metadata": {
+        "load_time_ms": 120
+      }
+    },
+    {
+      "event_id": "evt_5002",
+      "session_id": "sess_1001",
+      "user_id": "usr_001",
+      "event_type": "button_click",
+      "timestamp": "2026-09-24T08:12:00Z",
+      "page_url": "/home",
+      "metadata": {
+        "button_id": "upgrade_plan"
+      }
+    },
+    {
+      "event_id": "evt_5003",
+      "session_id": "sess_1002",
+      "user_id": "usr_002",
+      "event_type": "page_view",
+      "timestamp": "2026-09-24T09:16:00Z",
+      "page_url": "/dashboard",
+      "metadata": {
+        "load_time_ms": 250
+      }
+    }
+  ],
+  "metrics": {
+    "total_active_users": 1420,
+    "daily_signups": 45,
+    "conversion_rate": 3.2,
+    "revenue_mrr": 12500
+  }
+}

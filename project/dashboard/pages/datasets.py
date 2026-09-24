@@ -7,11 +7,23 @@ import requests as _r
 import streamlit as st
 
 
+import os
+
+
+def slugify(text: str) -> str:
+    """Auto-generate a clean, valid slug from text (lowercase, alphanumeric, hyphens)."""
+    if not text:
+        return ""
+    text = text.lower().strip()
+    text = re.sub(r'[^a-z0-9\s-]', '', text)
+    text = re.sub(r'[\s_]+', '-', text)
+    text = re.sub(r'-+', '-', text)
+    return text.strip('-')
+
+
 def _get_api_base():
-    api = st.session_state.get("api_base")
-    if not api or api in ["http://localhost:8000", "http://127.0.0.1:8000"]:
-        return "https://scintillating-kindness-production-d038.up.railway.app"
-    return api
+    return st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+
 
 
 def _get_headers():
@@ -110,8 +122,9 @@ with st.expander("Enregistrer un nouveau Dataset", expanded=True if not apps els
             ds_submitted = st.form_submit_button("Enregistrer le Dataset")
 
             if ds_submitted:
-                if not ds_name or not ds_slug:
-                    st.error("Veuillez renseigner le Nom et le Slug du dataset.")
+                final_slug = slugify(ds_slug) if ds_slug and ds_slug.strip() else slugify(ds_name)
+                if not ds_name or not final_slug:
+                    st.error("Veuillez renseigner le Nom du dataset.")
                 elif not api_key_for_app:
                     st.error("La clé API est requise pour enregistrer un dataset.")
                 else:
@@ -125,12 +138,12 @@ with st.expander("Enregistrer un nouveau Dataset", expanded=True if not apps els
                         if not isinstance(parsed_fields, list) or len(parsed_fields) == 0:
                             st.error("Au moins un champ est requis dans le tableau JSON.")
                         else:
-                            with st.spinner("Enregistrement du dataset..."):
+                            with st.spinner(f"Enregistrement du dataset (slug: '{final_slug}')..."):
                                 resp = _post(
                                     "/api/v1/datasets",
                                     json_data={
                                         "name": ds_name.strip(),
-                                        "slug": ds_slug.strip(),
+                                        "slug": final_slug,
                                         "description": ds_desc.strip() if ds_desc else None,
                                         "fields": parsed_fields,
                                     },

@@ -1,4 +1,4 @@
-"""AI Playground — test the full Raw Data → Analytics → Context → AI pipeline."""
+"""Insight Studio & Schema Sandbox — Bac à sable de validation et d'analyse IA."""
 
 from __future__ import annotations
 
@@ -8,10 +8,13 @@ import pandas as pd
 import requests as _r
 import streamlit as st
 
-DEFAULT_API = "https://scintillating-kindness-production-d038.up.railway.app"
-API = st.session_state.get("api_base")
-if not API or API in ["http://localhost:8000", "http://127.0.0.1:8000"]:
-    API = DEFAULT_API
+
+import os
+
+
+def _get_api_base():
+    return st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+
 
 
 def _get(path):
@@ -20,13 +23,14 @@ def _get(path):
     if key:
         headers["X-API-Key"] = key
     try:
-        return _r.get(f"{API}{path}", headers=headers, timeout=10)
+        return _r.get(f"{_get_api_base()}{path}", headers=headers, timeout=10)
     except _r.ConnectionError:
         return None
 
 
-st.title("AI Playground")
-st.markdown("Test the full pipeline: Raw Data → Analytics → Analytical Context → AI Interpretation")
+st.title("⚡ Insight Studio & API Sandbox")
+st.markdown("Banc d'essai d'API pour les développeurs et décideurs : Validation de schémas, tests de charge et simulation d'inférence IA en direct.")
+
 
 st.markdown("""
 1. Select an application and dataset
@@ -93,11 +97,11 @@ if st.button("Run Full Pipeline", type="primary"):
         st.warning("Please select Application, Dataset, provide Data, and ensure API Key is provided.")
         st.stop()
 
-    API = st.session_state.get("api_base", DEFAULT_API)
+    api_target = _get_api_base()
     with st.spinner("Running analytics + AI interpretation..."):
         try:
             r = _r.post(
-                f"{API}/api/v1/analyze",
+                f"{api_target}/api/v1/analyze",
                 json={
                     "application": selected_app,
                     "dataset": selected_ds,
@@ -109,7 +113,7 @@ if st.button("Run Full Pipeline", type="primary"):
                 timeout=60,
             )
         except _r.ConnectionError:
-            st.error(f"Cannot reach API at {API}. Is the backend running?")
+            st.error(f"Cannot reach API at {api_target}. Is the backend running?")
             st.stop()
 
     if r.status_code != 200:

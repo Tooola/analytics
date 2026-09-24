@@ -1,0 +1,18 @@
+{
+  "application": "demo-app",
+  "dataset": "demo-sales",
+  "analysis": ["summary", "trend", "anomaly"],
+  "include_ai": true,
+  "data": [
+    { "date": "2026-09-01", "product": "Widget A", "quantity": 12, "unit_price": 25.00, "revenue": 300.00, "cost": 150.00 },
+    { "date": "2026-09-02", "product": "Widget B", "quantity": 25, "unit_price": 35.00, "revenue": 875.00, "cost": 425.00 },
+    { "date": "2026-09-03", "product": "Gadget X", "quantity": 8, "unit_price": 120.00, "revenue": 960.00, "cost": 480.00 },
+    { "date": "2026-09-04", "product": "Widget A", "quantity": 18, "unit_price": 26.50, "revenue": 477.00, "cost": 230.00 },
+    { "date": "2026-09-05", "product": "Tool Z", "quantity": 5, "unit_price": 45.00, "revenue": 225.00, "cost": 110.00 },
+    { "date": "2026-09-06", "product": "Gadget X", "quantity": 15, "unit_price": 120.00, "revenue": 1800.00, "cost": 900.00 },
+    { "date": "2026-09-07", "product": "Widget B", "quantity": 40, "unit_price": 35.00, "revenue": 1400.00, "cost": 700.00 },
+    { "date": "2026-09-08", "product": "Widget A", "quantity": 14, "unit_price": 27.00, "revenue": 378.00, "cost": 180.00 },
+    { "date": "2026-09-09", "product": "Tool Z", "quantity": 150, "unit_price": 45.00, "revenue": 6750.00, "cost": 3000.00 },
+    { "date": "2026-09-10", "product": "Gadget X", "quantity": 10, "unit_price": 122.00, "revenue": 1220.00, "cost": 610.00 }
+  ]
+}

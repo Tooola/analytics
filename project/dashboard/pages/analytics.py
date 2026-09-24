@@ -8,10 +8,12 @@ import pandas as pd
 import requests as _r
 import streamlit as st
 
-DEFAULT_API = "https://scintillating-kindness-production-d038.up.railway.app"
-API = st.session_state.get("api_base")
-if not API or API in ["http://localhost:8000", "http://127.0.0.1:8000"]:
-    API = DEFAULT_API
+import os
+
+
+def _get_api_base():
+    return st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+
 
 
 def _get(path):
@@ -20,7 +22,7 @@ def _get(path):
     if key:
         headers["X-API-Key"] = key
     try:
-        return _r.get(f"{API}{path}", headers=headers, timeout=10)
+        return _r.get(f"{_get_api_base()}{path}", headers=headers, timeout=10)
     except _r.ConnectionError:
         return None
 
@@ -135,8 +137,9 @@ if st.button("Lancer l'analyse", type="primary"):
     else:
         with st.spinner("Running analysis..."):
             try:
+                api_target = _get_api_base()
                 r = _r.post(
-                    f"{API}/api/v1/analyze",
+                    f"{api_target}/api/v1/analyze",
                     json={
                         "application": selected_app,
                         "dataset": selected_ds,
@@ -148,7 +151,7 @@ if st.button("Lancer l'analyse", type="primary"):
                     timeout=60,
                 )
             except _r.ConnectionError:
-                st.error("Cannot reach API.")
+                st.error(f"Cannot reach API at {_get_api_base()}.")
                 st.stop()
 
             if r.status_code == 200:

@@ -37,11 +37,26 @@ class DatasetFieldRead(BaseModel):
     description: str | None
 
 
+import re
+
+
 class DatasetBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    slug: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9][-a-z0-9]*$")
+    slug: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
     fields: list[DatasetFieldCreate] = Field(..., min_length=1)
+
+    @field_validator("slug", mode="before")
+    @classmethod
+    def auto_slugify(cls, v: str) -> str:
+        if not v or not str(v).strip():
+            return v
+        clean = str(v).lower().strip()
+        clean = re.sub(r'[^a-z0-9\s-]', '', clean)
+        clean = re.sub(r'[\s_]+', '-', clean)
+        clean = re.sub(r'-+', '-', clean).strip('-')
+        return clean or "dataset"
+
 
 
 class DatasetCreate(DatasetBase):

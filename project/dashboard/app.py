@@ -18,8 +18,8 @@ st.set_page_config(
 import os
 from pathlib import Path
 
-DEFAULT_API_BASE = "https://scintillating-kindness-production-d038.up.railway.app"
-API_BASE = os.environ.get("API_BASE_URL", DEFAULT_API_BASE)
+DEFAULT_API_BASE = os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+API_BASE = DEFAULT_API_BASE
 
 try:
     if hasattr(st, "secrets"):
@@ -30,10 +30,8 @@ try:
 except Exception:
     pass
 
-
-
-# Always overwrite session state so stale cached values (e.g. localhost:8000) are never used
-st.session_state["api_base"] = API_BASE
+if "api_base" not in st.session_state or not st.session_state["api_base"]:
+    st.session_state["api_base"] = API_BASE
 st.session_state.setdefault("api_key", "")
 
 

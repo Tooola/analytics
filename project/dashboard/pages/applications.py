@@ -5,10 +5,12 @@ from __future__ import annotations
 import requests as _r
 import streamlit as st
 
-DEFAULT_API = "https://scintillating-kindness-production-d038.up.railway.app"
-API = st.session_state.get("api_base")
-if not API or API in ["http://localhost:8000", "http://127.0.0.1:8000"]:
-    API = DEFAULT_API
+import os
+
+
+def _get_api_base():
+    return st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+
 
 
 def _get_headers():
@@ -18,21 +20,21 @@ def _get_headers():
 
 def _get(path):
     try:
-        return _r.get(f"{API}{path}", headers=_get_headers(), timeout=10)
+        return _r.get(f"{_get_api_base()}{path}", headers=_get_headers(), timeout=10)
     except _r.ConnectionError:
         return None
 
 
 def _post(path, json_data=None):
     try:
-        return _r.post(f"{API}{path}", json=json_data, headers=_get_headers(), timeout=10)
+        return _r.post(f"{_get_api_base()}{path}", json=json_data, headers=_get_headers(), timeout=10)
     except _r.ConnectionError:
         return None
 
 
 def _delete(path):
     try:
-        return _r.delete(f"{API}{path}", headers=_get_headers(), timeout=10)
+        return _r.delete(f"{_get_api_base()}{path}", headers=_get_headers(), timeout=10)
     except _r.ConnectionError:
         return None
 

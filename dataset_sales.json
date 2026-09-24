@@ -1,0 +1,17 @@
+[
+  { "date": "2026-09-01", "product": "Widget Alpha", "category": "Electronique", "quantity": 12, "unit_price": 49.99, "revenue": 599.88, "cost": 300.00, "region": "Europe" },
+  { "date": "2026-09-02", "product": "Widget Beta", "category": "Electronique", "quantity": 25, "unit_price": 29.99, "revenue": 749.75, "cost": 375.00, "region": "Europe" },
+  { "date": "2026-09-03", "product": "Gadget Pro", "category": "Accessoires", "quantity": 8, "unit_price": 120.00, "revenue": 960.00, "cost": 480.00, "region": "Amerique du Nord" },
+  { "date": "2026-09-04", "product": "Widget Alpha", "category": "Electronique", "quantity": 18, "unit_price": 49.99, "revenue": 899.82, "cost": 450.00, "region": "Asie" },
+  { "date": "2026-09-05", "product": "Tool Max", "category": "Outillage", "quantity": 5, "unit_price": 250.00, "revenue": 1250.00, "cost": 750.00, "region": "Europe" },
+  { "date": "2026-09-06", "product": "Gadget Pro", "category": "Accessoires", "quantity": 15, "unit_price": 120.00, "revenue": 1800.00, "cost": 900.00, "region": "Amerique du Nord" },
+  { "date": "2026-09-07", "product": "Widget Beta", "category": "Electronique", "quantity": 40, "unit_price": 29.99, "revenue": 1199.60, "cost": 600.00, "region": "Europe" },
+  { "date": "2026-09-08", "product": "Widget Alpha", "category": "Electronique", "quantity": 14, "unit_price": 49.99, "revenue": 699.86, "cost": 350.00, "region": "Asie" },
+  { "date": "2026-09-09", "product": "Tool Max", "category": "Outillage", "quantity": 150, "unit_price": 250.00, "revenue": 37500.00, "cost": 22500.00, "region": "Amerique du Nord" },
+  { "date": "2026-09-10", "product": "Gadget Pro", "category": "Accessoires", "quantity": 10, "unit_price": 120.00, "revenue": 1200.00, "cost": 600.00, "region": "Europe" },
+  { "date": "2026-09-11", "product": "Widget Alpha", "category": "Electronique", "quantity": 22, "unit_price": 49.99, "revenue": 1099.78, "cost": 550.00, "region": "Europe" },
+  { "date": "2026-09-12", "product": "Widget Beta", "category": "Electronique", "quantity": 30, "unit_price": 29.99, "revenue": 899.70, "cost": 450.00, "region": "Asie" },
+  { "date": "2026-09-13", "product": "Tool Max", "category": "Outillage", "quantity": 7, "unit_price": 250.00, "revenue": 1750.00, "cost": 1050.00, "region": "Europe" },
+  { "date": "2026-09-14", "product": "Gadget Pro", "category": "Accessoires", "quantity": 12, "unit_price": 120.00, "revenue": 1440.00, "cost": 720.00, "region": "Amerique du Nord" },
+  { "date": "2026-09-15", "product": "Widget Alpha", "category": "Electronique", "quantity": 35, "unit_price": 49.99, "revenue": 1749.65, "cost": 875.00, "region": "Europe" }
+]

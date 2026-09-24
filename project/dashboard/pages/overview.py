@@ -11,11 +11,12 @@ st.markdown("Platform-wide summary and health status.")
 # Health
 resp = st.session_state_api_get() if hasattr(st, "session_state_api_get") else None
 
-# Use the helper from app.py
-DEFAULT_API = "https://scintillating-kindness-production-d038.up.railway.app"
-API = st.session_state.get("api_base")
-if not API or API in ["http://localhost:8000", "http://127.0.0.1:8000"]:
-    API = DEFAULT_API
+import os
+
+
+def _get_api_base():
+    return st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+
 
 
 def _get(path):
@@ -24,7 +25,7 @@ def _get(path):
     if key:
         headers["X-API-Key"] = key
     try:
-        return _r.get(f"{API}{path}", headers=headers, timeout=10)
+        return _r.get(f"{_get_api_base()}{path}", headers=headers, timeout=10)
     except _r.ConnectionError:
         return None
 
