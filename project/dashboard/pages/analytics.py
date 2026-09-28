@@ -11,13 +11,18 @@ import sys
 from pathlib import Path
 
 dashboard_dir = Path(__file__).parent.parent
-if str(dashboard_dir) not in sys.path:
-    sys.path.append(str(dashboard_dir))
+project_dir = dashboard_dir.parent
+for d in (str(dashboard_dir), str(project_dir)):
+    if d not in sys.path:
+        sys.path.insert(0, d)
 
 try:
     from components.bi_report import render_bi_report
-except ImportError:
-    from dashboard.components.bi_report import render_bi_report
+except ModuleNotFoundError as e:
+    if e.name and ("components" in e.name or "dashboard" in e.name):
+        from dashboard.components.bi_report import render_bi_report
+    else:
+        raise
 
 
 
