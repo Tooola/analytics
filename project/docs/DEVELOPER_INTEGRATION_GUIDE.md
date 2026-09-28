@@ -1,6 +1,9 @@
 # Open Analytics AI — Guide d'Explication & d'Intégration Développeur
 
 > **Plateforme réutilisable d'analyses, de détection d'anomalies et d'insights IA pour écosystèmes multi-applications (Farmtinz, CRMtinz, Sharetinz, etc.).**
+>
+> 🌐 **URL de Production (Railway)** : `https://scintillating-kindness-production-d038.up.railway.app`  
+> 💻 **URL Locale (Développement)** : `http://localhost:8000`
 
 ---
 
@@ -26,7 +29,7 @@ Open Analytics AI est un moteur backend centralisé qui reçoit des données bru
 │ ├─────────────────────────────────────────────────────────┤ │
 │ │ 4. Moteur d'Insights (Règles Métier & Sévérité)          │ │
 │ ├─────────────────────────────────────────────────────────┤ │
-│ │ 5. Moteur IA Privacy-First (MockAI / Ollama Local LLM)   │ │
+│ │ 5. Moteur IA Privacy-First (Mock / Gemini / Groq / Ollama)│ │
 │ └────────────────────────────┬────────────────────────────┘ │
 └──────────────────────────────┼──────────────────────────────┘
                                │ Stockage ORM
@@ -48,391 +51,493 @@ Open Analytics AI est un moteur backend centralisé qui reçoit des données bru
 Le système garantit que **les données personnelles ou confidentielles brutes ne sont jamais transmises aux modèles de langage (LLM)**.
 
 - Les modules d'analyse calculent des agrégats anonymisés (`AnalyticalContext` : moyennes, pentes de tendance, nombres d'anomalies, types d'insights).
-- Seul cet agrégat statistique est envoyé au fournisseur IA (`MockAIProvider` ou `LocalLLMProvider`).
+- Seul cet agrégat statistique anonymisé est envoyé au fournisseur IA (`MockAIProvider`, `GeminiProvider`, `GroqProvider` ou `LocalLLMProvider`).
 
 ---
 
-## 3. 🚀 Guide d'Installation & Démarrage Rapide
+## 3. 🌐 Environnements & URLs de Base
 
-### Prérequis
-- Python 3.10+
-- (Optionnel) Docker & Docker Compose
+L'API est accessible dans deux environnements :
 
-### Lancement avec Docker (Recommandé)
-```bash
-docker compose up
-```
-- **API FastAPI** : `http://localhost:8000`
-- **Documentation OpenAPI (Swagger)** : `http://localhost:8000/docs`
-- **Dashboard Admin Streamlit** : `http://localhost:8501`
+| Environnement | Base URL | Usage |
+| :--- | :--- | :--- |
+| **Production (Railway)** | `https://scintillating-kindness-production-d038.up.railway.app` | Déploiement en ligne & intégration d'applications distantes |
+| **Local (Docker / Uvicorn)** | `http://localhost:8000` | Développement & tests locaux |
 
-### Lancement Manuel en Local
-```bash
-# 1. Se placer dans le répertoire backend
-cd backend
-
-# 2. Créer et activer l'environnement virtuel
-python -m venv .venv
-.venv\Scripts\activate      # Windows
-# source .venv/bin/activate # Linux/Mac
-
-# 3. Installer les dépendances
-pip install -r requirements.txt
-
-# 4. Copier le fichier d'environnement
-copy ..\.env.example .env
-
-# 5. Démarrer l'API
-uvicorn app.main:app --reload --port 8000
-
-# 6. (Dans un autre terminal) Démarrer le Dashboard Streamlit
-cd dashboard
-streamlit run app.py
-```
+> 💡 **Documentation Swagger Interactive (OpenAPI)** :
+> - Production : `https://scintillating-kindness-production-d038.up.railway.app/docs`
+> - Local : `http://localhost:8000/docs`
 
 ---
 
 ## 4. 🛠️ Guide d'Intégration Développeur (Pas-à-Pas)
 
-Pour intégrer une nouvelle application (ex: `Farmtinz`) au moteur d'analyse, suivez ces 3 étapes.
+Pour intégrer une nouvelle application (exemple : `Farmtinz`) au moteur d'analyse, suivez ces 3 étapes.
 
 ---
 
 ### Étape 1 : Enregistrer votre Application (Obtenir une Clé API)
 
-Effectuez une requête `POST` pour déclarer l'application. Vous recevrez une clé API unique (ex: `oak_live_...`).
+Effectuez une requête `POST /api/v1/applications` pour déclarer votre application. Vous recevrez une clé API unique (`oak_live_...`).
 
+#### Requête :
 ```bash
-curl -X POST "http://localhost:8000/api/v1/applications" \
+curl -X POST "https://scintillating-kindness-production-d038.up.railway.app/api/v1/applications" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Farmtinz",
-    "description": "Application de gestion agricole",
-    "status": "active"
+    "description": "Application de suivi des récoltes et météo agricole"
   }'
 ```
 
-**Réponse (`201 Created`)** :
+#### Réponse (`201 Created`) :
 ```json
 {
-  "id": "app_9f8d1a2b",
+  "id": "app_9f8d1a2b3c4d",
   "name": "Farmtinz",
   "slug": "farmtinz",
   "status": "active",
-  "api_key": "oak_live_abc123xyz456...",
+  "api_key": "oak_live_a1b2c3d4e5f67890123456789abcdef",
   "created_at": "2026-09-01T18:00:00Z"
 }
 ```
 
-> ⚠️ **IMPORTANT** : Conservez la clé `api_key` en lieu sûr (dans votre fichier d'environnement `.env`). Elle ne sera plus réaffichée par l'API.
+> ⚠️ **IMPORTANT** : Conservez la clé `api_key` en lieu sûr (dans le fichier `.env` de votre serveur backend). Elle ne sera affichée qu'une seule fois.
 
 ---
 
 ### Étape 2 : Déclarer le Schéma du Jeu de Données (Dataset)
 
-Déclarez la structure des données que vous allez transmettre (nom des colonnes, types techniques et sémantiques).
+Déclarez la structure des données que votre application va transmettre (nom des colonnes, types techniques, types sémantiques et unités).
 
+Exemple pour le dataset agricole **`farmtinz-harvest`** :
+
+#### Requête :
 ```bash
-curl -X POST "http://localhost:8000/api/v1/datasets" \
+curl -X POST "https://scintillating-kindness-production-d038.up.railway.app/api/v1/datasets" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: oak_live_abc123xyz456..." \
+  -H "X-API-Key: oak_live_a1b2c3d4e5f67890123456789abcdef" \
   -d '{
     "application_slug": "farmtinz",
-    "name": "Récoltes et Ventes",
-    "slug": "harvest-sales",
-    "description": "Suivi hebdomadaire des récoltes et revenus",
+    "name": "Farmtinz Harvest",
+    "slug": "farmtinz-harvest",
+    "description": "Suivi des récoltes, parcelles et météo agricole",
     "fields": [
-      {"name": "date", "type": "date", "semantic_type": "date", "required": true},
-      {"name": "culture", "type": "string", "semantic_type": "category", "required": true},
-      {"name": "quantite_kg", "type": "integer", "semantic_type": "quantity", "unit": "kg", "required": true},
-      {"name": "prix_unitaire", "type": "float", "semantic_type": "cost", "unit": "EUR", "required": true},
-      {"name": "revenu_total", "type": "float", "semantic_type": "revenue", "unit": "EUR", "required": true}
+      {"name": "date", "technical_type": "date", "semantic_type": "date", "required": true},
+      {"name": "parcel_id", "technical_type": "string", "semantic_type": "identifier", "required": true},
+      {"name": "crop_type", "technical_type": "string", "semantic_type": "category", "required": true},
+      {"name": "surface_ha", "technical_type": "float", "semantic_type": "quantity", "unit": "ha", "required": true},
+      {"name": "yield_kg", "technical_type": "float", "semantic_type": "quantity", "unit": "kg", "required": true},
+      {"name": "temperature_c", "technical_type": "float", "semantic_type": "metric", "unit": "°C", "required": false},
+      {"name": "rainfall_mm", "technical_type": "float", "semantic_type": "metric", "unit": "mm", "required": false},
+      {"name": "humidity_pct", "technical_type": "integer", "semantic_type": "metric", "unit": "%", "required": false}
     ]
   }'
+```
+
+#### Réponse (`201 Created`) :
+```json
+{
+  "id": "ds_7a8b9c0d1e2f",
+  "application_id": "app_9f8d1a2b3c4d",
+  "name": "Farmtinz Harvest",
+  "slug": "farmtinz-harvest",
+  "description": "Suivi des récoltes, parcelles et météo agricole",
+  "fields": [
+    {"id": "fld_1", "name": "date", "technical_type": "date", "semantic_type": "date", "unit": null, "required": true},
+    {"id": "fld_2", "name": "parcel_id", "technical_type": "string", "semantic_type": "identifier", "unit": null, "required": true},
+    {"id": "fld_3", "name": "crop_type", "technical_type": "string", "semantic_type": "category", "unit": null, "required": true},
+    {"id": "fld_4", "name": "surface_ha", "technical_type": "float", "semantic_type": "quantity", "unit": "ha", "required": true},
+    {"id": "fld_5", "name": "yield_kg", "technical_type": "float", "semantic_type": "quantity", "unit": "kg", "required": true},
+    {"id": "fld_6", "name": "temperature_c", "technical_type": "float", "semantic_type": "metric", "unit": "°C", "required": false},
+    {"id": "fld_7", "name": "rainfall_mm", "technical_type": "float", "semantic_type": "metric", "unit": "mm", "required": false},
+    {"id": "fld_8", "name": "humidity_pct", "technical_type": "integer", "semantic_type": "metric", "unit": "%", "required": false}
+  ],
+  "created_at": "2026-09-01T18:05:00Z",
+  "updated_at": "2026-09-01T18:05:00Z"
+}
 ```
 
 ---
 
 ### Étape 3 : Soumettre les Données & Récupérer l'Analyse + Insights
 
-Envoyez vos données directement au point de terminaison `/api/v1/analyze`.
+Envoyez les enregistrements bruts au point de terminaison `POST /api/v1/analyze`. Le moteur validera la structure, exécutera les modules statistiques (`summary`, `trend`, `anomaly`) et générera l'interprétation par l'IA si `include_ai: true`.
 
+#### Requête :
 ```bash
-curl -X POST "http://localhost:8000/api/v1/analyze" \
+curl -X POST "https://scintillating-kindness-production-d038.up.railway.app/api/v1/analyze" \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: oak_live_abc123xyz456..." \
+  -H "X-API-Key: oak_live_a1b2c3d4e5f67890123456789abcdef" \
   -d '{
-    "application_slug": "farmtinz",
-    "dataset_slug": "harvest-sales",
+    "application": "farmtinz",
+    "dataset": "farmtinz-harvest",
     "analysis": ["summary", "trend", "anomaly"],
     "include_ai": true,
     "data": [
-      {"date": "2026-08-01", "culture": "Maïs", "quantite_kg": 500, "prix_unitaire": 1.2, "revenu_total": 600.0},
-      {"date": "2026-08-08", "culture": "Maïs", "quantite_kg": 550, "prix_unitaire": 1.25, "revenu_total": 687.5},
-      {"date": "2026-08-15", "culture": "Maïs", "quantite_kg": 1200, "prix_unitaire": 1.3, "revenu_total": 1560.0}
+      {"date": "2026-09-01", "parcel_id": "P_01", "crop_type": "Maïs", "surface_ha": 12.5, "yield_kg": 4500, "temperature_c": 24.5, "rainfall_mm": 12.0, "humidity_pct": 65},
+      {"date": "2026-09-02", "parcel_id": "P_02", "crop_type": "Blé", "surface_ha": 8.0, "yield_kg": 3200, "temperature_c": 22.0, "rainfall_mm": 5.5, "humidity_pct": 58},
+      {"date": "2026-09-03", "parcel_id": "P_03", "crop_type": "Soja", "surface_ha": 15.0, "yield_kg": 5100, "temperature_c": 26.1, "rainfall_mm": 0.0, "humidity_pct": 50},
+      {"date": "2026-09-04", "parcel_id": "P_01", "crop_type": "Maïs", "surface_ha": 12.5, "yield_kg": 4650, "temperature_c": 25.0, "rainfall_mm": 25.0, "humidity_pct": 80},
+      {"date": "2026-09-05", "parcel_id": "P_04", "crop_type": "Tournesol", "surface_ha": 10.0, "yield_kg": 2800, "temperature_c": 28.4, "rainfall_mm": 0.0, "humidity_pct": 42},
+      {"date": "2026-09-06", "parcel_id": "P_02", "crop_type": "Blé", "surface_ha": 8.0, "yield_kg": 3400, "temperature_c": 21.5, "rainfall_mm": 8.0, "humidity_pct": 62},
+      {"date": "2026-09-07", "parcel_id": "P_03", "crop_type": "Soja", "surface_ha": 15.0, "yield_kg": 12000, "temperature_c": 27.0, "rainfall_mm": 45.0, "humidity_pct": 88},
+      {"date": "2026-09-08", "parcel_id": "P_01", "crop_type": "Maïs", "surface_ha": 12.5, "yield_kg": 4800, "temperature_c": 23.8, "rainfall_mm": 2.0, "humidity_pct": 55}
     ]
   }'
 ```
 
-**Exemple de Réponse Complète** :
+#### Réponse de l'API (`200 OK`) :
 ```json
 {
-  "analysis_id": "run_88f12a",
+  "id": "run_9a8b7c6d5e4f",
+  "application": "farmtinz",
+  "dataset": "farmtinz-harvest",
   "status": "completed",
-  "summary": [
-    {
-      "column": "quantite_kg",
-      "count": 3,
-      "mean": 750.0,
-      "median": 550.0,
-      "min": 500,
-      "max": 1200,
-      "std": 390.5125
-    }
-  ],
-  "trends": [
-    {
-      "column": "revenu_total",
-      "direction": "increasing",
-      "slope": 480.0,
-      "percentage_change": 160.0
-    }
-  ],
-  "anomalies": [
-    {
-      "column": "quantite_kg",
-      "row_index": 2,
-      "value": 1200,
-      "reason": "Z-score 2.15 dépasse le seuil"
-    }
-  ],
+  "row_count": 8,
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "row_count": 8
+  },
+  "results": {
+    "summary": [
+      {
+        "column": "yield_kg",
+        "count": 8,
+        "mean": 5056.25,
+        "median": 4575.0,
+        "min": 2800.0,
+        "max": 12000.0,
+        "std": 2901.87
+      },
+      {
+        "column": "rainfall_mm",
+        "count": 8,
+        "mean": 12.19,
+        "median": 6.75,
+        "min": 0.0,
+        "max": 45.0,
+        "std": 15.34
+      }
+    ],
+    "trend": [
+      {
+        "column": "yield_kg",
+        "direction": "up",
+        "change_pct": 6.67,
+        "first_value": 4500.0,
+        "last_value": 4800.0,
+        "periods": 8
+      }
+    ],
+    "anomaly": [
+      {
+        "column": "yield_kg",
+        "method": "zscore",
+        "count": 1,
+        "anomalies": [
+          {
+            "row": 6,
+            "value": 12000.0,
+            "z_score": 2.39,
+            "reason": "La valeur 12000.0 kg pour yield_kg est supérieure de 2.39 écarts-types à la moyenne."
+          }
+        ]
+      }
+    ]
+  },
   "insights": [
     {
-      "type": "opportunity",
-      "severity": "HIGH",
-      "title": "Forte hausse du revenu_total",
-      "description": "Le revenu total présente une tendance à la hausse (+160.0%)."
+      "type": "anomaly",
+      "severity": "high",
+      "title": "Anomalie détectée sur yield_kg",
+      "description": "La parcelle P_03 a enregistré un rendement atypique de 12 000 kg le 2026-09-07."
+    },
+    {
+      "type": "trend",
+      "severity": "medium",
+      "title": "Tendance à la hausse du rendement",
+      "description": "Le rendement yield_kg affiche une progression globale de +6.67% sur les 8 périodes observées."
     }
   ],
   "ai_interpretation": {
-    "summary_text": "Les performances de ventes pour Maïs affichent une forte croissance impulsée par la hausse des volumes récoltés.",
+    "summary": "L'analyse des 8 relevés de récolte montre une production moyenne de 5 056 kg. Un pic exceptionnel de 12 000 kg sur le Soja (Parcelle P_03) coïncide avec une pluviométrie forte de 45 mm.",
     "recommendations": [
-      "Augmenter la capacité de stockage pour les récoltes de Maïs.",
-      "Surveiller le pic de quantité à 1200 kg pour s'assurer de la stabilité logistique."
+      "Vérifier si la valeur de 12 000 kg sur la parcelle P_03 provient d'une erreur de saisie ou d'un apport d'irrigation exceptionnel.",
+      "Consolider les capacités de stockage pour les récoltes de Soja en période de forte pluviométrie."
     ]
-  }
+  },
+  "created_at": "2026-09-24T18:10:00Z"
 }
 ```
 
 ---
 
-## 5. 💻 Exemples de Code Client
+## 5. 💻 Exemples de Code Client Prêts à l'Emploi
 
-> ⚠️ **IMPORTANT — Principe de sécurité fondamental**
+> ⚠️ **IMPORTANT — Principe de Sécurité Fondamental**
 >
-> L'API Key doit rester **exclusivement côté backend**. Ne placez jamais une API Key dans :
-> - une variable d'environnement React (`REACT_APP_*`)
-> - une variable d'environnement Next.js publique (`NEXT_PUBLIC_*`)
-> - du code JavaScript livré au navigateur
+> La clé d'API (`X-API-Key`) **ne doit JAMAIS être exposée dans le code frontend** (navigateur, React, Next.js public, application mobile).
 >
-> **Architecture correcte :**
+> **Architecture d'Intégration Recommandée :**
 > ```
-> React → Votre Backend → Open Analytics AI API
+> Application Frontend (React/Mobile)
+>              │
+>              ▼ Requête interne sans clé API
+> Votre Backend Serveur (FastAPI / Node / Django)
+>              │
+>              ▼ HTTP POST /api/v1/analyze avec X-API-Key
+> Open Analytics AI API
 > ```
 
-### Backend Python/FastAPI (`analytics_service.py`)
+---
 
-Cet exemple montre comment votre backend FastAPI appelle Analytics AI avec la clé secrète :
+### A. Intégration Backend Python / FastAPI (`analytics_service.py`)
+
+Ce service serveur conserve la clé `ANALYTICS_API_KEY` en sécurité et effectue les requêtes vers Open Analytics AI.
 
 ```python
-# Votre backend — ex: farmtinz_backend/services/analytics.py
+# your_backend/services/analytics_service.py
 import os
 import httpx
+from typing import Any
 
-ANALYTICS_API_URL = os.environ["ANALYTICS_API_URL"]
-ANALYTICS_API_KEY = os.environ["ANALYTICS_API_KEY"]  # variable serveur — jamais dans le frontend
+ANALYTICS_API_URL = os.environ.get(
+    "ANALYTICS_API_URL", 
+    "https://scintillating-kindness-production-d038.up.railway.app"
+).rstrip("/")
 
-async def run_analysis(app_slug: str, dataset_slug: str, data: list[dict]) -> dict:
-    """Appelle Analytics AI depuis le backend — la clé API ne quitte jamais le serveur."""
+ANALYTICS_API_KEY = os.environ["ANALYTICS_API_KEY"]  # Clé secrète stockée sur votre serveur
+
+async def analyze_farmtinz_harvest(harvest_records: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Envoie les relevés de récolte à Open Analytics AI et retourne les résultats.
+    """
     payload = {
-        "application": app_slug,
-        "dataset": dataset_slug,
+        "application": "farmtinz",
+        "dataset": "farmtinz-harvest",
         "analysis": ["summary", "trend", "anomaly"],
         "include_ai": True,
-        "data": data,
+        "data": harvest_records,
     }
-    async with httpx.AsyncClient(timeout=30) as client:
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             f"{ANALYTICS_API_URL}/api/v1/analyze",
             json=payload,
             headers={
                 "Content-Type": "application/json",
-                "X-API-Key": ANALYTICS_API_KEY,  # clé serveur uniquement
+                "X-API-Key": ANALYTICS_API_KEY,
             },
         )
         response.raise_for_status()
         return response.json()
 ```
 
+#### Route Backend exposée à vos clients (React / Mobile) :
 ```python
-# Votre backend — route exposée à React (sans clé secrète)
-from fastapi import APIRouter
+# your_backend/api/routes/analytics.py
+from fastapi import APIRouter, HTTPException
+from your_backend.services.analytics_service import analyze_farmtinz_harvest
+
 router = APIRouter()
 
-@router.post("/api/internal/analytics")
-async def get_analytics(data: list[dict]):
-    results = await run_analysis("farmtinz", "harvest-sales", data)
-    return results  # React reçoit les résultats, jamais la clé
+@router.post("/api/v1/internal/farmtinz/analyze")
+async def run_farmtinz_analysis(records: list[dict]):
+    try:
+        results = await analyze_farmtinz_harvest(records)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur d'analyse : {str(e)}")
 ```
 
-### Frontend React (`HarvestDashboard.jsx`)
+---
 
-React appelle **votre backend** — jamais Analytics API directement :
+### B. Client Python Synchrone (SDK Léger)
+
+Utile pour les scripts de traitement de données ou les tâches batch :
+
+```python
+import os
+import requests
+
+class OpenAnalyticsClient:
+    def __init__(self, api_url: str | None = None, api_key: str | None = None):
+        base = api_url or os.environ.get("ANALYTICS_API_URL", "https://scintillating-kindness-production-d038.up.railway.app")
+        self.api_url = base.rstrip("/")
+        self.api_key = api_key or os.environ["ANALYTICS_API_KEY"]
+        self._headers = {
+            "Content-Type": "application/json",
+            "X-API-Key": self.api_key,
+        }
+
+    def analyze(self, application: str, dataset: str, data: list[dict], include_ai: bool = True) -> dict:
+        url = f"{self.api_url}/api/v1/analyze"
+        payload = {
+            "application": application,
+            "dataset": dataset,
+            "analysis": ["summary", "trend", "anomaly"],
+            "include_ai": include_ai,
+            "data": data,
+        }
+        resp = requests.post(url, json=payload, headers=self._headers, timeout=30)
+        resp.raise_for_status()
+        return resp.json()
+
+# Exemple d'utilisation :
+if __name__ == "__main__":
+    client = OpenAnalyticsClient()
+    data = [
+        {"date": "2026-09-01", "parcel_id": "P_01", "crop_type": "Maïs", "surface_ha": 12.5, "yield_kg": 4500},
+        {"date": "2026-09-02", "parcel_id": "P_02", "crop_type": "Blé", "surface_ha": 8.0, "yield_kg": 3200},
+    ]
+    report = client.analyze("farmtinz", "farmtinz-harvest", data)
+    print("Recommandations IA :", report.get("ai_interpretation", {}).get("recommendations"))
+```
+
+---
+
+### C. Intégration Frontend React (`HarvestAnalytics.jsx`)
+
+Le composant React interroge **votre backend intermédiaire**, garantissant la sécurité de la clé API.
 
 ```jsx
-// React appelle VOTRE backend — aucune API Key ici
-async function fetchAnalytics(harvestData) {
-  const response = await fetch('/api/internal/analytics', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(harvestData),
-    // Pas de X-API-Key — la clé reste sur votre serveur
-  });
-  return response.json();
-}
+import React, { useState, useEffect } from 'react';
 
-function AnalyticsDashboard({ harvestData }) {
-  const [results, setResults] = useState(null);
+export function HarvestAnalytics({ harvestData }) {
+  const [analysis, setAnalysis] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchAnalytics(harvestData).then(setResults);
+    async function fetchAnalysis() {
+      try {
+        setLoading(true);
+        // Appelle VOTRE serveur backend — Aucune clé API exposée dans le navigateur
+        const response = await fetch('/api/v1/internal/farmtinz/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(harvestData),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        setAnalysis(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (harvestData && harvestData.length > 0) {
+      fetchAnalysis();
+    }
   }, [harvestData]);
 
-  if (!results) return <LoadingSpinner />;
+  if (loading) return <div className="spinner">Analyse des données en cours...</div>;
+  if (error) return <div className="alert-error">Impossible de charger l'analyse : {error}</div>;
+  if (!analysis) return null;
 
   return (
-    <div>
-      <h2>Résumé statistique</h2>
-      <SummaryCards data={results.results?.summary} />
+    <div className="analytics-card">
+      <h2>📊 Tableau de Bord d'Analyse Farmtinz</h2>
 
-      <h2>Tendances</h2>
-      <TrendChart data={results.results?.trend} />
+      {/* Interprétation & Recommandations IA */}
+      {analysis.ai_interpretation && (
+        <div className="ai-section">
+          <h3>🤖 Synthèse & Recommandations IA</h3>
+          <p>{analysis.ai_interpretation.summary}</p>
+          <ul>
+            {analysis.ai_interpretation.recommendations?.map((rec, idx) => (
+              <li key={idx}>{rec}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-      <h2>Anomalies</h2>
-      <AnomalyList data={results.results?.anomaly} />
-
-      <h2>Insights</h2>
-      <InsightCards data={results.insights} />
+      {/* Alertes d'Insights & Anomalies */}
+      {analysis.insights && analysis.insights.length > 0 && (
+        <div className="insights-section">
+          <h3>⚠️ Insights & Alertes</h3>
+          {analysis.insights.map((insight, idx) => (
+            <div key={idx} className={`insight-item severity-${insight.severity}`}>
+              <strong>{insight.title}</strong> : {insight.description}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 ```
 
-### Client Python direct (backend → Analytics AI)
+---
 
-```python
-import requests
-import os
+## 6. 📋 Types Techniques et Sémantiques Supportés
 
-class OpenAnalyticsClient:
-    def __init__(self):
-        self.api_base = os.environ["ANALYTICS_API_URL"].rstrip('/')
-        # La clé est lue depuis les variables d'environnement du serveur
-        self._headers = {
-            "Content-Type": "application/json",
-            "X-API-Key": os.environ["ANALYTICS_API_KEY"],
-        }
+Lors de la définition de vos jeux de données (`POST /api/v1/datasets`), vous devez spécifier les types pour chaque champ :
 
-    def analyze(self, app_slug: str, dataset_slug: str, data: list[dict], include_ai: bool = True):
-        url = f"{self.api_base}/api/v1/analyze"
-        payload = {
-            "application": app_slug,
-            "dataset": dataset_slug,
-            "analysis": ["summary", "trend", "anomaly"],
-            "include_ai": include_ai,
-            "data": data,
-        }
-        response = requests.post(url, json=payload, headers=self._headers, timeout=30)
-        response.raise_for_status()
-        return response.json()
-```
+### Types Techniques (`technical_type` / `type`) :
+- `string` : Texte, identifiants, catégories
+- `integer` : Nombres entiers (quantités, compteurs)
+- `float` : Nombres décimaux (surfaces, prix, mesures)
+- `boolean` : Booleens (`true`/`false`)
+- `date` : Dates au format ISO `YYYY-MM-DD` ou `YYYY-MM-DDTHH:MM:SS`
+
+### Types Sémantiques (`semantic_type`) :
+- `identifier` : Clé primaire ou référence (ex: `parcel_id`, `lead_id`)
+- `date` : Champ temporel pour l'analyse de tendances
+- `category` : Variable qualitative pour le regroupement (ex: `crop_type`, `stage`)
+- `quantity` : Mesure physique ou comptage (ex: `yield_kg`, `surface_ha`)
+- `cost` / `revenue` : Valeurs monétaires (ex: `unit_price`, `total_revenue`)
+- `metric` : Indicateur environnemental ou statistique (ex: `temperature_c`, `rainfall_mm`, `humidity_pct`)
 
 ---
 
-## 6. 🧪 Exécution des Tests Unitaires
+## 7. 🧪 Tests & Validation de la Plateforme
 
-Pour s'assurer du bon fonctionnement de la plateforme :
+La suite de tests unitaires et d'intégration garantit la stabilité du moteur :
 
 ```bash
-cd backend
+# Dans le dossier project/backend :
 python -m pytest -v
 ```
 
-Tous les **41 tests** doivent être au statut `PASSED`.
+```text
+collected 72 items
+
+tests/test_ai_provider.py ......                                         [  8%]
+tests/test_analytics.py ..............                                   [ 27%]
+tests/test_api.py ....                                                   [ 33%]
+tests/test_insights.py ........                                          [ 44%]
+tests/test_security.py ..............................                    [ 86%]
+tests/test_validator.py ..........                                       [100%]
+
+============================= 72 passed in 5.83s ==============================
+```
+
+Tous les **72 tests automatisés** sont au statut `PASSED`.
 
 ---
 
-## 7. 📁 Structure des Fichiers Clés
+## 8. 🔐 Récapitulatif des Bonnes Pratiques de Sécurité
 
-- **API Routes** : [`backend/app/api/routes/`](file:///c:/Users/fayom/Downloads/analytics/project/backend/app/api/routes) (`analytics.py`, `applications.py`, `datasets.py`, `insights.py`)
-- **Moteur Analytique** : [`backend/app/services/analytics/`](file:///c:/Users/fayom/Downloads/analytics/project/backend/app/services/analytics) (`summary.py`, `trend.py`, `anomaly.py`, `validator.py`)
-- **Moteur d'Insights** : [`backend/app/services/insights/engine.py`](file:///c:/Users/fayom/Downloads/analytics/project/backend/app/services/insights/engine.py)
-- **Fournisseurs IA** : [`backend/app/services/ai/`](file:///c:/Users/fayom/Downloads/analytics/project/backend/app/services/ai) (`mock_provider.py`, `local_llm_provider.py`)
-- **Script de Démo** : [`backend/scripts/generate_demo_data.py`](file:///c:/Users/fayom/Downloads/analytics/project/backend/scripts/generate_demo_data.py)
-- **Dashboard Streamlit** : [`dashboard/app.py`](file:///c:/Users/fayom/Downloads/analytics/project/dashboard/app.py)
+1. **Jamais de clé API côté frontend** :
+   ```env
+   ❌ REACT_APP_API_KEY=oak_live_...  (exposé dans le bundle JS)
+   ✅ ANALYTICS_API_KEY=oak_live_...  (variable privée du serveur backend)
+   ```
 
----
+2. **Isolation des jeux de données** :
+   Chaque application possède sa propre clé d'API. La clé de `Farmtinz` ne peut pas accéder aux datasets de `CRMtinz`.
 
-## 8. 🔐 Security Best Practices
+3. **Confidentialité & RGPD** :
+   Aucune donnée personnelle n'est envoyée aux LLMs. Seuls les agrégats statistiques anonymisés alimentent le moteur IA.
 
-### Ne jamais exposer l'API Key dans le frontend
-
-```
-❌ REACT_APP_API_KEY=anal_xxxx    ← visible dans le bundle JS
-❌ NEXT_PUBLIC_API_KEY=anal_xxxx  ← visible dans le bundle JS
-✅ ANALYTICS_API_KEY=anal_xxxx    ← variable d'env du BACKEND uniquement
-```
-
-### Ne jamais committer une API Key
-
-```gitignore
-# .gitignore — doit toujours contenir :
-.env
-.env.local
-*.env
-```
-
-Utilisez un `.env.example` avec des placeholders uniquement :
-
-```env
-ANALYTICS_API_URL=
-ANALYTICS_API_KEY=
-```
-
-### Utiliser HTTPS en production
-
-Tous les appels backend → Analytics API doivent passer par HTTPS en production.
-
-### Révocation d'urgence
-
-Si une clé est compromise :
-
-```bash
-# Depuis votre serveur backend
-curl -X POST https://analytics.yourdomain.com/api/v1/applications/me/regenerate-key \
-  -H "X-API-Key: anal_old_key..."
-```
-
-L'ancienne clé est immédiatement invalide. Mettez à jour vos variables d'environnement.
-
-### Isolation entre applications
-
-Chaque application cliente a sa propre API Key. La clé de Farmtinz ne peut pas accéder aux données de CRMtinz — l'isolation est garantie par le système.
-
-### Limiter les données envoyées
-
-N'envoyez que les données strictement nécessaires à l'analyse demandée. La limite est de **10 000 lignes par requête**.
-
-### Gérer les erreurs proprement
-
-Vérifiez toujours `results.success` avant d'utiliser les données. Ne re-levez pas les erreurs internes brutes vers votre frontend.
+4. **Limites de volume** :
+   Le moteur accepte jusqu'à **10 000 lignes** de données par appel `/api/v1/analyze`.

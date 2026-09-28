@@ -49,6 +49,15 @@ class Settings(BaseSettings):
     dashboard_port: int = 8501
     api_base_url: str = "http://localhost:8000"
 
+    from pydantic import model_validator
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> Settings:
+        if self.app_env.lower() not in ("development", "dev", "test") and self.api_key_hash_secret == "change-me-in-production":
+            raise ValueError("API_KEY_HASH_SECRET must be configured in non-development environment")
+        return self
+
+
 
 @lru_cache
 def get_settings() -> Settings:

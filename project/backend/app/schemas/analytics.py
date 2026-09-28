@@ -95,10 +95,41 @@ class AnomalyResult(BaseModel):
     method: str = "zscore"
 
 
+class CorrelationResult(BaseModel):
+    column1: str
+    column2: str
+    coefficient: float
+    p_value: float
+    strength: str
+    relationship: str
+
+
+class DistributionResult(BaseModel):
+    column: str
+    skewness: float
+    kurtosis: float
+    percentiles: dict[str, float]
+    shapiro_p_value: float | None = None
+    is_normal: bool | None = None
+    count: int
+
+
+class ForecastResult(BaseModel):
+    column: str
+    horizon: int
+    predictions: list[dict[str, Any]]
+    trend_direction: str
+    slope: float
+
+
 class AnalysisResult(BaseModel):
     summary: list[SummaryResult] | None = None
     trend: list[TrendResult] | None = None
     anomaly: list[AnomalyResult] | None = None
+    correlation: list[CorrelationResult] | None = None
+    distribution: list[DistributionResult] | None = None
+    forecast: list[ForecastResult] | None = None
+
 
 
 class InsightRead(BaseModel):

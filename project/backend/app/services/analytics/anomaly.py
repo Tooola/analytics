@@ -1,4 +1,4 @@
-"""Anomaly detection — Z-score and Isolation Forest methods."""
+"""Multi-method robust anomaly detection (IQR + Modified Z-Score/MAD + Isolation Forest)."""
 
 from __future__ import annotations
 
@@ -9,19 +9,15 @@ import pandas as pd
 
 from app.services.analytics.base import BaseAnalyticsService
 
-# Scikit-learn is an optional dependency at import time — guard it.
 try:
     from sklearn.ensemble import IsolationForest
     _HAS_SKLEARN = True
-except ImportError:  # pragma: no cover
+except ImportError:
     _HAS_SKLEARN = False
 
 
 class AnomalyService(BaseAnalyticsService):
     analysis_type = "anomaly"
-
-    #: Z-score threshold above which a point is flagged.
-    Z_THRESHOLD = 3.0
 
     def run(self, df: pd.DataFrame, fields: list[dict[str, Any]]) -> dict[str, Any]:
         numeric_fields = [
@@ -38,40 +34,71 @@ class AnomalyService(BaseAnalyticsService):
             if len(series) < 4:
                 continue
 
-            anomalies = self._detect_zscore(series, col)
+            anomalies = self._detect_consensus(series, col)
             results.append(anomalies)
 
         return {"anomaly": results}
 
-    def _detect_zscore(self, series: pd.Series, col: str) -> dict[str, Any]:
-        """Flag points whose Z-score exceeds the threshold."""
+    def _detect_consensus(self, series: pd.Series, col: str) -> dict[str, Any]:
+        n = len(series)
+        iqr_flags = set(self._detect_iqr(series))
+        mad_flags = set(self._detect_mad(series))
+        iforest_flags = set(self._detect_iforest(series)) if (_HAS_SKLEARN and n >= 15) else set()
+
         mean = float(series.mean())
-        std = float(series.std())
+        std = float(series.std()) if len(series) > 1 else 0.0
 
-        if std == 0:
-            return {
-                "column": col,
-                "anomalies": [],
-                "count": 0,
-                "method": "zscore",
-            }
-
-        z_scores = (series - mean) / std
-        anomaly_mask = z_scores.abs() > self.Z_THRESHOLD
-        anomalies: list[dict[str, Any]] = []
-
-        for idx in series[anomaly_mask].index:
-            val = float(series.loc[idx])
-            z = float(z_scores.loc[idx])
-            anomalies.append({
-                "row": int(idx),
-                "value": round(val, 4),
-                "z_score": round(z, 4),
-            })
+        confirmed_anomalies: list[dict[str, Any]] = []
+        for idx in series.index:
+            votes = sum([idx in iqr_flags, idx in mad_flags, idx in iforest_flags])
+            min_votes = 2 if (n >= 15 and _HAS_SKLEARN) else 1
+            if votes >= min_votes:
+                val = float(series.loc[idx])
+                z_score = round(float((val - mean) / std), 4) if std != 0 else 0.0
+                detected_methods = [
+                    m for m, active in [("iqr", idx in iqr_flags), ("mad", idx in mad_flags), ("iforest", idx in iforest_flags)]
+                    if active
+                ]
+                confirmed_anomalies.append({
+                    "row": int(idx),
+                    "value": round(val, 4),
+                    "z_score": z_score,
+                    "confidence_score": round(votes / 3.0, 2),
+                    "detected_by": detected_methods,
+                })
 
         return {
             "column": col,
-            "anomalies": anomalies,
-            "count": len(anomalies),
-            "method": "zscore",
+            "anomalies": confirmed_anomalies,
+            "count": len(confirmed_anomalies),
+            "method": "ensemble (iqr + mad + isolation_forest)",
         }
+
+    @staticmethod
+    def _detect_iqr(series: pd.Series) -> list[int]:
+        q1 = series.quantile(0.25)
+        q3 = series.quantile(0.75)
+        iqr = q3 - q1
+        if iqr == 0:
+            return []
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        return list(series[(series < lower_bound) | (series > upper_bound)].index)
+
+    @staticmethod
+    def _detect_mad(series: pd.Series) -> list[int]:
+        median = series.median()
+        mad = (series - median).abs().median()
+        if mad == 0:
+            return []
+        # Modified Z-score = 0.6745 * |x - median| / MAD
+        mod_z = 0.6745 * (series - median).abs() / mad
+        return list(series[mod_z > 3.5].index)
+
+    @staticmethod
+    def _detect_iforest(series: pd.Series) -> list[int]:
+        X = series.values.reshape(-1, 1)
+        clf = IsolationForest(contamination=0.05, random_state=42)
+        preds = clf.fit_predict(X)
+        return list(series[preds == -1].index)
+

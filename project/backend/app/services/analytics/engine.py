@@ -18,6 +18,9 @@ from app.models import AnalysisType
 from app.schemas.analytics import DataValidationResult
 from app.services.analytics.anomaly import AnomalyService
 from app.services.analytics.base import BaseAnalyticsService
+from app.services.analytics.correlation import CorrelationService
+from app.services.analytics.distribution import DistributionService
+from app.services.analytics.forecast import ForecastService
 from app.services.analytics.summary import SummaryService
 from app.services.analytics.trend import TrendService
 from app.services.analytics.validator import DataValidator
@@ -34,8 +37,16 @@ class AnalyticsEngine:
         self._register_defaults()
 
     def _register_defaults(self) -> None:
-        for svc in (SummaryService(), TrendService(), AnomalyService()):
+        for svc in (
+            SummaryService(),
+            TrendService(),
+            AnomalyService(),
+            CorrelationService(),
+            DistributionService(),
+            ForecastService(),
+        ):
             self.register(svc)
+
 
     def register(self, service: BaseAnalyticsService) -> None:
         """Register a custom analysis service."""

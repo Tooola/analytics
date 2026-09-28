@@ -168,3 +168,58 @@ class TestAnomalyService:
         fields = [{"name": "value", "technical_type": "float"}]
         result = self.service.run(df, fields)
         assert len(result["anomaly"]) == 0
+
+
+class TestCorrelationService:
+    """Tests for the Correlation analytics service."""
+
+    def setup_method(self):
+        from app.services.analytics.correlation import CorrelationService
+        self.service = CorrelationService()
+
+    def test_strong_positive_correlation(self):
+        df = pd.DataFrame({"x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "y": [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]})
+        fields = [{"name": "x", "technical_type": "float"}, {"name": "y", "technical_type": "float"}]
+        result = self.service.run(df, fields)
+        assert "correlation" in result
+        assert len(result["correlation"]) == 1
+        corr = result["correlation"][0]
+        assert corr["relationship"] == "positive"
+        assert corr["coefficient"] > 0.9
+
+
+class TestDistributionService:
+    """Tests for the Distribution analytics service."""
+
+    def setup_method(self):
+        from app.services.analytics.distribution import DistributionService
+        self.service = DistributionService()
+
+    def test_distribution_metrics(self):
+        df = pd.DataFrame({"val": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
+        fields = [{"name": "val", "technical_type": "float"}]
+        result = self.service.run(df, fields)
+        assert "distribution" in result
+        assert len(result["distribution"]) == 1
+        dist = result["distribution"][0]
+        assert "percentiles" in dist
+        assert dist["percentiles"]["p50"] == 5.5
+
+
+class TestForecastService:
+    """Tests for the Forecast analytics service."""
+
+    def setup_method(self):
+        from app.services.analytics.forecast import ForecastService
+        self.service = ForecastService()
+
+    def test_forecast_generation(self):
+        df = pd.DataFrame({"val": [10, 20, 30, 40, 50]})
+        fields = [{"name": "val", "technical_type": "float"}]
+        result = self.service.run(df, fields)
+        assert "forecast" in result
+        assert len(result["forecast"]) == 1
+        fore = result["forecast"][0]
+        assert len(fore["predictions"]) == 3
+        assert fore["trend_direction"] == "up"
+

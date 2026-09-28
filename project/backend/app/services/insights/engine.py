@@ -32,6 +32,15 @@ class InsightEngine:
         if "anomaly" in analysis_results:
             insights.extend(self._from_anomaly(analysis_results["anomaly"]))
 
+        if "correlation" in analysis_results:
+            insights.extend(self._from_correlation(analysis_results["correlation"]))
+
+        if "distribution" in analysis_results:
+            insights.extend(self._from_distribution(analysis_results["distribution"]))
+
+        if "forecast" in analysis_results:
+            insights.extend(self._from_forecast(analysis_results["forecast"]))
+
         logger.info("Generated %d insights for dataset '%s'", len(insights), dataset_name)
         return insights
 
@@ -59,6 +68,7 @@ class InsightEngine:
             col = t.get("column", "metric")
             change = t.get("change_pct")
             direction = t.get("direction", "stable")
+            is_sig = t.get("is_significant", True)
 
             if change is None:
                 continue
@@ -85,6 +95,7 @@ class InsightEngine:
                 itype = "trend"
                 severity = "low"
 
+            confidence = 0.95 if is_sig else 0.60
             insights.append({
                 "type": itype,
                 "severity": severity,
@@ -93,7 +104,7 @@ class InsightEngine:
                 "metric": col,
                 "value": change,
                 "unit": "%",
-                "confidence": 0.9,
+                "confidence": confidence,
             })
         return insights
 
@@ -101,7 +112,18 @@ class InsightEngine:
         insights: list[dict[str, Any]] = []
         for a in anomalies:
             col = a.get("column", "metric")
-            count = a.get("count", 0)
+            raw_count = a.get("count", 0)
+            if raw_count == 0:
+                continue
+
+            anomaly_items = a.get("anomalies", [])
+            # Filter low confidence anomalies if ensemble consensus scores are present
+            if anomaly_items and any("confidence_score" in item for item in anomaly_items):
+                valid_items = [item for item in anomaly_items if item.get("confidence_score", 1.0) >= 0.66]
+                count = len(valid_items)
+            else:
+                count = raw_count
+
             if count == 0:
                 continue
 
@@ -118,5 +140,74 @@ class InsightEngine:
                 "value": float(count),
                 "unit": "count",
                 "confidence": 0.85,
+            })
+        return insights
+
+    def _from_correlation(self, correlations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        insights: list[dict[str, Any]] = []
+        for c in correlations:
+            col1 = c.get("column1")
+            col2 = c.get("column2")
+            coeff = c.get("coefficient", 0.0)
+            strength = c.get("strength", "moderate")
+            rel = c.get("relationship", "positive")
+
+            if rel == "positive":
+                itype = "opportunity"
+                title = f"Strong positive correlation between {col1} and {col2}"
+                desc = f"Variables {col1} and {col2} are strongly co-varying (r={coeff})."
+            else:
+                itype = "risk"
+                title = f"Inverse relationship between {col1} and {col2}"
+                desc = f"Variable {col1} moves inversely to {col2} (r={coeff})."
+
+            insights.append({
+                "type": itype,
+                "severity": "medium" if strength == "moderate" else "high",
+                "title": title,
+                "description": desc,
+                "metric": f"{col1}_vs_{col2}",
+                "value": float(coeff),
+                "confidence": 0.90,
+            })
+        return insights
+
+    def _from_distribution(self, distributions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        insights: list[dict[str, Any]] = []
+        for d in distributions:
+            col = d.get("column")
+            skew = d.get("skewness", 0.0)
+            if abs(skew) > 1.0:
+                direction = "right-skewed (positive tail)" if skew > 0 else "left-skewed (negative tail)"
+                insights.append({
+                    "type": "recommendation",
+                    "severity": "low",
+                    "title": f"Asymmetric distribution detected in {col}",
+                    "description": f"The distribution of {col} is significantly {direction} with skewness of {skew}.",
+                    "metric": col,
+                    "value": float(skew),
+                    "confidence": 0.85,
+                })
+        return insights
+
+    def _from_forecast(self, forecasts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        insights: list[dict[str, Any]] = []
+        for f in forecasts:
+            col = f.get("column")
+            direction = f.get("trend_direction", "stable")
+            horizon = f.get("horizon", 3)
+            preds = f.get("predictions", [])
+            if not preds:
+                continue
+
+            last_pred = preds[-1].get("predicted_value")
+            insights.append({
+                "type": "forecast",
+                "severity": "medium",
+                "title": f"Forecast for {col}: trend expected {direction}",
+                "description": f"Predicted value for {col} in {horizon} periods is estimated at {last_pred}.",
+                "metric": col,
+                "value": float(last_pred) if last_pred is not None else None,
+                "confidence": 0.80,
             })
         return insights

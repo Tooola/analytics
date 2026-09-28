@@ -29,6 +29,16 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down %s", settings.app_name)
 
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[f"{settings.rate_limit_per_minute}/minute"],
+    enabled=settings.app_env != "test",
+)
+
 app = FastAPI(
     title=settings.app_name,
     description=(
@@ -41,6 +51,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 # CORS — origins are configured per-environment via CORS_ORIGINS env var.
 # API calls from client backends (server-to-server) are not browser requests
