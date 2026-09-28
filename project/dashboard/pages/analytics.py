@@ -8,6 +8,7 @@ import pandas as pd
 import requests as _r
 import os
 import sys
+import streamlit as st
 from pathlib import Path
 
 dashboard_dir = Path(__file__).parent.parent
