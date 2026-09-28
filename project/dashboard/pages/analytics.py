@@ -6,9 +6,19 @@ import json
 
 import pandas as pd
 import requests as _r
-import streamlit as st
-
 import os
+import sys
+from pathlib import Path
+
+dashboard_dir = Path(__file__).parent.parent
+if str(dashboard_dir) not in sys.path:
+    sys.path.append(str(dashboard_dir))
+
+try:
+    from components.bi_report import render_bi_report
+except ImportError:
+    from dashboard.components.bi_report import render_bi_report
+
 
 
 def _clean_api_url(url: str) -> str:
@@ -76,11 +86,12 @@ with col2:
 
 analysis_types = st.multiselect(
     "Analysis Types",
-    ["summary", "trend", "anomaly"],
-    default=["summary"],
+    ["summary", "trend", "anomaly", "correlation", "distribution", "forecast"],
+    default=["summary", "trend", "anomaly", "correlation", "distribution", "forecast"],
 )
 
 include_ai = st.checkbox("Inclure l'interprétation automatique", value=False)
+
 
 # ─── API Key input ─────────────────────────────────────
 
@@ -171,125 +182,9 @@ if st.button("Lancer l'analyse", type="primary"):
                     st.json(result["validation"])
                     st.stop()
 
-                st.success("Analysis completed!")
+                st.success("Analyse terminée avec succès !")
+                render_bi_report(result, data, selected_app, selected_ds)
 
-                # Summary
-                results = result.get("results", {})
-                if results.get("summary"):
-                    st.subheader("Summary Statistics")
-                    summary_df = pd.DataFrame(results["summary"])
-                    st.dataframe(summary_df, width="stretch", hide_index=True)
-
-                # Trend
-                if results.get("trend"):
-                    st.subheader("Trend Analysis")
-                    trend_df = pd.DataFrame(results["trend"])
-                    st.dataframe(trend_df, width="stretch", hide_index=True)
-
-                # Anomaly
-                if results.get("anomaly"):
-                    st.subheader("Anomaly Detection")
-                    for a in results["anomaly"]:
-                        if a["count"] > 0:
-                            st.warning(f"{a['count']} anomalies in **{a['column']}** (method: {a['method']})")
-                            st.dataframe(pd.DataFrame(a["anomalies"]), hide_index=True)
-                        else:
-                            st.info(f"No anomalies in **{a['column']}**")
-
-                # Insights
-                insights = result.get("insights", [])
-                if insights:
-                    st.subheader("Insights")
-                    for ins in insights:
-                        st.markdown(f"**{ins['title']}**")
-                        st.caption(ins["description"])
-                        if ins.get("value") is not None:
-                            st.caption(f"Value: {ins['value']} {ins.get('unit', '')} | Confidence: {ins['confidence']:.0%}")
-
-                # AI interpretation
-                if result.get("ai_interpretation"):
-                    st.markdown("---")
-                    st.subheader("🤖 Interprétation IA & Recommandations")
-                    try:
-                        ai = json.loads(result["ai_interpretation"])
-
-                        # ── En-tête : Provider + Confiance + Risque ─────────
-                        col_meta1, col_meta2, col_meta3 = st.columns(3)
-                        provider_name = ai.get("provider", "IA")
-                        confidence = ai.get("confidence", 0)
-                        risk = ai.get("risk_assessment", "")
-
-                        with col_meta1:
-                            st.metric("🧠 Provider IA", provider_name)
-                        with col_meta2:
-                            st.metric("📊 Indice de confiance", f"{confidence:.0%}")
-                        with col_meta3:
-                            risk_level = "🔴 Élevé" if "Élevé" in risk or "Critique" in risk or "High" in risk \
-                                else ("🟡 Modéré" if "Modéré" in risk or "Moderate" in risk else "🟢 Faible")
-                            st.metric("⚠️ Niveau de risque", risk_level)
-
-                        # ── Résumé exécutif ──────────────────────────────────
-                        st.markdown("---")
-                        with st.container(border=True):
-                            st.markdown("### 📋 Résumé Exécutif")
-                            st.info(ai.get("summary", "Analyse disponible ci-dessous."))
-
-                        # ── Évaluation des risques (détail) ─────────────────
-                        if risk:
-                            with st.container(border=True):
-                                st.markdown("### ⚡ Évaluation des Risques")
-                                if "Élevé" in risk or "Critique" in risk or "High" in risk:
-                                    st.error(f"**{risk}**")
-                                elif "Modéré" in risk or "Moderate" in risk:
-                                    st.warning(f"**{risk}**")
-                                else:
-                                    st.success(f"**{risk}**")
-
-                        # ── Constats clés + Recommandations ─────────────────
-                        col_l, col_r = st.columns(2)
-
-                        with col_l:
-                            with st.container(border=True):
-                                st.markdown("### 🔍 Constats Clés")
-                                findings = ai.get("key_findings", [])
-                                if findings:
-                                    for i, f in enumerate(findings, 1):
-                                        st.markdown(f"**{i}.** {f}")
-                                else:
-                                    st.caption("Aucun constat identifié.")
-
-                            with st.container(border=True):
-                                st.markdown("### 💡 Recommandations Stratégiques")
-                                recs = ai.get("recommendations", [])
-                                if recs:
-                                    for rec in recs:
-                                        st.markdown(f"✅ {rec}")
-                                else:
-                                    st.caption("Aucune recommandation.")
-
-                        with col_r:
-                            with st.container(border=True):
-                                st.markdown("### 🛠️ Plan d'Action")
-                                plans = ai.get("action_plan", [])
-                                if plans:
-                                    for act in plans:
-                                        # Détection de la priorité pour coloration
-                                        if "IMMÉDIAT" in act.upper() or "🔴" in act:
-                                            st.error(act)
-                                        elif "COURT TERME" in act.upper() or "🟡" in act:
-                                            st.warning(act)
-                                        elif "LONG TERME" in act.upper() or "🟢" in act:
-                                            st.success(act)
-                                        else:
-                                            st.markdown(f"▶️ {act}")
-                                else:
-                                    st.caption("Aucun plan d'action généré.")
-
-                    except (json.JSONDecodeError, TypeError):
-                        st.text(result["ai_interpretation"])
-
-                # Analysis ID
-                st.caption(f"Analysis ID: {result['analysis_id']}")
             elif r.status_code == 401:
                 st.error("Invalid API key.")
             elif r.status_code == 403:
