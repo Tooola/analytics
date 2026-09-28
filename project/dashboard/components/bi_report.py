@@ -196,7 +196,7 @@ def _render_section_a_header(
                 data=csv_bytes,
                 file_name=f"export_{dataset_slug}.csv",
                 mime="text/csv",
-                use_container_width=True,
+                width="stretch",
             )
     with e2:
         if not df.empty:
@@ -206,7 +206,7 @@ def _render_section_a_header(
                 data=res_bytes,
                 file_name=f"results_{dataset_slug}.json",
                 mime="application/json",
-                use_container_width=True,
+                width="stretch",
             )
     st.markdown("---")
 
@@ -293,7 +293,7 @@ def _render_section_c_visualizations(df: pd.DataFrame, results: dict[str, Any]) 
                 color_discrete_sequence=["#2563EB"],
             )
             fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=320)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         elif len(num_cols) >= 1:
             fig = px.histogram(
                 df,
@@ -303,7 +303,7 @@ def _render_section_c_visualizations(df: pd.DataFrame, results: dict[str, Any]) 
                 color_discrete_sequence=["#3B82F6"],
             )
             fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=320)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     # Chart 2: Categorical breakdown or Correlation
     with c2:
@@ -324,7 +324,7 @@ def _render_section_c_visualizations(df: pd.DataFrame, results: dict[str, Any]) 
                 color_discrete_sequence=["#10B981"],
             )
             fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=320)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         elif cat_cols and num_cols:
             cat_col = cat_cols[0]
             metric_col = num_cols[0]
@@ -339,7 +339,7 @@ def _render_section_c_visualizations(df: pd.DataFrame, results: dict[str, Any]) 
                 color_discrete_sequence=["#6366F1"],
             )
             fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=320)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         elif len(num_cols) >= 2:
             fig = px.scatter(
                 df,
@@ -350,7 +350,7 @@ def _render_section_c_visualizations(df: pd.DataFrame, results: dict[str, Any]) 
                 color_discrete_sequence=["#8B5CF6"],
             )
             fig.update_layout(margin=dict(l=20, r=20, t=40, b=20), height=320)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 
 def _render_section_d_statistical_findings(results: dict[str, Any]) -> None:
@@ -438,7 +438,7 @@ def _render_section_e_anomalies(results: dict[str, Any]) -> None:
             st.warning(f"**{count} anomalie(s) détectée(s) dans `{col}`** (Méthode : `{method}`)")
             ano_df = pd.DataFrame(items)
             if not ano_df.empty:
-                st.dataframe(ano_df, hide_index=True, use_container_width=True)
+                st.dataframe(ano_df, hide_index=True, width="stretch")
         else:
             st.success(f"✅ Aucune anomalie statistique détectée dans `{col}`.")
 
@@ -476,7 +476,7 @@ def _render_section_f_ai_insights(insights: list[dict[str, Any]], ai_data: dict[
     if insights:
         st.markdown("#### 📋 Insights Structurés du Moteur")
         ins_df = pd.DataFrame(insights)
-        st.dataframe(ins_df, hide_index=True, use_container_width=True)
+        st.dataframe(ins_df, hide_index=True, width="stretch")
 
 
 def _render_section_g_recommendations(insights: list[dict[str, Any]], ai_data: dict[str, Any] | None) -> None:
@@ -513,7 +513,7 @@ def _render_section_g_recommendations(insights: list[dict[str, Any]], ai_data: d
 
     if recs:
         rec_df = pd.DataFrame(recs)
-        st.dataframe(rec_df, hide_index=True, use_container_width=True)
+        st.dataframe(rec_df, hide_index=True, width="stretch")
     else:
         st.info("Aucune recommandation stratégique spécifique générée pour ce dataset.")
 
@@ -555,6 +555,6 @@ def _render_section_i_data_exploration(df: pd.DataFrame) -> None:
 
     st.dataframe(
         df,
-        use_container_width=True,
+        width="stretch",
         hide_index=False,
     )
