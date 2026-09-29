@@ -1,6 +1,6 @@
-"""Groq AI Provider — uses Groq Cloud API (LLaMA 3 / Mixtral ultra-fast).
+"""Groq AI Provider — uses Groq Cloud API (LLaMA 3.3 70B / LLaMA 3.1 8B).
 
-Génère des interprétations profondes, des recommandations stratégiques,
+Génère des interprétations approfondies, des recommandations stratégiques,
 une évaluation des risques et un plan d'action concret, entièrement
 contextualisés selon l'application et le dataset analysés.
 Réponses en français, format rapport professionnel.
@@ -18,8 +18,13 @@ from app.services.ai.base import AIProvider
 logger = get_logger(__name__)
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_MODEL = "qwen/qwen3.8-27b"
-FALLBACK_MODELS = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
+FALLBACK_MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "mixtral-8x7b-32768",
+    "gemma2-9b-it",
+]
 
 
 class GroqAIProvider(AIProvider):
@@ -30,7 +35,7 @@ class GroqAIProvider(AIProvider):
         self.model = model
 
     def _build_prompt(self, context: AnalyticalContext) -> str:
-        """Construit un prompt riche et contextualisé selon l'application/dataset."""
+        """Construit un prompt riche, précis et ancré dans les données réelles."""
 
         # Résumé des tendances détectées
         trends_desc = ""
@@ -40,9 +45,9 @@ class GroqAIProvider(AIProvider):
             change = t.get("change_pct")
             if change is not None:
                 arrow = "↑" if direction in ("up", "increasing") else ("↓" if direction in ("down", "decreasing") else "→")
-                trends_desc += f"  - {col}: {arrow} {change:+.1f}%\n"
+                trends_desc += f"  - Variable '{col}' : {arrow} {change:+.1f}%\n"
             else:
-                trends_desc += f"  - {col}: {direction}\n"
+                trends_desc += f"  - Variable '{col}' : {direction}\n"
 
         # Résumé des anomalies
         anomaly_desc = ""
@@ -51,21 +56,21 @@ class GroqAIProvider(AIProvider):
             cnt = a.get("count", 0)
             total_anomalies += cnt
             if cnt:
-                anomaly_desc += f"  - {a.get('column', '?')}: {cnt} anomalie(s) détectée(s) (méthode: {a.get('method', 'Z-score/IQR')})\n"
-                for item in a.get("anomalies", [])[:3]:
+                anomaly_desc += f"  - Variable '{a.get('column', '?')}' : {cnt} valeur(s) atypique(s) (méthode: {a.get('method', 'ensemble')})\n"
+                for item in a.get("anomalies", [])[:5]:
                     val = item.get("value")
                     reason = item.get("reason", "")
                     row = item.get("row")
-                    anomaly_desc += f"    * Ligne {row if row is not None else '?'}: valeur={val} ({reason})\n"
+                    anomaly_desc += f"    * Enregistrement #{row if row is not None else '?'}: valeur={val} ({reason})\n"
         if not anomaly_desc:
-            anomaly_desc = "  - Aucune anomalie significative détectée.\n"
+            anomaly_desc = "  - Aucune anomalie statistique détectée.\n"
 
         # Résumé des insights
         insights_desc = ""
         for ins in context.insights:
             insights_desc += f"  - [{ins.get('severity', 'info').upper()}] {ins.get('title', '')}: {ins.get('description', '')}\n"
         if not insights_desc:
-            insights_desc = "  - Pas d'insights supplémentaires.\n"
+            insights_desc = "  - Pas d'insights additionnels.\n"
 
         # Stats de base
         stats_desc = ""
@@ -77,59 +82,55 @@ class GroqAIProvider(AIProvider):
             mx = s.get("max")
             if mean is not None:
                 std_str = f"{std:.2f}" if std is not None else "?"
-                stats_desc += f"  - {col}: moyenne={mean:.2f}, écart-type={std_str}, min={mn}, max={mx}\n"
+                stats_desc += f"  - Variable '{col}' : moyenne={mean:.2f}, écart-type={std_str}, min={mn}, max={mx}\n"
 
-        return f"""Tu es un analyste BI et Data Scientist senior, chargé d'évaluer la performance opérationnelle et financière d'une entreprise.
+        return f"""Tu es un Directeur Data & Business Intelligence Senior. Tu rédiges une interprétation stratégique EXPLICITE et PRÉCISE basée STRICTEMENT sur les données ci-dessous.
 
-## Contexte de l'analyse
-- **Application analysée** : {context.application}
+## CONSIGNES IMPÉRATIVES DE RIGUEUR :
+1. Ne pas inventer de faits non présents dans les données. Pas de jargon abstrait ou hallucinatoire.
+2. Citer les chiffres exacts (valeurs, %, variables, nombres d'anomalies) pour étayer chaque constat.
+3. Adapter le vocabulaire métier selon le domaine (Exemple: pour un domaine agricole/Farmtinz -> parler de cultures, parcelles, rendements, pluviométrie; pour un e-commerce -> ventes, panier moyen, réapprovisionnement).
+
+## DONNÉES DU DATASET ANALYSÉ :
+- **Application** : {context.application}
 - **Dataset** : {context.dataset}
-- **Nombre d'enregistrements** : {context.row_count:,} lignes
-- **Contexte métier** : {context.business_context or "Analyse approfondie de performance opérationnelle et détection d'anomalies"}
+- **Volume** : {context.row_count:,} lignes analysées
+- **Contexte métier** : {context.business_context or "Évaluation des performances opérationnelles et audit des données"}
 
-## Données analytiques synthétisées
-
-### Statistiques descriptives :
-{stats_desc or "  - Données non disponibles.\n"}
+### Synthèse des métriques :
+{stats_desc or "  - Statistiques descriptives non fournies.\n"}
 
 ### Tendances identifiées :
-{trends_desc or "  - Aucune tendance significative.\n"}
+{trends_desc or "  - Aucune tendance directionnelle majeure.\n"}
 
 ### Anomalies détectées :
 {anomaly_desc}
 
-### Insights générés :
+### Diagnostic préliminaire :
 {insights_desc}
 
-## Tes instructions
+## STRUCTURE DE LA RÉPONSE REQUISE :
 
-Rédige un rapport analytique complet, hautement détaillé, chiffré et actionnable. 
-1. Interprète précisément les chiffres et variations dans le contexte métier de l'application "{context.application}".
-2. Explique l'impact des anomalies et des tendances sur les opérations et la rentabilité.
-3. Formule des recommandations stratégiques concrètes à fort ROI.
-4. Établis un plan d'action opérationnel priorisé.
-
-Réponds UNIQUEMENT sous forme d'un objet JSON strict avec cette structure exacte :
+Génère UNIQUEMENT un objet JSON strict avec exactement cette structure :
 {{
-  "summary": "Résumé exécutif synthétique de 3 à 4 phrases résumant la situation et les enjeux majeurs.",
+  "summary": "Résumé exécutif clair, explicite et factuel de 3 phrases synthétisant l'état global et les enjeux.",
   "key_findings": [
-    "Constat 1 détaillé avec chiffres précis (valeurs, %, écarts)",
-    "Constat 2 détaillé avec chiffres précis",
-    "Constat 3 détaillé avec chiffres précis",
-    "Constat 4 détaillé"
+    "Constat explicite 1 appuyé sur les chiffres précis du dataset",
+    "Constat explicite 2 appuyé sur les chiffres précis du dataset",
+    "Constat explicite 3 appuyé sur les chiffres précis du dataset",
+    "Constat explicite 4 appuyé sur les chiffres précis du dataset"
   ],
   "recommendations": [
-    "Recommandation stratégique 1 adaptée au secteur de {context.application}",
-    "Recommandation stratégique 2",
-    "Recommandation stratégique 3",
-    "Recommandation stratégique 4"
+    "Action corrective ou d'optimisation 1 adaptée au secteur de {context.application}",
+    "Action corrective ou d'optimisation 2 adaptée au secteur de {context.application}",
+    "Action corrective ou d'optimisation 3 adaptée au secteur de {context.application}"
   ],
   "action_plan": [
     "🔴 IMMÉDIAT (< 7 jours) : Action urgente prioritaire",
-    "🟡 COURT TERME (1-4 semaines) : Action d'optimisation",
-    "🟢 LONG TERME (> 1 mois) : Transformation stratégique"
+    "🟡 COURT TERME (1-4 semaines) : Action d'optimisation opérationnelle",
+    "🟢 LONG TERME (> 1 mois) : Stratégie de pérennisation"
   ],
-  "risk_assessment": "Évaluation synthétique du niveau de risque (Faible / Modéré / Élevé / Critique) avec justification détaillée des impacts opérationnels et financiers."
+  "risk_assessment": "Évaluation explicite du niveau de risque (Faible / Modéré / Élevé / Critique) avec justification détaillée basée sur les anomalies et variations constatées."
 }}"""
 
     def interpret(self, context: AnalyticalContext) -> AIInterpretation:
@@ -145,7 +146,7 @@ Réponds UNIQUEMENT sous forme d'un objet JSON strict avec cette structure exact
         }
 
         models_to_try = [self.model] + [m for m in FALLBACK_MODELS if m != self.model]
-        
+
         last_error = None
         for current_model in models_to_try:
             payload = {
@@ -154,13 +155,13 @@ Réponds UNIQUEMENT sous forme d'un objet JSON strict avec cette structure exact
                     {
                         "role": "system",
                         "content": (
-                            "Tu es un analyste BI et Data Scientist expert. Tu réponds UNIQUEMENT "
-                            "en JSON strict, sans bloc de code markdown, sans texte explicatif additionnel."
+                            "Tu es un expert en Data Science et Business Intelligence. Tu réponds UNIQUEMENT "
+                            "en JSON strict, sans syntaxe markdown ```json, sans texte hors du JSON."
                         ),
                     },
                     {"role": "user", "content": prompt},
                 ],
-                "temperature": 0.3,
+                "temperature": 0.2,
                 "max_tokens": 2000,
                 "response_format": {"type": "json_object"},
             }
@@ -172,7 +173,7 @@ Réponds UNIQUEMENT sous forme d'un objet JSON strict avec cette structure exact
                     logger.warning(
                         "Groq API (modèle %s) status %s: %s", current_model, resp.status_code, resp.text[:300]
                     )
-                    last_error = f"HTTP {resp.status_code}"
+                    last_error = f"HTTP {resp.status_code}: {resp.text[:200]}"
                     continue
 
                 data = resp.json()
@@ -183,13 +184,13 @@ Réponds UNIQUEMENT sous forme d'un objet JSON strict avec cette structure exact
 
                 parsed = json.loads(raw_text)
 
-                # Formatage du plan d'action si retourné sous forme d'objets
+                # Formatage du plan d'action
                 raw_action_plan = parsed.get("action_plan", [])
                 action_plan_list: list[str] = []
                 if isinstance(raw_action_plan, list):
                     for item in raw_action_plan:
                         if isinstance(item, dict):
-                            priority = item.get("priority", "Immédiiat")
+                            priority = item.get("priority", "Immédiat")
                             action = item.get("action", item.get("title", ""))
                             detail = item.get("detail", item.get("description", ""))
                             action_plan_list.append(f"• [{priority}] {action}: {detail}".strip(": "))
@@ -198,7 +199,7 @@ Réponds UNIQUEMENT sous forme d'un objet JSON strict avec cette structure exact
                 elif isinstance(raw_action_plan, str):
                     action_plan_list = [raw_action_plan]
 
-                # Formatage de l'évaluation du risque si retournée sous forme d'objet
+                # Formatage de l'évaluation du risque
                 raw_risk = parsed.get("risk_assessment")
                 if isinstance(raw_risk, dict):
                     risk_str = " | ".join(f"{k}: {v}" for k, v in raw_risk.items())
