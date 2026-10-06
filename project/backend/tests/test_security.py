@@ -472,6 +472,31 @@ class TestRateLimit:
         assert seen_429.status_code == 429
 
 
+# ─── 2d. Pagination Bounds ───────────────────────────────────────────────────
+
+
+class TestPagination:
+    """List endpoints must reject unbounded limits and honour the ones sent."""
+
+    def test_analysis_limit_bounds(self, client, app_a):
+        _, key_a = app_a
+        for qs in ("?limit=0", "?limit=201"):
+            resp = client.get(f"/api/v1/analysis{qs}", headers={"X-API-Key": key_a})
+            assert resp.status_code == 422, qs
+
+    def test_datasets_limit_is_applied(self, client, app_a, dataset_a):
+        """GET /datasets?limit=1 must actually cap the result (repo used to ignore it)."""
+        _, key_a = app_a
+        resp = client.get("/api/v1/datasets?limit=1", headers={"X-API-Key": key_a})
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+
+    def test_datasets_limit_bounds(self, client, app_a):
+        _, key_a = app_a
+        resp = client.get("/api/v1/datasets?limit=0", headers={"X-API-Key": key_a})
+        assert resp.status_code == 400
+
+
 # ─── 3. Validation Tests ─────────────────────────────────────────────────────
 
 class TestValidation:

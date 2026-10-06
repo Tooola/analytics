@@ -44,9 +44,15 @@ def list_datasets(
     db: Session = Depends(get_db),
     app: Application = Depends(get_application_by_api_key),
 ) -> list[DatasetRead]:
-    """List datasets belonging to the authenticated application only."""
+    """List datasets belonging to the authenticated application only.
+
+    Honours skip/limit (bounded by get_pagination) — /datasets/all and
+    /datasets/by-app/{slug} stay unpaginated for the dashboard's own app.
+    """
     repo = DatasetRepository(db)
-    datasets = repo.list_by_application(app.id)
+    datasets = repo.list_by_application(
+        app.id, skip=pagination["skip"], limit=pagination["limit"]
+    )
     return [DatasetRead.model_validate(d) for d in datasets]
 
 

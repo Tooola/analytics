@@ -32,13 +32,23 @@ class DatasetRepository(BaseRepository[Dataset]):
         )
         return self.db.scalars(stmt).first()
 
-    def list_by_application(self, application_id: str) -> list[Dataset]:
+    def list_by_application(
+        self,
+        application_id: str,
+        *,
+        skip: int = 0,
+        limit: int | None = None,
+    ) -> list[Dataset]:
         stmt = (
             select(Dataset)
             .options(selectinload(Dataset.fields))
             .where(Dataset.application_id == application_id)
             .order_by(Dataset.name)
         )
+        if skip:
+            stmt = stmt.offset(skip)
+        if limit is not None:
+            stmt = stmt.limit(limit)
         return list(self.db.scalars(stmt))
 
     def create_with_fields(

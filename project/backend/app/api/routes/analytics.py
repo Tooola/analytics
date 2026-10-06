@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_application_by_api_key
@@ -186,7 +186,7 @@ def get_analysis(
 
 @router.get("/analysis", response_model=list[AnalysisRunRead])
 def list_analyses(
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     authed_app: Application = Depends(get_application_by_api_key),
 ) -> list[AnalysisRunRead]:
