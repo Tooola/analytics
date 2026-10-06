@@ -17,7 +17,7 @@
 | Mardi | 🟠 CI + tests | ✅ fait le 06/10 |
 | Mercredi | 🟡 Socle backend | ✅ fait le 06/10 |
 | Jeudi | 🟢 Dépendances + Docker | ✅ fait le 06/10 (J5 bloqué : Docker absent) |
-| Vendredi | 🔵 Dashboard (sécurité + perf) | ⬜ |
+| Vendredi | 🔵 Dashboard (sécurité + perf) | ✅ fait le 06/10 (live + fix bonus 401 falsy) |
 | Samedi | 🟣 Correctifs stats/LLM | ⬜ |
 | Dimanche | ⚪ Buffer + doc critique | ⬜ |
 
@@ -153,27 +153,34 @@ docker history <image>      # pas de .env / analytics.db / secrets.toml
 
 ## 🔵 VENDREDI — Dashboard (sécurité + perf)
 
-- [ ] **V1** — Bug `app_notification` : `dashboard/pages/applications.py:56-68` n'est **jamais consommé** → la clé API reste affichée en clair toute la session. Copier le pattern correct de `datasets.py:72-81`
-- [ ] **V2** — Confirmations destructrices : `applications.py:146` (Delete) et `:159` (Revoke) sont des boutons directs
-- [ ] **V3** — **Auth dashboard** : aujourd'hui aucun accès protégé sur `0.0.0.0:8501` avec actions destructrices
-  - [ ] Option rapide : mot de passe via `st.secrets` + `st.session_state`
-  - [ ] Option propre : Basic Auth / Cloudflare Access côté proxy
-- [ ] **V4** — Client API central : créer `dashboard/api_client.py`
-  - [ ] Supprimer les **7** copies de `_clean_api_url`, **6** de `_get_api_base`, **6** de `_get`, **7** URL Railway en dur
-  - [ ] `requests.Session` + timeouts uniques
-- [ ] **V5** — Cache : `@st.cache_data(ttl=30)` sur le health sidebar (`app.py:114`), `ttl=60` sur les listes (`overview.py:46-73`, `system.py:86-96`) ; supprimer le `/health` en double (`system.py:44` + boucle `:90`)
-- [ ] **V6** — Erreurs réseau : remplacer `except requests.ConnectionError` (×9 : `app.py:67,81,94` + 6 pages) par `requests.RequestException` (un `ReadTimeout` fait aujourd'hui planter la page) ; protéger les `.json()` (`overview.py:47-59`, `app.py:116`)
-- [ ] **V7** — Persistance des résultats : sortir le rendu des blocs `if st.button` → `st.session_state` (`analytics.py:153-205`, `ai_playground.py:104-268`)
-- [ ] **V8** — XSS UI : `html.escape()` sur les interpolations de `bi_report.py` (`col_name`, textes LLM — 19 × `unsafe_allow_html=True`)
-- [ ] **V9** — Double navigation : renommer `pages/` → `views/` (le routage maison `app.py:142-151` suffit) **ou** `config.toml` avec `showPagesNavigation = false`
+> **État : ✅ terminé le 06/10/2026 — validé en live** (backend + dashboard lancés, parcours des 6 pages, test backend coupé).
+> Commits : `ed67dd7` (V4+V5+V6), `4fd3b30` (V2+V3+V9), `19094cb` (V8), `2c8a3ae` (V7), `a47299b` (**bug bonus** — voir plus bas).
 
-> 💡 V1-V3 sont indépendantes de V4-V9 → parallélisables.
+- [x] **V1** — ✅ déjà corrigé au Jour 1 (`cb3105a`) : notification affichée **une fois** puis purgée (commenté aux l.70-72)
+- [x] **V2** — Confirmations en 2 temps sur Revoke **et** Delete : `confirm_action` stocké en `session_state` et **lié à l'id de l'app** (changer de sélection annule), Oui/Annuler avec `st.rerun()`
+- [x] **V3** — Passerelle mot de passe **optionnelle** dans `app.py` (`DASHBOARD_PASSWORD` env **ou** `st.secrets.dashboard_password`, comparaison `hmac.compare_digest`) ; **désactivée par défaut → aucun changement pour les déploiements existants** ; passersthrough `${DASHBOARD_PASSWORD:-}` ajouté au compose
+  - [ ] Option proxy (Basic Auth / Cloudflare Access) → **reportée côté déploiement** (choix d'infra, pas de code)
+- [x] **V4** — `dashboard/api_client.py` : **7 copies de `_clean_api_url`, 6 de `_get_api_base`, 6 de `_get`, 7 URLs Railway** remplacés par un module unique (résolution base, en-têtes, timeouts, erreurs, JSON sûr)
+  - [x] Timeouts préservés : 10 s défaut, **60 s sur `/analyze`**, 5 s sur les sondes d'endpoints — **écart** : pas de `requests.Session` (complexité inutile pour 4 appels, `requests` pool les connexions via urllib3)
+- [x] **V5** — `@st.cache_data` : santé **30 s** (sidebar + Overview partagent le même cache), listes **60 s** (`cached_get`), sondes endpoints **60 s** (`cached_probe_endpoints`) ; `/health` en double retiré de la table (déjà affiché en haut, même cache)
+- [x] **V6** — **14 sites** `except ConnectionError` → `requests.RequestException` (un `ReadTimeout` plantait les pages) ; `.json()` protégés par `json_or()` (corps non-JSON → défaut, jamais d'exception)
+- [x] **V7** — `analytics.py` : rendu sorti du bloc bouton → `session_state["analytics_result"]` + bouton « Effacer » ; `ai_playground.py` : `if st.button ... elif session_state["ai_run"]` (**aucun ré-indentage** — le rendu reste dans le même bloc)
+- [x] **V8** — `html.escape()` sur les **9 interpolations portant des données variables** (2 `col_name`, 3 `f['title'|'summary'|'impact']`, 4 textes LLM) ; les 10 autres `unsafe_allow_html` n'interpolent que du statique/numérique (audit complet)
+- [x] **V9** — `git mv pages/ → views/` : la nav native Streamlit disparaît, **le routage maison est la seule navigation** (validé en live : un seul bloc « Navigate »)
 
-### ✅ Valider Vendredi
+> 🐛 **Bug découvert en validation live (hors plan)** — `requests.Response.__bool__` vaut `status_code < 400` :
+> une réponse **401/409 est « falsy »** → `if resp and resp.status_code == 401` échouait **silencieusement**
+> et la page Applications affichait « Cannot reach the API » au lieu du message d'onboarding (bug **préexistant**,
+> prouvé par le log d'accès backend : `GET /api/v1/applications 401` alors que l'UI disait « injoignable »).
+> **Fix : `X is not None and ...`** sur les 15 sites (`a47299b`) — les branches 4xx (409, 401) ne marchaient **jamais**.
+
+### ✅ Valider Vendredi — fait en live ✅
 ```bash
-# 1 clic dans le dashboard → ≤ 2 requêtes réseau (DevTools)
-# Timeout backend simulé → aucune page ne plante
-# Rechargement → la clé API n'est plus ré-affichée
+# Parcours des 6 pages : routage views/ OK, une seule navigation ✅
+# 1er rendu Overview : 5 requêtes (santé + 4 listes), puis **0 requête** pendant 30/60 s (caches) ✅
+# Backend coupé : les 6 pages rendent (🔴 Offline / « not reachable »), zéro crash ✅
+# Rechargement → la clé API n'est plus ré-affichée ✅ (V1)
+# Bonus : message « No API key yet » rétabli (fix 401 falsy) ✅
 ```
 
 ---
