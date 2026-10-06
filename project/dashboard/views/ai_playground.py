@@ -122,6 +122,23 @@ if st.button("Run Full Pipeline", type="primary"):
         st.json(result["validation"])
         st.stop()
 
+    # Persist the run: rendering happens in the elif below, so widget
+    # reruns keep the output visible instead of wiping it (PLAN.md V7).
+    st.session_state["ai_run"] = {
+        "result": result,
+        "app": selected_app,
+        "ds": selected_ds,
+        "data": data,
+    }
+    st.rerun()
+
+elif st.session_state.get("ai_run"):
+    _ai_run = st.session_state["ai_run"]
+    result = _ai_run["result"]
+    data = _ai_run["data"]
+    run_app = _ai_run["app"]
+    run_ds = _ai_run["ds"]
+
     # ─── 2. Analytics Results ──────────────────────────
 
     st.subheader("2. Analytics Results")
@@ -156,8 +173,8 @@ if st.button("Run Full Pipeline", type="primary"):
     st.info("This is what the AI provider receives. Notice: no individual data rows, only aggregated metrics.")
 
     context_demo = {
-        "application": selected_app,
-        "dataset": selected_ds,
+        "application": run_app,
+        "dataset": run_ds,
         "row_count": len(data),
         "summary": results.get("summary", []),
         "trends": results.get("trend", []),
@@ -248,3 +265,7 @@ if st.button("Run Full Pipeline", type="primary"):
         st.caption("No AI interpretation was returned.")
 
     st.caption(f"Analysis ID: {result['analysis_id']}")
+
+    if st.button("Clear output", key="clear_ai_run"):
+        st.session_state.pop("ai_run", None)
+        st.rerun()

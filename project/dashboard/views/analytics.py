@@ -163,8 +163,15 @@ if st.button("Lancer l'analyse", type="primary"):
                     st.json(result["validation"])
                     st.stop()
 
-                st.success("Analyse terminée avec succès !")
-                render_bi_report(result, data, selected_app, selected_ds)
+                # Persist instead of rendering inside the button block: any
+                # widget interaction re-runs the script and used to wipe the
+                # report (PLAN.md V7). Rendered at the bottom of the page.
+                st.session_state["analytics_result"] = {
+                    "result": result,
+                    "data": data,
+                    "app": selected_app,
+                    "ds": selected_ds,
+                }
 
             elif r.status_code == 401:
                 st.error("Invalid API key.")
@@ -178,3 +185,15 @@ if st.button("Lancer l'analyse", type="primary"):
                     st.json(r.json())
                 except Exception:
                     st.text(r.text)
+
+
+# ─── Render last analysis — persistent across reruns (PLAN.md V7) ──
+
+_cached = st.session_state.get("analytics_result")
+if _cached:
+    st.markdown("---")
+    st.success("Analyse terminée avec succès !")
+    render_bi_report(_cached["result"], _cached["data"], _cached["app"], _cached["ds"])
+    if st.button("Effacer le résultat", key="clear_analytics_result"):
+        st.session_state.pop("analytics_result", None)
+        st.rerun()
