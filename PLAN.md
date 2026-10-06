@@ -15,7 +15,7 @@
 |---|---|---|
 | Lundi | 🔴 Sécurité P0 | ✅ fait le 06/10 |
 | Mardi | 🟠 CI + tests | ✅ fait le 06/10 |
-| Mercredi | 🟡 Socle backend | ⬜ |
+| Mercredi | 🟡 Socle backend | ✅ fait le 06/10 |
 | Jeudi | 🟢 Dépendances + Docker | ⬜ |
 | Vendredi | 🔵 Dashboard (sécurité + perf) | ⬜ |
 | Samedi | 🟣 Correctifs stats/LLM | ⬜ |
@@ -88,23 +88,33 @@ pytest -q    # → 90 passed
 
 ## 🟡 MERCREDI — Socle backend
 
-- [ ] **M1 — Alembic** (effet : 2h)
-  - [ ] `alembic revision --autogenerate -m "initial schema"` (⚠️ nécessite L2 : versions non plus ignoré)
-  - [ ] Valider le fichier + `alembic upgrade head` sur base propre
-  - [ ] Retirer `alembic*` de `project/backend/.dockerignore:23-24` (sinon impossible en conteneur)
-  - [ ] Fail-closed : `project/backend/app/main.py:17-29` → en prod (`APP_ENV=production`), un échec doit tuer le démarrage
-- [ ] **M2 — Rate-limiting réel** (1h) : `main.py:32-55` instancie `Limiter` mais **aucun middleware ni décorateur**
-  - [ ] `app.add_middleware(SlowAPIMiddleware)`
-  - [ ] `@limiter.limit(...)` sur `POST /analyze`, `POST /applications`, `POST /datasets` (les routes doivent accepter `request: Request`)
-- [ ] **M3 — Config dure** (45 min)
-  - [ ] `config.py:22` `debug=False` par défaut
-  - [ ] `database.py:23` `echo=False` **permanent** (ne jamais lié au debug → évite de logguer les hachages de clés)
-  - [ ] `config.py:16` `extra="forbid"` (aujourd'hui une faute de frappe d'env est ignorée)
-  - [ ] `main.py:51-52` désactiver `/docs`+`/redoc` en production
-- [ ] **M4 — Bornes** (45 min)
-  - [ ] `app/api/routes/analytics.py:186` → `limit: Query(50, ge=1, le=200)`
-  - [ ] Appliquer `.offset()/.limit()` réellement dans `app/repositories/dataset_repo.py:35-42` (aujourd'hui la pagination est validée puis **ignorée**)
-- [ ] **M5 — Tests** (30 min) : 1 test **429** sur `/analyze`, 1 test **422** sur `limit` hors bornes
+> **État : ✅ terminé le 06/10/2026 — 94/94 tests verts (4 tests ajoutés), 4 commits.**
+
+- [x] **M1 — Alembic** (fait)
+  - [x] `alembic revision --autogenerate -m "initial schema"` → `alembic/versions/b3aabaadbb1e_initial_schema.py` (généré sur base temporaire, jamais sur vos données)
+  - [x] Validé : `upgrade head` sur base propre = **schémas identiques** à `create_all` (5 tables, colonnes, index) + `downgrade base` OK (script de comparaison PRAGMA)
+  - [x] `alembic*` retiré de `project/backend/.dockerignore` (+ commentaire d'intention) ; URL en dur supprimée de `alembic.ini` (injectée par `env.py`)
+  - [x] **Base de dev `analytics.db` adoptée par Alembic** (additif uniquement) : index manquant `ix_analysis_runs_app_created` créé + `alembic stamp head` → `alembic current = b3aabaadbb1e (head)`, **données inchangées** (5/3/10/12/92 lignes), zéro dérive de schéma vérifiée
+  - [x] Fail-closed : `main.py` lifespan → hors dev/test, un échec de `create_all` **tue le démarrage**
+- [x] **M2 — Rate-limiting réel** (fait, avec écart assumé)
+  - [x] Écart : le `SlowAPIMiddleware` + `default_limits` global **n'a PAS été activé** — il plafonnerait les GETs du dashboard (plusieurs par rerun) et casserait son flow. À la place : **décorateurs par route** uniquement.
+  - [x] `@limiter.limit(...)` : `POST /analyze` **20/min**, `POST /applications` **15/min**, `POST /datasets` **30/min** (routes enrichies de `request: Request`)
+  - [x] Nouveau module `app/core/ratelimit.py` : instance partagée (pas d'import circulaire) + clé de quota = **hash de la clé API** si présente (quota par tenant, même derrière un proxy), sinon `X-Forwarded-For`, sinon IP
+- [x] **M3 — Config dure** (fait)
+  - [x] `config.py` `debug=False` par défaut (votre `.env` garde `DEBUG=true` → rien ne change en local)
+  - [x] `database.py` `echo=False` **permanent** (plus de log SQL en production)
+  - [x] `config.py` `extra="forbid"` — testé empiriquement : accepté (les clés `.env` sont toutes déclarées, les variables système sont filtrées) ; une faute de frappe d'env plante maintenant au démarrage au lieu d'être ignorée
+  - [x] `/docs` + `/redoc` désactivés hors dev/test (`APP_ENV` de vos `.env` = `development` → toujours accessibles en local)
+- [x] **M4 — Bornes** (fait)
+  - [x] `GET /analysis` → `Query(50, ge=1, le=200)` (422 hors bornes)
+  - [x] `.offset()/.limit()` **réellement appliqués** dans `dataset_repo.list_by_application` sur `GET /datasets` ; `/datasets/all` et `/by-app` restent non paginés (flow dashboard préservé)
+- [x] **M5 — Tests** (+4) : 429 sur `/analyze` (bucket isolé par app fraîche, 60 itérations max), 422 sur `limit` hors bornes ×2, `?limit=1` bien appliqué, 400 sur `limit=0` datasets
+
+### ✅ Valider Mercredi — atteint
+```bash
+alembic upgrade head    # déjà à jour en local (stamp head) ✅
+pytest -q               # 94 passed ✅
+```
 
 ---
 
