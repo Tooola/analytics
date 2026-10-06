@@ -9,7 +9,6 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 from app.models import AnalysisStatus, AnalysisType, InsightSeverity, InsightType
 from app.schemas.common import UTCDateTime
 
-
 # ─── Data validation ───────────────────────────────────
 
 

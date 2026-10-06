@@ -12,7 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_application_by_api_key, get_pagination
+from app.api.dependencies import get_application_by_api_key
 from app.core.database import get_db
 from app.core.ratelimit import limiter
 from app.models import Application

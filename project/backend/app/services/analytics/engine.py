@@ -14,7 +14,6 @@ from typing import Any
 import pandas as pd
 
 from app.core.logging import get_logger
-from app.models import AnalysisType
 from app.schemas.analytics import DataValidationResult
 from app.services.analytics.anomaly import AnomalyService
 from app.services.analytics.base import BaseAnalyticsService
@@ -87,9 +86,9 @@ class AnalyticsEngine:
             logger.info("Running analysis: %s", atype)
             try:
                 partial = svc.run(df, field_dicts)
-            except Exception:  # noqa: BLE001 — one crashing section must not
-                # kill the whole run (PLAN.md S8): the remaining services
-                # still return their results.
+            except Exception:
+                # One crashing section must not kill the whole run
+                # (PLAN.md S8): the remaining services still return results.
                 logger.exception("Analysis service crashed: %s", atype)
                 continue
             results.update(partial)

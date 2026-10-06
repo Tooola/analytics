@@ -9,6 +9,7 @@ Réponses en français, format rapport professionnel.
 from __future__ import annotations
 
 import json
+
 import requests
 
 from app.core.logging import get_logger

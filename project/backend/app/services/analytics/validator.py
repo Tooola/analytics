@@ -6,8 +6,6 @@ import math
 from datetime import datetime
 from typing import Any
 
-import pandas as pd
-
 from app.models import DatasetFieldType
 from app.schemas.analytics import DataValidationResult, ValidationIssue
 

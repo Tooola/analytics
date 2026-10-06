@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.database import get_db
 from app.schemas.common import HealthStatus
 from app.services.ai.engine import AIEngine
