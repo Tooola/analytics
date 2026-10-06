@@ -54,7 +54,16 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
+@pytest.fixture(scope="module", autouse=True)
+def _db_override():
+    """Scope the get_db override to THIS module only.
+
+    A module-level assignment would leak into every other test module
+    (dependency_overrides is global state on the FastAPI app).
+    """
+    app.dependency_overrides[get_db] = override_get_db
+    yield
+    app.dependency_overrides.pop(get_db, None)
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────

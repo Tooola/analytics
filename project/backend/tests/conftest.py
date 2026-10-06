@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import os
-from typing import Generator
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 # Set test environment before importing app modules
 os.environ["DATABASE_URL"] = "sqlite://"
@@ -28,17 +27,3 @@ def setup_database():
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
-
-
-@pytest.fixture()
-def db_session() -> Generator[Session, None, None]:
-    """Provide a transactional database session that rolls back after each test."""
-    connection = test_engine.connect()
-    transaction = connection.begin()
-    session = Session(bind=connection)
-
-    yield session
-
-    session.close()
-    transaction.rollback()
-    connection.close()
