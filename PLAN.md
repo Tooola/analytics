@@ -16,7 +16,7 @@
 | Lundi | 🔴 Sécurité P0 | ✅ fait le 06/10 |
 | Mardi | 🟠 CI + tests | ✅ fait le 06/10 |
 | Mercredi | 🟡 Socle backend | ✅ fait le 06/10 |
-| Jeudi | 🟢 Dépendances + Docker | ⬜ |
+| Jeudi | 🟢 Dépendances + Docker | ✅ fait le 06/10 (J5 bloqué : Docker absent) |
 | Vendredi | 🔵 Dashboard (sécurité + perf) | ⬜ |
 | Samedi | 🟣 Correctifs stats/LLM | ⬜ |
 | Dimanche | ⚪ Buffer + doc critique | ⬜ |
@@ -120,25 +120,33 @@ pytest -q               # 94 passed ✅
 
 ## 🟢 JEUDI — Dépendances + Docker
 
-- [ ] **J1** — Tuer la triplication (racine = `project/` = `backend/`, même SHA blob)
-  - [ ] Garder : `backend/requirements.txt` (prod), `backend/requirements-dev.txt` (pytest, ruff, mypy), `dashboard/requirements.txt`
-  - [ ] Supprimer `requirements.txt` racine et `project/requirements.txt` (ou les remplacer par un lien/README)
-- [ ] **J2** — Épingler avec `pip-tools` (`pip-compile`) → versions `==`
-  - [ ] 🔴 **`streamlit>=1.51.0`** — le code utilise `width="stretch"` 16 fois, incompatible avec l'actuel `>=1.40.0` (introduit en 1.49/1.51)
-- [ ] **J3** — Purger `backend/requirements.txt` : `streamlit`, `plotly`, `statsmodels`, `python-multipart`, `python-dotenv`, `pytest-asyncio` (inutiles ou dev)
-- [ ] **J4** — Dockerfile propre (`backend/Dockerfile` + `dashboard/Dockerfile`)
-  - [ ] Base épinglée (`python:3.12-slim@sha256:…`)
-  - [ ] Supprimer `build-essential` (jamais nettoyé, ~100-200 Mo)
-  - [ ] Ajouter `USER` non-root + `HEALTHCHECK`
-  - [ ] Supprimer `COPY backend/app/core/config.py ./app_config.py` (`dashboard/Dockerfile:13`, fichier mort)
-  - [ ] Corriger `dashboard/Dockerfile:9` qui installe les dépendances **backend** au lieu de `dashboard/requirements.txt`
-- [ ] **J5** — Vérifier l'image : `docker history <image>` → pas de `.env`, pas d'`analytics.db`, pas de `secrets.toml`
-- [ ] **J6** — `docker-compose.yml` : `POSTGRES_PASSWORD` (l.8) et `API_KEY_HASH_SECRET` (l.31) en variables d'env au lieu du dur ; retirer `version: "3.9"` obsolète (l.1)
+> **État : ✅ terminé le 06/10/2026 — 94/94 tests verts, 5 fichiers requirements reconstruits.**
+> ⚠️ **Docker n'est PAS installé sur la machine** : les éditions Docker (J4, J6) sont livrées
+> mais **non buildées** — J5 et `docker compose up --build` sont à valider au premier push/déploy.
+
+- [x] **J1** — Triplication tuée (les 3 fichiers avaient le **même SHA256**)
+  - [x] Conservés : `backend/requirements.txt` (prod, épinglé), `backend/requirements-dev.txt` (**nouveau** : pytest + httpx + ruff, via `-r requirements.txt`), `dashboard/requirements.txt`
+  - [x] Supprimés : `requirements.txt` racine et `project/requirements.txt` — vérifié avant : **aucune référence** (README/COMMANDES font tous `cd backend` d'abord ; `Procfile` est dans `backend/` ; Streamlit lit `dashboard/requirements.txt` à côté de `app.py`)
+  - [x] Docs + CI alignées : `README.md`, `COMMANDES.md` (×2) → `requirements-dev.txt` ; `ci.yml` installe le dev file (cache sur les 2 fichiers) ; arbre `architecture.md`
+- [x] **J2** — Épinglage `==` des dépendances directes — **écart assumé** : `pip-compile` (pip-tools) non utilisé (résolution réseau lourde, fichiers de lock à rejouer) ; pins **directs depuis l'environnement validé** (`pip freeze`) — c'est la version exacte que la suite de 94 tests exécute. pip-compile = J+1 si on veut verrouiller aussi les transitifs.
+  - [x] 🔴 **`streamlit==1.63.0`** installé et validé (≥1.51 ✅ `width="stretch"` OK) ; le plancher `>=1.40.0` cassait les **installations fraîches**
+- [x] **J3** — Purge backend : `streamlit`, `plotly`, `statsmodels`, `python-multipart`, `python-dotenv`, `pytest-asyncio` (+ `pytest`/`httpx` → dev) — **prouvé par scan statique des imports** : `RESULT: OK` (backend ET dashboard : tous les imports couverts ; `statsmodels` n'était même **pas installé**)
+  - [x] Purge aussi côté dashboard : `statsmodels` retiré (jamais importé)
+- [x] **J4** — Dockerfiles nettoyés (⚠️ build non exécutable ici)
+  - [ ] Base épinglée `python:3.12-slim@sha256:…` → **reporté** (digest à récupérer/valider au premier build)
+  - [x] `build-essential`/`libpq-dev` supprimés des 2 images (tout est en wheels manylinux py3.12 — `-200 Mo`)
+  - [x] `USER appuser` non-root (uid 10001, avec `chown /app`) + `HEALTHCHECK` (backend **PORT-aware** pour Railway ; dashboard sur `/_stcore/health`)
+  - [x] `COPY …config.py ./app_config.py` supprimé (vérifié : **zéro référence** `app_config` dans le dashboard)
+  - [x] `dashboard/Dockerfile` installe **`dashboard/requirements.txt`** (il installait les dépendances backend)
+- [ ] **J5** — Vérifier l'image : `docker history <image>` → pas de `.env`, pas d'`analytics.db`, pas de `secrets.toml` — 🔴 **bloqué : Docker absent**, à faire au premier build
+- [x] **J6** — `docker-compose.yml` : `POSTGRES_PASSWORD` et `API_KEY_HASH_SECRET` interpolés depuis `project/.env` (défaut `:-analytics` = comportement historique préservé ; `API_KEY_HASH_SECRET` **est déjà** dans votre `.env` → pas de rupture) ; `DATABASE_URL` synchronisée sur le même mot de passe ; `version: "3.9"` retiré
 
 ### ✅ Valider Jeudi
 ```bash
-docker compose up --build   # OK
-pytest -q                   # vert
+pytest -q                   # vert ✅ 94 passed
+# 🔴 à faire dès que Docker est disponible (ou au push) :
+docker compose up --build   # OK ?
+docker history <image>      # pas de .env / analytics.db / secrets.toml
 ```
 
 ---
