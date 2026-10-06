@@ -39,15 +39,10 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down %s", settings.app_name)
 
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=[f"{settings.rate_limit_per_minute}/minute"],
-    enabled=settings.app_env != "test",
-)
+from app.core.ratelimit import limiter
 
 # Interactive API documentation (Swagger/ReDoc) is a development aid —
 # it must not advertise the full API surface in production.

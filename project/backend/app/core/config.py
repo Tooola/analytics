@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # IMPORTANT: override this secret in production — never use the default.
     api_key_hash_secret: str = "change-me-in-production"
     api_key_prefix: str = "anal_"
+    # Historical global ceiling (kept: local .env files set it). Concrete
+    # limits are declared per-route on the expensive endpoints — see
+    # app/core/ratelimit.py (a global default would throttle the dashboard).
     rate_limit_per_minute: int = 60
 
     # CORS — default allows all origins for seamless client integration.

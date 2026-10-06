@@ -439,6 +439,39 @@ class TestApplicationAdminIsolation:
         assert all(d["application_id"] == id_a for d in datasets)
 
 
+# ─── 2c. Rate Limiting ───────────────────────────────────────────────────────
+
+
+class TestRateLimit:
+    """The expensive endpoints must answer 429 under sustained load."""
+
+    def test_analyze_rate_limit_returns_429(self, client):
+        """POST /analyze is capped — verified with a fresh app (isolated bucket)."""
+        resp = client.post("/api/v1/applications", json={"name": "Rate Limit Probe App"})
+        assert resp.status_code == 201
+        probe = resp.json()
+
+        payload = {
+            "application": probe["slug"],
+            "dataset": "does-not-exist",
+            "analysis": ["summary"],
+            "data": [{"amount": 1.0}],
+        }
+        headers = {"X-API-Key": probe["api_key"]}
+
+        seen_429 = None
+        for _ in range(60):  # catches any configured limit up to 59/min
+            r = client.post("/api/v1/analyze", json=payload, headers=headers)
+            if r.status_code == 429:
+                seen_429 = r
+                break
+            # Unknown dataset → 404, but the request still counts against the quota
+            assert r.status_code == 404
+
+        assert seen_429 is not None, "POST /analyze never returned 429"
+        assert seen_429.status_code == 429
+
+
 # ─── 3. Validation Tests ─────────────────────────────────────────────────────
 
 class TestValidation:

@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_application_by_api_key
 from app.core.database import get_db
 from app.core.logging import get_logger
+from app.core.ratelimit import limiter
 from app.models import Application
 from app.repositories.analysis_repo import AnalysisRunRepository
 from app.repositories.application_repo import ApplicationRepository
@@ -30,8 +31,10 @@ logger = get_logger(__name__)
 
 
 @router.post("/analyze", response_model=AnalysisResponse)
+@limiter.limit("20/minute")
 def analyze(
     body: AnalysisRequest,
+    request: Request,
     db: Session = Depends(get_db),
     authed_app: Application = Depends(get_application_by_api_key),
 ) -> AnalysisResponse:
