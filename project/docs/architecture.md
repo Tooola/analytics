@@ -74,7 +74,8 @@ backend/
 ├── tests/                   # Unit tests
 ├── scripts/                 # Utility scripts
 ├── alembic/                 # Database migrations
-└── requirements.txt
+├── requirements.txt         # Runtime deps (pinned)
+└── requirements-dev.txt     # Tests & lint
 ```
 
 ## Key Design Decisions

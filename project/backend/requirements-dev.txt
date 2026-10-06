@@ -1,0 +1,9 @@
+# ─── Backend — development & test dependencies ──────────────────────────────
+# Install: pip install -r requirements-dev.txt  (pulls in requirements.txt)
+-r requirements.txt
+
+pytest==9.1.1
+# httpx is required by fastapi.testclient (TestClient) — keep it dev-only
+httpx==0.28.1
+# Linter run by CI (advisory/non-blocking this week)
+ruff>=0.8.0

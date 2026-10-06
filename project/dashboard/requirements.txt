@@ -1,6 +1,8 @@
-streamlit>=1.40.0
-plotly>=5.18.0
-statsmodels>=0.14.0
-pandas>=2.2.0
-numpy>=2.0.0
-requests>=2.32.0
+# ─── Dashboard — PINNED to the validated local set ──────────────────────────
+# streamlit floor raised to 1.51: the code uses width="stretch" (16 times),
+# which older versions reject.
+streamlit==1.63.0
+plotly==7.0.0
+pandas==3.0.5
+numpy==2.5.2
+requests==2.34.2

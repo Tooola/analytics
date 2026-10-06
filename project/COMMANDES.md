@@ -51,8 +51,8 @@ python -m venv .venv
 # 3. Activer l'environnement virtuel
 .\.venv\Scripts\activate
 
-# 4. Installer les dépendances
-pip install -r requirements.txt
+# 4. Installer les dépendances (dev = prod + pytest/httpx)
+pip install -r requirements-dev.txt
 
 # 5. Initialiser / migrer la base de données
 alembic upgrade head
@@ -69,7 +69,7 @@ uvicorn app.main:app --reload --port 8000
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 alembic upgrade head
 python -m scripts.generate_demo_data
 uvicorn app.main:app --reload --port 8000

@@ -1,22 +1,21 @@
-fastapi>=0.115.0
-uvicorn[standard]>=0.34.0
-pydantic>=2.10.0
-pydantic-settings>=2.7.0
-sqlalchemy>=2.0.0
-alembic>=1.14.0
-psycopg2-binary>=2.9.0
-python-dotenv>=1.0.0
-pandas>=2.2.0
-numpy>=2.0.0
-scipy>=1.14.0
-scikit-learn>=1.5.0
-statsmodels>=0.14.0
-passlib[bcrypt]>=1.7.4
-python-multipart>=0.0.9
-httpx>=0.28.0
-pytest>=8.0.0
-pytest-asyncio>=0.25.0
-streamlit>=1.40.0
-plotly>=5.18.0
-requests>=2.32.0
-slowapi>=0.1.10
+# ─── Backend — production dependencies (PINNED) ─────────────────────────────
+# Direct dependencies only; versions == the set that the test suite (94 tests)
+# actually runs against. Dev/test tools live in requirements-dev.txt.
+# Regenerate pins: pip freeze | findstr /I "pkg1 pkg2 ..."
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn[standard]==0.52.4
+pydantic==2.13.5
+pydantic-settings==2.15.0
+SQLAlchemy==2.0.52
+alembic==1.19.1
+psycopg2-binary==2.9.12
+pandas==3.0.5
+numpy==2.5.2
+scipy==1.18.1
+scikit-learn==1.9.0
+passlib[bcrypt]==1.7.4
+bcrypt==5.0.0
+slowapi==0.1.10
+limits==5.8.0
+requests==2.34.2

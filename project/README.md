@@ -32,7 +32,7 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\activate      # Windows
 # source .venv/bin/activate  # Linux/Mac
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 cp ..\.env.example .env
 alembic upgrade head
 python -m scripts.generate_demo_data
