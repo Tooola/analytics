@@ -1,11 +1,10 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: analytics
-      POSTGRES_PASSWORD: analytics
+      # Password comes from project/.env (default keeps the historical value).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-analytics}
       POSTGRES_DB: open_analytics
     ports:
       - "5432:5432"
@@ -24,11 +23,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+psycopg2://analytics:analytics@postgres:5432/open_analytics
+      # Keep in sync with POSTGRES_PASSWORD above (same interpolation).
+      DATABASE_URL: postgresql+psycopg2://analytics:${POSTGRES_PASSWORD:-analytics}@postgres:5432/open_analytics
       APP_ENV: development
       DEBUG: "true"
       AI_PROVIDER: mock
-      API_KEY_HASH_SECRET: change-me-in-production
+      # No hardcoded secret: project/.env must define it (it already does).
+      API_KEY_HASH_SECRET: ${API_KEY_HASH_SECRET:?Set API_KEY_HASH_SECRET in project/.env}
     depends_on:
       postgres:
         condition: service_healthy
