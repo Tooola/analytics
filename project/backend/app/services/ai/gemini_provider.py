@@ -62,8 +62,10 @@ Response must be pure JSON only without markdown formatting.
 
         prompt = self._build_prompt(context)
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
-        headers = {"Content-Type": "application/json"}
+        # Key goes in the header, never in the URL query (PLAN.md S7):
+        # query strings leak into logs, proxies and error messages.
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+        headers = {"Content-Type": "application/json", "x-goog-api-key": self.api_key}
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
         try:
@@ -89,7 +91,9 @@ Response must be pure JSON only without markdown formatting.
                 action_plan=parsed.get("action_plan", []),
                 risk_assessment=parsed.get("risk_assessment", "Risk evaluation complete."),
                 confidence=0.95,
-                raw=data,
+                # Persist only usage + model, never the full API payload
+                # (PLAN.md S7: raw=data stored whole candidates blob in DB).
+                raw={"usage": data.get("usageMetadata", {}), "model": self.model},
             )
         except Exception as e:
             logger.error("Gemini API call failed: %s", e)

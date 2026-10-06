@@ -150,3 +150,80 @@ class TestPromptInjectionDelimiters:
         hits = self._occurrences(prompt, self.MALICIOUS)
         assert hits, "attack string should be present as data"
         assert all(start < i < end for i in hits)
+
+
+class TestGeminiRequestHygiene:
+    """PLAN.md S7: API key in header (not URL) and no full payload persisted."""
+
+    SECRET = "SECRET_GEMINI_KEY_123"
+
+    @staticmethod
+    def _ctx() -> AnalyticalContext:
+        return AnalyticalContext(
+            application="test-app",
+            dataset="test-dataset",
+            row_count=10,
+            summary=[{"column": "revenue", "mean": 500}],
+        )
+
+    class _Resp:
+        def __init__(self, status_code: int, payload: dict):
+            self.status_code = status_code
+            self.text = str(payload)
+            self._payload = payload
+
+        def json(self) -> dict:
+            return self._payload
+
+    def test_key_sent_in_header_not_url(self, monkeypatch):
+        from app.services.ai import gemini_provider as gp
+
+        captured: dict = {}
+
+        def fake_post(url, headers=None, json=None, timeout=None):  # noqa: A002
+            captured["url"] = url
+            captured["headers"] = headers
+            return self._Resp(500, {})
+
+        monkeypatch.setattr(gp.requests, "post", fake_post)
+        gp.GeminiAIProvider(api_key=self.SECRET).interpret(self._ctx())
+
+        assert captured, "requests.post must be called"
+        assert self.SECRET not in captured["url"]
+        assert "key=" not in captured["url"]
+        assert captured["headers"]["x-goog-api-key"] == self.SECRET
+
+    def test_raw_persists_usage_not_full_response(self, monkeypatch):
+        from app.services.ai import gemini_provider as gp
+
+        api_payload = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": (
+                                    '{"summary":"s","key_findings":["f"],'
+                                    '"recommendations":["r"],'
+                                    '"action_plan":["a"],'
+                                    '"risk_assessment":"low"}'
+                                )
+                            }
+                        ]
+                    }
+                }
+            ],
+            "usageMetadata": {"totalTokenCount": 42},
+        }
+
+        monkeypatch.setattr(
+            gp.requests, "post",
+            lambda url, headers=None, json=None, timeout=None: self._Resp(200, api_payload),
+        )
+        result = gp.GeminiAIProvider(api_key=self.SECRET).interpret(self._ctx())
+
+        assert result.provider.startswith("gemini")
+        assert result.raw is not None
+        assert "candidates" not in result.raw          # full response not persisted
+        assert result.raw["model"] == "gemini-1.5-flash"
+        assert result.raw["usage"] == {"totalTokenCount": 42}
