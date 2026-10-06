@@ -67,6 +67,10 @@ if "app_notification" in st.session_state and st.session_state["app_notification
         st.warning("🔑 **Save your API Key now — it will not be shown again!**")
         st.code(notif["key"], language="text")
 
+    # Displayed once only — otherwise the raw API key would stay in the DOM
+    # for the whole session, contradicting the message above.
+    st.session_state["app_notification"] = None
+
 # ─── Register new application ──────────────────────────
 
 with st.expander("Register New Application", expanded=False):
@@ -168,6 +172,15 @@ if resp and resp.status_code == 200:
                     else:
                         st.error(f"❌ Failed to delete application: HTTP {r.status_code if r else 'connection error'}")
 elif resp and resp.status_code == 401:
-    st.warning("API Key authentication required. Enter your X-API-Key in sidebar Settings.")
+    if not st.session_state.get("api_key"):
+        st.info(
+            "🔑 **No API key yet** — create your first application above. "
+            "Your key is stored automatically for this session."
+        )
+    else:
+        st.warning(
+            "❌ **Invalid or revoked API key** — update it in the sidebar "
+            "**Settings** panel."
+        )
 else:
     st.warning("Cannot reach the API. Make sure the backend is running at " + _get_api_base())
