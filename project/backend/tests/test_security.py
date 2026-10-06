@@ -545,6 +545,22 @@ class TestValidation:
         )
         assert resp.status_code == 422
 
+    def test_analyze_segmentation_rejected_422(self, client, app_a):
+        """PLAN.md S3: 'segmentation' is declared but unimplemented — it must
+        be rejected up front instead of being silently dropped from the run."""
+        _, key_a = app_a
+        resp = client.post(
+            "/api/v1/analyze",
+            json={
+                "application": "a",
+                "dataset": "d",
+                "analysis": ["segmentation"],
+                "data": [{"x": 1}],
+            },
+            headers={"X-API-Key": key_a},
+        )
+        assert resp.status_code == 422
+
     def test_analyze_blank_application_slug(self, client, app_a):
         _, key_a = app_a
         resp = client.post(

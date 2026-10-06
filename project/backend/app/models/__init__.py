@@ -48,7 +48,9 @@ class AnalysisType(str, enum.Enum):
     correlation = "correlation"
     distribution = "distribution"
     forecast = "forecast"
-    segmentation = "segmentation"
+    # 'segmentation' is deliberately absent: it is not implemented, and
+    # declaring it here made the API accept a type the engine silently
+    # dropped (PLAN.md S3). Re-add when K-means actually ships.
 
 
 class AnalysisStatus(str, enum.Enum):
