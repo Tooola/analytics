@@ -39,7 +39,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     apps_resp = _get("/api/v1/applications")
-    apps = apps_resp.json() if apps_resp and apps_resp.status_code == 200 else []
+    apps = apps_resp.json() if apps_resp is not None and apps_resp.status_code == 200 else []
     app_options = {a["slug"]: a for a in apps}
 
     if not app_options:
@@ -51,7 +51,7 @@ with col1:
 with col2:
     if selected_app and selected_app != "—":
         ds_resp = _get(f"/api/v1/datasets/by-app/{selected_app}")
-        datasets = ds_resp.json() if ds_resp and ds_resp.status_code == 200 else []
+        datasets = ds_resp.json() if ds_resp is not None and ds_resp.status_code == 200 else []
     else:
         datasets = []
 

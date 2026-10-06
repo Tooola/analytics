@@ -57,7 +57,7 @@ with st.expander("Register New Application", expanded=False):
                         "name": name.strip(),
                         "description": description.strip() if description else None,
                     })
-                if resp and resp.status_code == 201:
+                if resp is not None and resp.status_code == 201:
                     data = resp.json()
                     new_key = data.get("api_key", "")
                     st.session_state["api_key"] = new_key
@@ -67,7 +67,7 @@ with st.expander("Register New Application", expanded=False):
                         "key": new_key,
                     }
                     st.rerun()
-                elif resp and resp.status_code == 409:
+                elif resp is not None and resp.status_code == 409:
                     st.error("⚠️ An application with this name already exists.")
                 else:
                     err_msg = resp.json().get("detail", resp.text) if (resp and resp.headers.get("content-type") == "application/json") else (resp.text if resp else "Connection Error")
@@ -79,7 +79,7 @@ st.markdown("---")
 st.subheader("Registered Applications")
 
 resp = _get("/api/v1/applications")
-if resp and resp.status_code == 200:
+if resp is not None and resp.status_code == 200:
     apps = resp.json()
     if not apps:
         st.info("No applications registered yet. Create one above.")
@@ -111,7 +111,7 @@ if resp and resp.status_code == 200:
                 if st.button("Regenerate API Key", type="secondary", key="regen_btn"):
                     with st.spinner("Regenerating API Key..."):
                         r = _post(f"/api/v1/applications/{app['id']}/regenerate-key")
-                    if r and r.status_code == 200:
+                    if r is not None and r.status_code == 200:
                         new_key = r.json()["api_key"]
                         st.session_state["api_key"] = new_key
                         st.session_state["app_notification"] = {
@@ -135,7 +135,7 @@ if resp and resp.status_code == 200:
                             st.session_state.pop("confirm_action", None)
                             with st.spinner("Revoking API Key..."):
                                 r = _post(f"/api/v1/applications/{app['id']}/revoke-key")
-                            if r and r.status_code == 204:
+                            if r is not None and r.status_code == 204:
                                 st.session_state["app_notification"] = {
                                     "type": "warning",
                                     "msg": f"⚠️ API Key for '{app['name']}' has been revoked.",
@@ -163,7 +163,7 @@ if resp and resp.status_code == 200:
                             st.session_state.pop("confirm_action", None)
                             with st.spinner("Deleting Application..."):
                                 r = _delete(f"/api/v1/applications/{app['id']}")
-                            if r and r.status_code == 204:
+                            if r is not None and r.status_code == 204:
                                 st.session_state["app_notification"] = {
                                     "type": "warning",
                                     "msg": f"🗑️ Application '{app['name']}' has been deleted.",
@@ -178,7 +178,7 @@ if resp and resp.status_code == 200:
                 elif st.button("Delete Application", type="primary", key="delete_btn"):
                     st.session_state["confirm_action"] = {"action": "delete", "app_id": app["id"]}
                     st.rerun()
-elif resp and resp.status_code == 401:
+elif resp is not None and resp.status_code == 401:
     if not st.session_state.get("api_key"):
         st.info(
             "🔑 **No API key yet** — create your first application above. "

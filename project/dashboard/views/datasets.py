@@ -48,7 +48,7 @@ if "ds_notification" in st.session_state and st.session_state["ds_notification"]
 
 # ─── Charger les applications disponibles ──────────────
 apps_resp = _get("/api/v1/applications")
-apps = apps_resp.json() if apps_resp and apps_resp.status_code == 200 else []
+apps = apps_resp.json() if apps_resp is not None and apps_resp.status_code == 200 else []
 app_map = {a["slug"]: a for a in apps}  # slug → app dict
 
 # ─── Register New Dataset ──────────────────────────────
@@ -125,7 +125,7 @@ with st.expander("Enregistrer un nouveau Dataset", expanded=True if not apps els
                                     },
                                     headers={"X-API-Key": api_key_for_app},
                                 )
-                            if resp and resp.status_code == 201:
+                            if resp is not None and resp.status_code == 201:
                                 # Mettre à jour la clé en session si elle a changé
                                 st.session_state["api_key"] = api_key_for_app
                                 st.session_state["ds_notification"] = {
@@ -133,9 +133,9 @@ with st.expander("Enregistrer un nouveau Dataset", expanded=True if not apps els
                                     "msg": f"Dataset '{ds_name}' (`{ds_slug}`) enregistré pour l'application **{selected_app_slug}** !",
                                 }
                                 st.rerun()
-                            elif resp and resp.status_code == 409:
+                            elif resp is not None and resp.status_code == 409:
                                 st.error("Un dataset avec ce slug existe déjà pour cette application.")
-                            elif resp and resp.status_code == 401:
+                            elif resp is not None and resp.status_code == 401:
                                 st.error("Clé API invalide ou ne correspondant pas à l'application sélectionnée.")
                             else:
                                 try:
