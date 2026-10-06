@@ -19,7 +19,7 @@
 | Jeudi | 🟢 Dépendances + Docker | ✅ fait le 06/10 (J5 bloqué : Docker absent) |
 | Vendredi | 🔵 Dashboard (sécurité + perf) | ✅ fait le 06/10 (live + fix bonus 401 falsy) |
 | Samedi | 🟣 Correctifs stats/LLM | ✅ fait le 06/10 (7/8 — S5 reportée, fichier utilisateur) |
-| Dimanche | ⚪ Buffer + doc critique | ⬜ |
+| Dimanche | ⚪ Buffer + doc critique | ✅ fait le 06/10 (D1-D4, DoD annoté, tag v1.0.0) |
 
 ---
 
@@ -202,19 +202,23 @@ docker history <image>      # pas de .env / analytics.db / secrets.toml
 
 ---
 
-## ⚪ DIMANCIE — Buffer + doc critique
+## ⚪ DIMANCHE — Buffer + doc critique
 
-- [ ] **D1** — 🔴 `project/docs/RAILWAY_ET_KIT_COLLEGUES.md` (3 corrections) :
-  - [ ] l.14 : `Root Directory: backend` → **`project/backend`**
-  - [ ] l.123 : **supprimer** le conseil de mettre la clé API dans le `.env` **frontend** (contradit les autres guides)
-  - [ ] l.86-89 : `result.data.results.*` → `results.*` (aucun wrapper `data`)
-- [ ] **D2** — README racine : passer de 2 lignes à pitch + quickstart + badge CI + liens docs
-- [ ] **D3** — Purge de la racine :
-  - [ ] `result.md` (sortie d'agent) et `scratch_inspect.py` (réécrit `bi_report.py` par index) → hors Git
-  - [ ] `dataset_*.json`, `mock_data.json` → `tests/fixtures/`
-  - [ ] `dataset_definitions.md`, `test_inputs.md` → `docs/`
-- [ ] **D4** — Revue finale (checklist §7) + tag `v1.0.0`
-- [ ] **D5** 🔴 — **Buffer imprévus** — ne rien y planifier d'avance
+> **État : ✅ terminé le 06/10/2026 — D1-D4 faits, D5 inchangé (aucun imprévu).**
+> Commits : `ccaaf35` (D1), `cea39b1` (D2), `419cd1c` (D3), revue DoD + tag (D4).
+
+- [x] **D1** — ✅ `project/docs/RAILWAY_ET_KIT_COLLEGUES.md` (3 corrections) :
+  - [x] l.14 : `Root Directory` → **`project/backend`** (chemin complet + Dockerfile cohérent)
+  - [x] l.123 : conseil `.env` frontend **remplacé** par « jamais côté navigateur » (une suppression pure aurait laissé un trou dans la FAQ)
+  - [x] l.86-89 : `result.data.results.*` → `results.*` (vérifié : le schéma n'a aucun wrapper `data` ; aliases `application_slug`/`dataset_slug` OK)
+- [x] **D2** — ✅ README racine : pitch (2 phrases) + quickstart 3 commandes + badge CI + tableau de liens docs (+ URL démo Railway conservée)
+- [x] **D3** — ✅ Purge de la racine (`419cd1c`) :
+  - [x] `result.md` + `scratch_inspect.py` → hors Git (`git rm`, déjà couverts par `.gitignore`)
+  - [x] `mock_data.json`, `dataset_payload_analyze.json`, `dataset_sales.json` → `project/backend/tests/fixtures/`
+  - [x] `dataset_definitions.md`, `test_inputs.md` → `project/docs/`
+  - ⚠️ `dataset_farmtinz.json` **laissé à la racine** : fichier utilisateur en cours d'édition, non bougé (règle du sprint)
+- [x] **D4** — ✅ Revue finale (résultats de la checklist §7 annotés ci-dessous) + tag `v1.0.0` local
+- [x] **D5** 🔴 — Buffer imprévus — **inutilisé** (aucun imprévu bloquant)
 
 ---
 
@@ -236,11 +240,15 @@ docker history <image> | grep -iE "env|\.db"        # rien
 # 1 clic (DevTools) → ≤ 2 requêtes réseau
 ```
 
-- [ ] Les 6 endpoints admin renvoient 401
-- [ ] CI verte sur `main`
-- [ ] Aucun secret sur disque ni dans l'image
-- [ ] Rate-limit actif (429 observé)
-- [ ] Forecast avec intervalles corrects
+> **Revue exécutée le 06/10/2026** — commandes SÉCURITÉ + `pytest` + perf lancées en local ; les 2 lignes Docker et « CI sur `main` » restent ⛔ non vérifiables ici (Docker absent, aucun push effectué pendant le sprint).
+
+- [x] **Les 6 endpoints admin renvoient 401** — ✅ couverts par `test_security.py` : analyze, datasets, insights, analysis list/detail, me, applications (list / by-id / delete / regenerate / revoke)
+- [ ] **CI verte sur `main`** — ⛔ non vérifiable : aucun push effectué (merge `main` en attente de décision) ; en local : **110/110 tests** + `ruff check app --select F` = **0 erreur**
+- [x] **Aucun secret sur disque** — ✅ `git ls-files | grep -E "\.env$|\.db$"` → vide ; `gsk_`/`AIza`/`sk-` absents des fichiers trackés ; `ConnectionError` → `RequestException` ; `change-me-in-production` absent du compose. **Dans l'image** ⛔ (Docker absent)
+- [x] **Rate-limit actif (429 observé)** — ✅ `test_security.py:446-472`
+- [x] **Forecast avec intervalles corrects** — ✅ tests S1 (`63e509d`) : largeur croissante avec l'horizon + nulle sur fit parfait
+- [x] **Perf dashboard — 1 clic ≤ 2 requêtes** — ✅ live du 06/10 : clic #1 vers vue neuve = **0 requête API** (caches V5 chauds) + 4 chunks JS Streamlit one-shot (premier accès) ; clic #2 = **0 requête** ; seuls autres flux = telemetry tierce (hors code projet)
+- ⛔ **`alembic upgrade head` (conteneur) + `docker history`** — Docker absent : « code complete, build non vérifié » (rappel J4)
 
 ---
 
