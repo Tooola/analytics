@@ -247,7 +247,7 @@ docker history <image> | grep -iE "env|\.db"        # rien
 ## 8. ✂️ Reporté (hors sprint — semaine +1 et après)
 
 **Innovation** (prerequisite : cache, client API, CI — tous en place fin de sprint) :
-- Segmentation K-means (la 7ᵉ analyse déjà déclarée dans l'enum)
+- Segmentation K-means (l'enum a été **nettoyée en S3** : réajouter le membre `segmentation` au ship)
 - Veille continue / alerting (scheduler + détection d'anomalies)
 - Upload CSV + connecteurs
 - Natural Language Query (text-to-SQL)
@@ -256,6 +256,7 @@ docker history <image> | grep -iE "env|\.db"        # rien
 - Prévisions Prophet/ETS (après correction S1)
 
 **Dette** :
+- **S5 reportée** (fichier utilisateur protégé `services/ai/engine.py`) : 2 modèles max, timeout global 30 s, champ `degraded: true` + `provider` dans la réponse d'analyse
 - Fusion des 2 guides d'intégration + `api.md` régénéré depuis `/openapi.json`
 - Dette backend : hack `__import__` (`applications.py:41`), imports morts, `version="1.0.0"` ×3
 - Dette modèle : JSON en `Text` → type SQLA `JSON`, CSV `analysis_types` → table d'association, `BaseRepository.update` qui ignore les `None` (`base.py:36-38`)
