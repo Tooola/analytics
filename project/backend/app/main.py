@@ -25,6 +25,16 @@ async def lifespan(app: FastAPI):
         logger.info("Database tables initialized successfully.")
     except Exception as exc:
         logger.error("Failed to initialize database tables: %s", exc)
+        # Fail closed outside development: starting without a usable schema
+        # would turn every request into a 500 while looking "up".
+        if settings.app_env.lower() not in (
+            "development",
+            "dev",
+            "testing",
+            "test",
+            "local",
+        ):
+            raise
     yield
     logger.info("Shutting down %s", settings.app_name)
 
@@ -39,6 +49,16 @@ limiter = Limiter(
     enabled=settings.app_env != "test",
 )
 
+# Interactive API documentation (Swagger/ReDoc) is a development aid —
+# it must not advertise the full API surface in production.
+_DOCS_ENABLED = settings.app_env.lower() in (
+    "development",
+    "dev",
+    "testing",
+    "test",
+    "local",
+)
+
 app = FastAPI(
     title=settings.app_name,
     description=(
@@ -48,8 +68,8 @@ app = FastAPI(
     ),
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if _DOCS_ENABLED else None,
+    redoc_url="/redoc" if _DOCS_ENABLED else None,
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

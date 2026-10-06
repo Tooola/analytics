@@ -13,13 +13,16 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore",
+        # Fail fast on unknown env keys (catches typos like GROQ_API_KEYY)
+        # instead of silently running with defaults.
+        extra="forbid",
     )
 
     # Application
     app_name: str = "Open Analytics AI"
     app_env: str = "development"
-    debug: bool = True
+    # Safe default: verbose output must be an explicit opt-in via DEBUG=true.
+    debug: bool = False
 
     # Database
     database_url: str = "sqlite:///./analytics.db"

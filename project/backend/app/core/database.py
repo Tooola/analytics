@@ -20,7 +20,9 @@ engine = create_engine(
     db_url,
     pool_pre_ping=not is_sqlite,
     connect_args=connect_args,
-    echo=settings.debug,
+    # SQL echo stays off permanently: DEBUG=true (the default in local .env)
+    # must not spam every row of data into the production logs.
+    echo=False,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
