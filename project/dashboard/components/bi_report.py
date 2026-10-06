@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from html import escape
 from typing import Any
 
 import numpy as np
@@ -242,7 +243,7 @@ def _render_section_b_executive_summary(df: pd.DataFrame, results: dict[str, Any
                     med_val = num_df[col_name].median()
                     with col_target:
                         st.markdown("<div class='bi-kpi-card'>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='bi-kpi-title'>{col_name}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='bi-kpi-title'>{escape(str(col_name))}</div>", unsafe_allow_html=True)
                         st.markdown(f"<div class='bi-kpi-value'>{mean_val:,.2f}</div>", unsafe_allow_html=True)
                         st.markdown(f"<div class='bi-kpi-sub'>Moyenne | Médiane: {med_val:,.2f}</div>", unsafe_allow_html=True)
                         st.markdown("</div>", unsafe_allow_html=True)
@@ -266,7 +267,7 @@ def _render_section_b_executive_summary(df: pd.DataFrame, results: dict[str, Any
 
         with col_target:
             st.markdown("<div class='bi-kpi-card'>", unsafe_allow_html=True)
-            st.markdown(f"<div class='bi-kpi-title'>{col_name}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='bi-kpi-title'>{escape(str(col_name))}</div>", unsafe_allow_html=True)
 
             val_display = f"{mean_val:,.2f}" if mean_val is not None else "N/A"
             st.markdown(f"<div class='bi-kpi-value'>{val_display}</div>", unsafe_allow_html=True)
@@ -473,10 +474,10 @@ def _render_section_d_statistical_findings(results: dict[str, Any]) -> None:
                 <div class='bi-card-box'>
                     <div style='display:flex; align-items:center; gap:8px;'>
                         <span style='font-size:1.3rem;'>{f['icon']}</span>
-                        <h4 style='margin:0; color:#1E293B;'>{f['title']}</h4>
+                        <h4 style='margin:0; color:#1E293B;'>{escape(str(f['title']))}</h4>
                     </div>
-                    <p style='margin: 8px 0 4px 0; font-size: 0.95rem; color:#334155;'>{f['summary']}</p>
-                    <p style='margin: 0; font-size: 0.85rem; color:#64748B;'><strong>💡 Impact Métier :</strong> {f['impact']}</p>
+                    <p style='margin: 8px 0 4px 0; font-size: 0.95rem; color:#334155;'>{escape(str(f['summary']))}</p>
+                    <p style='margin: 0; font-size: 0.85rem; color:#64748B;'><strong>💡 Impact Métier :</strong> {escape(str(f['impact']))}</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -574,7 +575,7 @@ def _render_section_f_ai_insights(insights: list[dict[str, Any]] | None, ai_data
             f"padding:14px 18px;margin-bottom:18px;'>"
             f"<span style='font-size:0.8rem;color:#0369A1;font-weight:700;text-transform:uppercase;"
             f"letter-spacing:0.06em;'>📋 Résumé Exécutif</span>"
-            f"<p style='margin:6px 0 0 0;font-size:0.97rem;color:#1E293B;line-height:1.6;'>{summary_text}</p>"
+            f"<p style='margin:6px 0 0 0;font-size:0.97rem;color:#1E293B;line-height:1.6;'>{escape(summary_text)}</p>"
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -589,7 +590,7 @@ def _render_section_f_ai_insights(insights: list[dict[str, Any]] | None, ai_data
                 f"<div class='bi-card-box' style='border-left:3px solid #6366F1;'>"
                 f"<span style='font-size:0.78rem;color:#6366F1;font-weight:700;text-transform:uppercase;"
                 f"letter-spacing:0.05em;'>Constat #{i}</span>"
-                f"<p style='margin:6px 0 0 0;font-size:0.95rem;color:#1E293B;line-height:1.6;'>{kf}</p>"
+                f"<p style='margin:6px 0 0 0;font-size:0.95rem;color:#1E293B;line-height:1.6;'>{escape(str(kf))}</p>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
@@ -628,7 +629,7 @@ def _render_section_g_recommendations(insights: list[dict[str, Any]] | None, ai_
                 f"<div class='bi-card-box' style='border-left:3px solid {priority_color};'>"
                 f"<span style='font-size:0.78rem;color:{priority_color};font-weight:700;"
                 f"text-transform:uppercase;letter-spacing:0.05em;'>{priority_label}</span>"
-                f"<p style='margin:6px 0 0 0;font-size:0.95rem;color:#1E293B;line-height:1.6;'>{rec}</p>"
+                f"<p style='margin:6px 0 0 0;font-size:0.95rem;color:#1E293B;line-height:1.6;'>{escape(str(rec))}</p>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
@@ -646,7 +647,7 @@ def _render_section_g_recommendations(insights: list[dict[str, Any]] | None, ai_
                 f"<div style='display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;'>"
                 f"<div style='min-width:12px;height:12px;border-radius:50%;"
                 f"background:{color};margin-top:6px;flex-shrink:0;'></div>"
-                f"<p style='margin:0;font-size:0.94rem;color:#1E293B;line-height:1.6;'>{step}</p>"
+                f"<p style='margin:0;font-size:0.94rem;color:#1E293B;line-height:1.6;'>{escape(str(step))}</p>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
