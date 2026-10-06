@@ -97,6 +97,14 @@ if resp and resp.status_code == 200:
 
         if selected:
             app = app_options[selected]
+
+            # Two-step confirmation for destructive actions (PLAN.md V2).
+            # Bound to the app id: changing the selection cancels it.
+            pending = st.session_state.get("confirm_action")
+            if pending and pending.get("app_id") != app["id"]:
+                st.session_state.pop("confirm_action", None)
+                pending = None
+
             col1, col2, col3 = st.columns(3)
             
             with col1:
@@ -116,30 +124,60 @@ if resp and resp.status_code == 200:
                         st.error(f"❌ Failed to regenerate key: HTTP {r.status_code if r else 'connection error'}")
 
             with col2:
-                if st.button("Revoke API Key", type="primary", key="revoke_btn"):
-                    with st.spinner("Revoking API Key..."):
-                        r = _post(f"/api/v1/applications/{app['id']}/revoke-key")
-                    if r and r.status_code == 204:
-                        st.session_state["app_notification"] = {
-                            "type": "warning",
-                            "msg": f"⚠️ API Key for '{app['name']}' has been revoked.",
-                        }
-                        st.rerun()
-                    else:
-                        st.error(f"❌ Failed to revoke key: HTTP {r.status_code if r else 'connection error'}")
+                if pending and pending.get("action") == "revoke":
+                    st.warning(
+                        f"⚠️ Revoke the API key of **{app['name']}**? "
+                        "Every client still using it will be rejected."
+                    )
+                    yes, no = st.columns(2)
+                    with yes:
+                        if st.button("Yes, revoke", key="revoke_confirm_yes", type="primary"):
+                            st.session_state.pop("confirm_action", None)
+                            with st.spinner("Revoking API Key..."):
+                                r = _post(f"/api/v1/applications/{app['id']}/revoke-key")
+                            if r and r.status_code == 204:
+                                st.session_state["app_notification"] = {
+                                    "type": "warning",
+                                    "msg": f"⚠️ API Key for '{app['name']}' has been revoked.",
+                                }
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Failed to revoke key: HTTP {r.status_code if r else 'connection error'}")
+                    with no:
+                        if st.button("Cancel", key="revoke_confirm_no"):
+                            st.session_state.pop("confirm_action", None)
+                            st.rerun()
+                elif st.button("Revoke API Key", type="primary", key="revoke_btn"):
+                    st.session_state["confirm_action"] = {"action": "revoke", "app_id": app["id"]}
+                    st.rerun()
 
             with col3:
-                if st.button("Delete Application", type="primary", key="delete_btn"):
-                    with st.spinner("Deleting Application..."):
-                        r = _delete(f"/api/v1/applications/{app['id']}")
-                    if r and r.status_code == 204:
-                        st.session_state["app_notification"] = {
-                            "type": "warning",
-                            "msg": f"🗑️ Application '{app['name']}' has been deleted.",
-                        }
-                        st.rerun()
-                    else:
-                        st.error(f"❌ Failed to delete application: HTTP {r.status_code if r else 'connection error'}")
+                if pending and pending.get("action") == "delete":
+                    st.warning(
+                        f"⚠️ Delete **{app['name']}** and all its datasets/analyses? "
+                        "This cannot be undone."
+                    )
+                    yes, no = st.columns(2)
+                    with yes:
+                        if st.button("Yes, delete", key="delete_confirm_yes", type="primary"):
+                            st.session_state.pop("confirm_action", None)
+                            with st.spinner("Deleting Application..."):
+                                r = _delete(f"/api/v1/applications/{app['id']}")
+                            if r and r.status_code == 204:
+                                st.session_state["app_notification"] = {
+                                    "type": "warning",
+                                    "msg": f"🗑️ Application '{app['name']}' has been deleted.",
+                                }
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Failed to delete application: HTTP {r.status_code if r else 'connection error'}")
+                    with no:
+                        if st.button("Cancel", key="delete_confirm_no"):
+                            st.session_state.pop("confirm_action", None)
+                            st.rerun()
+                elif st.button("Delete Application", type="primary", key="delete_btn"):
+                    st.session_state["confirm_action"] = {"action": "delete", "app_id": app["id"]}
+                    st.rerun()
 elif resp and resp.status_code == 401:
     if not st.session_state.get("api_key"):
         st.info(
