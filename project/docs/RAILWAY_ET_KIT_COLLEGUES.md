@@ -11,8 +11,8 @@ Ce document récapitule les étapes pour déployer le Backend **Open Analytics A
 2. Cliquez sur **New Project** > **Deploy from GitHub repo**.
 3. Sélectionnez le dépôt `analytics`.
 4. Dans les paramètres du service (**Settings**) :
-   - **Root Directory** : Définissez `backend` (ou laissez la racine si vous utilisez le Procfile/Dockerfile du backend).
-   - **Build Command** : Railway détectera automatiquement le `Dockerfile` dans `backend`.
+   - **Root Directory** : Définissez `project/backend` (chemin complet depuis la racine du dépôt — le `Dockerfile` et le code du backend s'y trouvent).
+   - **Build Command** : Railway détectera automatiquement le `Dockerfile` dans `project/backend`.
 
 ### 2. Variables d'Environnement à configurer sur Railway 
 Dans l'onglet **Variables** de Railway, ajoutez :
@@ -83,10 +83,10 @@ const response = await fetch("https://scintillating-kindness-production-d038.up.
 });
 
 const result = await response.json();
-console.log("Résumé :", result.data.results.summary);
-console.log("Tendance :", result.data.results.trend);
-console.log("Anomalies :", result.data.results.anomaly);
-console.log("Analyse IA :", result.data.ai_interpretation);
+console.log("Résumé :", result.results.summary);
+console.log("Tendance :", result.results.trend);
+console.log("Anomalies :", result.results.anomaly);
+console.log("Analyse IA :", result.ai_interpretation);
 ```
 
 ##### 🐍 Exemple 2 : Python (Requests / Backend-to-Backend)
@@ -120,7 +120,7 @@ print(response.json())
 ### Q1 : *"Où est-ce qu'on branche ce code ?"*
 > **Réponse** :
 > - **Idéal (Backend-to-Backend)** : Dans le backend de votre application (Node.js/Express, Python, Laravel, etc.) avant de renvoyer le résultat au frontend. Cela évite d'exposer la clé API dans le navigateur du client.
-> - **Frontend Direct (React/Vue/Mobile)** : Si vous appelez directement le backend depuis React ou Mobile, stockez la clé API dans les variables d'environnement secrètes du frontend (ex: `.env.local`).
+> - **Jamais côté navigateur** : une clé livrée à un frontend (bundle JS, `.env.local`, application mobile) est récupérable par l'utilisateur final — passez toujours par votre propre backend.
 
 ### Q2 : *"J'obtiens une erreur 401 Unauthorized"*
 > **Réponse** : Vérifiez que vous avez bien inclus le header HTTP `X-API-Key: anal_...` avec une clé valide associée à votre `application_slug`.
