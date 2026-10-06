@@ -21,8 +21,9 @@ Dans l'onglet **Variables** de Railway, ajoutez :
 |---|---|---|
 | `APP_ENV` | `production` | Mode de production |
 | `DATABASE_URL` | *(Généré par Railway PostgreSQL)* | URL de connexion DB |
-| `AI_PROVIDER` | `gemini` | Fournisseur IA (`gemini` ou `mock`) |
-| `GEMINI_API_KEY` | *(Votre clé Google AI Studio)* | Clé d'API pour Gemini |
+| `AI_PROVIDER` | `groq` | Fournisseur IA : `groq`, `gemini`, `local_llm` ou `mock` — **défaut `mock` si la variable est absente** (l'analyse tourne alors en mode démo) |
+| `GROQ_API_KEY` | *(Votre clé Groq — console.groq.com)* | Clé d'API Groq — **requis si `AI_PROVIDER=groq`** : sans elle, repli silencieux sur `mock` (visible dans `/api/v1/health` → `ai_provider`) |
+| `GEMINI_API_KEY` | *(Votre clé Google AI Studio)* | Clé d'API Gemini — requis si `AI_PROVIDER=gemini` |
 | `API_KEY_HASH_SECRET` | `votre-cle-secrete-tres-longue-et-securisee` | Hachage sécurisé des clés API |
 | `CORS_ORIGINS` | `["*"]` | Autoriser les requêtes web cross-origin |
 
