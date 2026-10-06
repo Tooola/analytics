@@ -32,5 +32,7 @@ def health_check(db: Session = Depends(get_db)) -> HealthStatus:
         version="1.0.0",
         database=db_ok,
         ai_provider=ai_engine.provider_name,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        # Same UTC designator as every schema timestamp — pydantic serialises
+        # UTC as 'Z', so /health must not emit '+00:00' (PLAN.md S2).
+        timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     )

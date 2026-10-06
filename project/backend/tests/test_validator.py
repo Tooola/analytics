@@ -100,3 +100,22 @@ class TestDataValidator:
         data = [{"name": "Alice"}]
         result = self.validator.validate(data, fields)
         assert result.valid is True
+
+    def test_datetime_full_iso8601(self):
+        """PLAN.md S2: Z, ±offsets, fractions and space separator are valid
+        ISO-8601 datetimes; garbage is still rejected."""
+        fields = [{"name": "when", "technical_type": "datetime", "required": True}]
+        accepted = [
+            "2024-01-01T10:00:00",
+            "2024-01-01T10:00:00.500",
+            "2024-01-01T10:00:00Z",
+            "2024-01-01T10:00:00+02:00",
+            "2024-01-01 10:00:00",
+        ]
+        for value in accepted:
+            result = self.validator.validate([{"when": value}], fields)
+            assert result.valid, f"{value!r} should be accepted: {result.errors}"
+
+        result = self.validator.validate([{"when": "not a date"}], fields)
+        assert result.valid is False
+        assert any(e.field == "when" for e in result.errors)

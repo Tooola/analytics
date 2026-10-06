@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.models import DatasetFieldType
+from app.schemas.common import UTCDateTime
 
 
 class DatasetFieldCreate(BaseModel):
@@ -82,5 +81,5 @@ class DatasetRead(BaseModel):
     slug: str
     description: str | None
     fields: list[DatasetFieldRead] = []
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTime
+    updated_at: UTCDateTime

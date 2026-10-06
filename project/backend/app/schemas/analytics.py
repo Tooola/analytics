@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.models import AnalysisStatus, AnalysisType, InsightSeverity, InsightType
+from app.schemas.common import UTCDateTime
 
 
 # ─── Data validation ───────────────────────────────────
@@ -156,8 +156,8 @@ class AnalysisRunRead(BaseModel):
     status: AnalysisStatus
     row_count: int | None = None
     error_message: str | None = None
-    created_at: datetime
-    completed_at: datetime | None = None
+    created_at: UTCDateTime
+    completed_at: UTCDateTime | None = None
 
 
 class AnalysisResponse(BaseModel):
@@ -172,6 +172,6 @@ class AnalysisResponse(BaseModel):
 
 
 class AnalysisDetailResponse(AnalysisResponse):
-    created_at: datetime
-    completed_at: datetime | None = None
+    created_at: UTCDateTime
+    completed_at: UTCDateTime | None = None
     status: AnalysisStatus

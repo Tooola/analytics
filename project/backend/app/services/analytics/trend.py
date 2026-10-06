@@ -25,7 +25,12 @@ class TrendService(BaseAnalyticsService):
 
         if date_field and date_field in df.columns:
             df = df.copy()
-            df[date_field] = pd.to_datetime(df[date_field], errors="coerce")
+            # utc=True normalises mixed offsets and naive values to a common
+            # UTC axis (PLAN.md S2); ISO8601 is the only format the validator
+            # admits, so parsing is both strict and crash-free.
+            df[date_field] = pd.to_datetime(
+                df[date_field], errors="coerce", utc=True, format="ISO8601"
+            )
             df = df.dropna(subset=[date_field]).sort_values(date_field)
 
         for f in numeric_fields:

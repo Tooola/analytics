@@ -115,7 +115,9 @@ class DataValidator:
             elif expected_type == DatasetFieldType.date:
                 datetime.strptime(str(value), "%Y-%m-%d")
             elif expected_type == DatasetFieldType.datetime:
-                datetime.strptime(str(value), "%Y-%m-%dT%H:%M:%S")
+                # Full ISO-8601: T or space, optional fractions, optional Z
+                # or ±HH:MM offset (Python 3.11+ fromisoformat) — PLAN.md S2.
+                datetime.fromisoformat(str(value))
         except (ValueError, TypeError):
             return ValidationIssue(
                 field=field_name,

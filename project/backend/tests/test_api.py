@@ -65,3 +65,40 @@ class TestSecurityUtils:
         key = generate_api_key()
         assert key.startswith(settings.api_key_prefix)
 
+
+class TestTimestampSerialisation:
+    """PLAN.md S2: every API timestamp is aware UTC (+00:00), like /health."""
+
+    @staticmethod
+    def _read(created_at):
+        from app.models import ApplicationStatus
+        from app.schemas.application import ApplicationRead
+
+        return ApplicationRead(
+            id="x", name="n", slug="s", description=None,
+            status=ApplicationStatus.active,
+            created_at=created_at, updated_at=created_at,
+        )
+
+    def test_naive_datetime_serialised_as_utc(self):
+        from datetime import datetime
+
+        read = self._read(datetime(2026, 1, 2, 3, 4, 5))
+        assert read.created_at.tzinfo is not None
+        assert read.created_at.utcoffset().total_seconds() == 0
+        # Pydantic serialises UTC with the ISO 'Z' designator.
+        assert '"created_at":"2026-01-02T03:04:05Z"' in read.model_dump_json()
+
+    def test_aware_datetime_converted_to_utc(self):
+        from datetime import datetime, timedelta, timezone
+
+        aware = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone(timedelta(hours=2)))
+        read = self._read(aware)
+        assert read.created_at.utcoffset() == timedelta(0)
+        assert read.created_at.hour == 1  # 03:04 at +02:00 → 01:04 UTC
+
+    def test_health_timestamp_uses_same_utc_designator(self, client):
+        resp = client.get("/api/v1/health")
+        assert resp.status_code == 200
+        assert resp.json()["timestamp"].endswith("Z")
+

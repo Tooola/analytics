@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models import ApplicationStatus
+from app.schemas.common import UTCDateTime
 
 
 class ApplicationBase(BaseModel):
@@ -38,8 +37,8 @@ class ApplicationRead(BaseModel):
     slug: str
     description: str | None
     status: ApplicationStatus
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
 
 
 class ApplicationWithKey(ApplicationRead):

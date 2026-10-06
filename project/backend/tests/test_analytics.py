@@ -130,6 +130,26 @@ class TestTrendService:
         result = self.service.run(df, fields)
         assert len(result["trend"]) == 0
 
+    def test_mixed_timezone_offsets_parse_to_utc(self):
+        """PLAN.md S2: naive + Z + offsets + fractions in one column must
+        not crash — utc=True normalises them onto a single axis."""
+        df = pd.DataFrame({
+            "when": [
+                "2024-01-01T00:00:00",
+                "2024-01-02T00:00:00Z",
+                "2024-01-03T00:00:00+02:00",
+                "2024-01-04T00:00:00.500Z",
+            ],
+            "revenue": [100.0, 200.0, 300.0, 400.0],
+        })
+        fields = [
+            {"name": "when", "technical_type": "datetime"},
+            {"name": "revenue", "technical_type": "float"},
+        ]
+        result = self.service.run(df, fields)
+        assert len(result["trend"]) == 1
+        assert result["trend"][0]["periods"] == 4
+
 
 class TestAnomalyService:
     """Tests for the Anomaly detection service."""
