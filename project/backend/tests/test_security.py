@@ -656,3 +656,51 @@ class TestSecretsHygiene:
         assert "secrets.compare_digest" in content, (
             "API key comparison must use secrets.compare_digest for constant-time safety"
         )
+
+
+class TestRunLifecycle:
+    """PLAN.md S8: a post-processing crash must mark the run "failed",
+    never leave it stuck in "running"."""
+
+    def test_postprocessing_crash_marks_run_failed(self, client, app_a, dataset_a, monkeypatch):
+        from app.api.routes import analytics as routes_analytics
+        from app.models import AnalysisRun
+
+        slug_a, key_a = app_a
+
+        def _boom(*_args, **_kwargs):
+            raise RuntimeError("insights crashed")
+
+        monkeypatch.setattr(routes_analytics.InsightEngine, "generate", _boom)
+
+        resp = client.post(
+            "/api/v1/analyze",
+            json={
+                "application": slug_a,
+                "dataset": "dataset-a-sec",
+                "analysis": ["summary"],
+                "data": [{"amount": 1.0}, {"amount": 2.0}, {"amount": 3.0}],
+            },
+            headers={"X-API-Key": key_a},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is False
+        assert body["analysis_id"]
+
+        # The run must be persisted as "failed", not "running".
+        db = _SessionLocal()
+        try:
+            run_row = db.get(AnalysisRun, body["analysis_id"])
+            assert run_row is not None
+            assert run_row.status == "failed"
+        finally:
+            db.close()
+
+        # And the detail endpoint must reflect the non-completed status.
+        detail = client.get(
+            f"/api/v1/analysis/{body['analysis_id']}",
+            headers={"X-API-Key": key_a},
+        )
+        assert detail.status_code == 200
+        assert detail.json()["success"] is False

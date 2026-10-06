@@ -85,7 +85,13 @@ class AnalyticsEngine:
                 logger.warning("Unknown analysis type: %s", atype)
                 continue
             logger.info("Running analysis: %s", atype)
-            partial = svc.run(df, field_dicts)
+            try:
+                partial = svc.run(df, field_dicts)
+            except Exception:  # noqa: BLE001 — one crashing section must not
+                # kill the whole run (PLAN.md S8): the remaining services
+                # still return their results.
+                logger.exception("Analysis service crashed: %s", atype)
+                continue
             results.update(partial)
 
         return validation, results

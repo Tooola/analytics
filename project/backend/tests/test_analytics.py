@@ -274,3 +274,29 @@ class TestForecastService:
         for p in preds:
             assert p["lower_bound"] == p["upper_bound"] == p["predicted_value"]
 
+
+class TestAnalyticsEngineIsolation:
+    """PLAN.md S8: one crashing service must not kill the whole run."""
+
+    def test_failing_service_does_not_kill_run(self):
+        from app.services.analytics.base import BaseAnalyticsService
+        from app.services.analytics.engine import AnalyticsEngine
+
+        class BoomService(BaseAnalyticsService):
+            analysis_type = "summary"
+
+            def run(self, df, fields):  # noqa: ANN001
+                raise RuntimeError("boom")
+
+        engine = AnalyticsEngine()
+        engine.register(BoomService())  # shadows the real summary service
+
+        data = [{"value": float(v)} for v in (1.0, 2.0, 3.0, 4.0, 5.0)]
+        fields = [{"name": "value", "technical_type": "float", "required": True}]
+
+        validation, results = engine.analyze(data, fields, ["summary", "distribution"])
+
+        assert validation.valid
+        assert "summary" not in results      # crashed → excluded, not fatal
+        assert "distribution" in results     # the other service still ran
+

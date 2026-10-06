@@ -105,27 +105,40 @@ def analyze(
             validation=validation,
         )
 
-    # Generate insights
-    insight_engine = InsightEngine()
-    insight_dicts = insight_engine.generate(results, dataset_name=dataset.name)
-    run_repo.add_insights(run, insight_dicts)
-
-    # AI interpretation (optional)
+    # Insights + AI + persistence. Any crash here marks the run "failed"
+    # instead of leaving it stuck in "running" forever (PLAN.md S8).
     ai_text = None
-    if body.include_ai:
-        ai_engine = AIEngine()
-        context = ai_engine.build_context(
+    try:
+        insight_engine = InsightEngine()
+        insight_dicts = insight_engine.generate(results, dataset_name=dataset.name)
+        run_repo.add_insights(run, insight_dicts)
+
+        # AI interpretation (optional)
+        if body.include_ai:
+            ai_engine = AIEngine()
+            context = ai_engine.build_context(
+                application=body.application,
+                dataset=body.dataset,
+                row_count=len(body.data),
+                analysis_results=results,
+                insights=insight_dicts,
+            )
+            ai_result = ai_engine.interpret(context)
+            ai_text = ai_result.model_dump_json()
+
+        # Persist results
+        run_repo.complete_run(run, results, ai_interpretation=ai_text)
+    except Exception as exc:
+        logger.exception("Post-processing failed for run %s", run.id)
+        run_repo.fail_run(run, f"Post-processing failed: {exc}")
+        return AnalysisResponse(
+            success=False,
+            analysis_id=run.id,
             application=body.application,
             dataset=body.dataset,
-            row_count=len(body.data),
-            analysis_results=results,
-            insights=insight_dicts,
+            validation=validation,
+            results=results,
         )
-        ai_result = ai_engine.interpret(context)
-        ai_text = ai_result.model_dump_json()
-
-    # Persist results
-    run_repo.complete_run(run, results, ai_interpretation=ai_text)
 
     # Load insights from DB for response
     db.refresh(run)
