@@ -37,8 +37,9 @@ htmlcov/
 *.sqlite3
 
 # ─── Alembic ────────────────────────────────────────────
-alembic/versions/*.py
-!alembic/versions/.gitkeep
+# Les migrations SONT versionnées (alembic/versions/*.py) — ne pas ignorer.
+# Seuls les artefacts locaux restent exclus :
+alembic/versions/*.pyc
 
 # ─── Docker ─────────────────────────────────────────────
 docker/data/
@@ -47,8 +48,8 @@ docker/data/
 .DS_Store
 Thumbs.db
 
-# ─── Notes personnelles ─────────────────────────────────
-COMMANDES.md
+# ─── Notes ──────────────────────────────────────────────
+# COMMANDES.md est désormais versionné (référencé par README.md).
 
 # ─── Bolt Scaffold (remove after cleanup) ───────────────
 node_modules/

@@ -1,0 +1,48 @@
+# ─── Contexte de build de la racine project/ ────────────
+# Utilisé par le service `dashboard` (docker-compose : context: .)
+# Le service `backend` a son propre contexte (./backend) + .dockerignore.
+
+# Secrets et variables d'environnement
+.env
+**/.env
+**/.streamlit/secrets.toml
+
+# Bases de données locales
+*.db
+*.sqlite3
+
+# Environnements virtuels (lourds)
+.venv
+**/.venv
+venv
+
+# Python
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+
+# Caches
+.pytest_cache
+**/.pytest_cache
+.mypy_cache
+**/.mypy_cache
+.coverage
+htmlcov
+
+# Git / IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Node / scaffold (hérité du template Bolt)
+node_modules
+package.json
+package-lock.json
+index.js
+.bolt

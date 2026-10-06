@@ -1,0 +1,41 @@
+# ─── Racine du dépôt ────────────────────────────────────
+# (le fichier project/.gitignore couvre le sous-dossier projet)
+
+# ─── Python ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+
+# ─── Virtual environments ───────────────────────────────
+.venv/
+venv/
+ENV/
+
+# ─── Environment / secrets ──────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Bases de données locales ───────────────────────────
+*.db
+*.sqlite3
+
+# ─── Caches de test / lint ──────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ─── Artefacts scratch (jamais versionnés) ──────────────
+scratch_*.py
+result.md
+
+# ─── OS / IDE ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
