@@ -1,0 +1,14 @@
+{
+  "name": "Ventes hebdomadaires",
+  "slug": "ventes-hebdo",
+  "description": "Jeu d'essai : 20 semaines de ventes — 2 anomalies plantées, formats de date mixtes (volontaire)",
+  "fields": [
+    { "name": "date", "technical_type": "datetime", "required": true, "description": "Début de semaine ISO 8601 — formats mixtes volontaires (sans offset, Z, +02:00, fractions)" },
+    { "name": "ventes_eur", "technical_type": "float", "unit": "EUR", "required": true, "description": "Chiffre d'affaires de la semaine" },
+    { "name": "quantite", "technical_type": "integer", "unit": "u", "required": true, "description": "Unités vendues" },
+    { "name": "region", "technical_type": "string", "required": true, "description": "Zone de vente (Nord/Sud/Est/Ouest)" },
+    { "name": "promo", "technical_type": "boolean", "required": false, "description": "Semaine en promotion" },
+    { "name": "satisfaction", "technical_type": "float", "unit": "/5", "required": false, "description": "Satisfaction client moyenne" },
+    { "name": "livraison", "technical_type": "date", "required": false, "description": "Première livraison (YYYY-MM-DD, parfois nulle)" }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "application": "jeu-essai",
+  "dataset": "ventes-hebdo",
+  "analysis": ["summary"],
+  "include_ai": false,
+  "data": [
+    { "date": "03/08/2026", "ventes_eur": 100.0, "region": "Nord", "colonne_inconnue": true },
+    { "ventes_eur": 200.0, "region": "Sud" }
+  ]
+}

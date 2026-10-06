@@ -8,3 +8,87 @@
   { "date": "2026-09-07", "parcel_id": "P_03", "crop_type": "Soja", "surface_ha": 15.0, "yield_kg": 12000, "temperature_c": 27.0, "rainfall_mm": 45.0, "humidity_pct": 88 },
   { "date": "2026-09-08", "parcel_id": "P_01", "crop_type": "Maïs", "surface_ha": 12.5, "yield_kg": 4800, "temperature_c": 23.8, "rainfall_mm": 2.0, "humidity_pct": 55 }
 ]
+Viewed bi_report.py:520-637
+
+Now I have a complete picture. Let me rewrite sections F and G (the AI interpretation sections) to be fully explicit and rich, and fix the `render_bi_report` function to pass `ai_data` properly across sections (the AI findings should be the primary source of interpretation, not generic static text).
+
+Edited bi_report.py
+Ran command: `python -m py_compile project/dashboard/components/bi_report.py project/backend/app/services/ai/groq_provider.py`
+Viewed bi_report.py:550-580
+Edited bi_report.py
+Viewed bi_report.py:558-565
+
+The file viewer is showing escaped HTML entities (`\u003c` = `<`, `\u003e` = `>`). The actual file content uses literal `<` and `>`. The syntax error is that `font-weight:600;"` closes the f-string prematurely because the `"` inside the HTML attribute ends the f-string's outer `"`. I need to replace the problematic lines with a safe variable-based approach.
+
+Ran command: `python -c "
+content = open('project/dashboard/components/bi_report.py', encoding='utf-8').read()
+old = '''    with m3:
+        st.markdown(
+            f\"<div style='padding-top:4px;'><span style='font-size:0.8rem;color:#64748B;font-weight:600;\">NIVEAU DE RISQUE</span><br/>\"
+            f\"<span style='font-size:1.1rem;font-weight:700;color:{risk_color};'>{risk_icon} {risk_raw}</span></div>\",
+            unsafe_allow_html=True,
+        )'''
+new = '''    with m3:
+        _rhtml = (
+            \"<div style='padding-top:4px;'>\"
+            \"<span style='font-size:0.8rem;color:#64748B;font-weight:600;'>NIVEAU DE RISQUE</span><br/>\"
+            f\"<span style='font-size:1.1rem;font-weight:700;color:{risk_color};'>{risk_icon} {risk_raw}</span>\"
+            \"</div>\"
+        )
+        st.markdown(_rhtml, unsafe_allow_html=True)'''
+if old in content:
+    content = content.replace(old, new, 1)
+    open('project/dashboard/components/bi_report.py', 'w', encoding='utf-8').write(content)
+    print('REPLACED OK')
+else:
+    print('NOT FOUND')
+    # print the problematic section
+    for i, line in enumerate(content.splitlines(), 1):
+        if 'NIVEAU DE RISQUE' in line:
+            print(f'{i}: {repr(line)}')
+"
+`
+Created scratch_inspect.py
+Ran command: `python scratch_inspect.py`
+Created scratch_inspect.py
+Ran command: `python scratch_inspect.py`
+Created scratch_inspect.py
+Ran command: `python scratch_inspect.py`
+Ran command: `python -m py_compile project/dashboard/components/bi_report.py project/backend/app/services/ai/groq_provider.py && echo SYNTAX_OK`
+Ran command: `python -m py_compile project/dashboard/components/bi_report.py; python -m py_compile project/backend/app/services/ai/groq_provider.py`
+
+Both files compile cleanly. Here's a summary of all the changes made:
+
+---
+
+### What Was Done
+
+#### **Bug Fix: "NoneType object is not subscriptable/iterable" when deselecting analysis types**
+All dictionary accesses in [`bi_report.py`](file:///c:/Users/fayom/Downloads/analytics/project/dashboard/components/bi_report.py) now use `(results.get("key") or [])` instead of `results.get("key", [])`, ensuring `null` values returned by the API don't cause crashes.
+
+---
+
+#### **Bug Fix: Groq Not Working (wrong model names)**
+[`groq_provider.py`](file:///c:/Users/fayom/Downloads/analytics/project/backend/app/services/ai/groq_provider.py) was using fictional model IDs (`qwen/qwen3.8-27b`, `openai/gpt-oss-120b`) that don't exist on Groq's API. Fixed with **valid Groq model names**:
+- Primary: `llama-3.3-70b-versatile`
+- Fallbacks: `llama-3.1-8b-instant` → `mixtral-8x7b-32768` → `gemma2-9b-it`
+
+The prompt was also strengthened to enforce **data-grounded, non-hallucinating** responses with explicit domain-aware instructions.
+
+---
+
+#### **UI Revamp: AI Sections F & G — Fully Explicit Presentation**
+
+**Section F — "Interprétation & Analyse par l'IA":**
+- Color-coded **risk level** badge (🟢 Faible / 🟡 Modéré / 🟠 Élevé / 🔴 Critique)
+- Highlighted **executive summary** box in a distinct blue callout
+- **Numbered finding cards** (`Constat #1`, `Constat #2`...) — each with full explicit text from Groq, no summaries
+- Clear message if AI is not configured
+
+**Section G — "Plan d'Action & Recommandations Stratégiques":**
+- **Prioritized recommendation cards** (🔴 Haute / 🟡 Moyenne / 🟢 Standard) with full text
+- **Timeline action plan** with colored bullet dots (Red = Immédiat, Yellow = Court terme, Green = Long terme)
+
+---
+
+Push to Git to deploy: `git add . && git commit -m "fix: groq model names, null-safe bi_report, explicit AI sections" && git push`

@@ -1,0 +1,9 @@
+{
+  "application": "jeu-essai",
+  "dataset": "ventes-hebdo",
+  "analysis": ["segmentation"],
+  "include_ai": false,
+  "data": [
+    { "date": "2026-08-03T00:00:00", "ventes_eur": 100.0, "quantite": 10, "region": "Nord" }
+  ]
+}

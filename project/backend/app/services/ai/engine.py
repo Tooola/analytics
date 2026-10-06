@@ -34,9 +34,21 @@ class AIEngine:
             from app.services.ai.groq_provider import GroqAIProvider
             self._provider = GroqAIProvider(api_key=settings.groq_api_key)
             logger.info("AI provider: groq (LLaMA 3.3 70B)")
+        elif settings.ai_provider == "groq" and not settings.groq_api_key:
+            logger.warning(
+                "AI_PROVIDER=groq mais GROQ_API_KEY est absent ou vide. "
+                "Bascule sur MockAIProvider. Configurez GROQ_API_KEY dans les variables d'env."
+            )
+            self._provider = MockAIProvider()
         elif settings.ai_provider == "gemini" and settings.gemini_api_key:
             from app.services.ai.gemini_provider import GeminiAIProvider
             self._provider = GeminiAIProvider(api_key=settings.gemini_api_key)
+        elif settings.ai_provider == "gemini" and not settings.gemini_api_key:
+            logger.warning(
+                "AI_PROVIDER=gemini mais GEMINI_API_KEY est absent ou vide. "
+                "Bascule sur MockAIProvider. Configurez GEMINI_API_KEY dans les variables d'env."
+            )
+            self._provider = MockAIProvider()
         elif settings.ai_provider == "local_llm":
             self._provider = LocalLLMProvider(
                 base_url=settings.ollama_base_url,
