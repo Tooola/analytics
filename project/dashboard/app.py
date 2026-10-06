@@ -5,7 +5,9 @@ Run with: streamlit run dashboard/app.py
 
 from __future__ import annotations
 
-import requests
+import sys
+from pathlib import Path
+
 import streamlit as st
 
 st.set_page_config(
@@ -15,85 +17,23 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-import os
-from pathlib import Path
+# Make dashboard/ importable so pages/*.py can share the central client too.
+_DASHBOARD_DIR = Path(__file__).resolve().parent
+if str(_DASHBOARD_DIR) not in sys.path:
+    sys.path.insert(0, str(_DASHBOARD_DIR))
 
-def _clean_api_url(url: str) -> str:
-    if not url:
-        return ""
-    url = str(url).strip()
-    if url.startswith("API_BASE_URL="):
-        url = url[len("API_BASE_URL="):].strip()
-    return url.rstrip("/")
+from api_client import (  # noqa: E402
+    cached_health,
+    clean_api_url,
+    get_api_base,
+)
 
-
-DEFAULT_API_BASE = os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
-API_BASE = _clean_api_url(DEFAULT_API_BASE)
-
-try:
-    if hasattr(st, "secrets"):
-        if "api_base_url" in st.secrets:
-            API_BASE = _clean_api_url(st.secrets["api_base_url"])
-        elif "API_BASE_URL" in st.secrets:
-            API_BASE = _clean_api_url(st.secrets["API_BASE_URL"])
-except Exception:
-    pass
-
-if "api_base" not in st.session_state or not st.session_state["api_base"]:
-    st.session_state["api_base"] = API_BASE
+# Resolve the API base once (the Settings expander below can override it).
+if not st.session_state.get("api_base"):
+    st.session_state["api_base"] = get_api_base()
 else:
-    st.session_state["api_base"] = _clean_api_url(st.session_state["api_base"])
+    st.session_state["api_base"] = clean_api_url(st.session_state["api_base"])
 st.session_state.setdefault("api_key", "")
-
-
-def _build_headers(headers=None):
-    req_headers = {}
-    if st.session_state.get("api_key"):
-        req_headers["X-API-Key"] = st.session_state.api_key
-    if headers:
-        req_headers.update(headers)
-    return req_headers
-
-
-def api_get(path: str, headers=None, **kwargs):
-    try:
-        r = requests.get(
-            f"{st.session_state.api_base}{path}",
-            headers=_build_headers(headers),
-            timeout=10,
-            **kwargs,
-        )
-        return r
-    except requests.ConnectionError:
-        st.error(f"Cannot reach API at {st.session_state.api_base}. Is the backend running?")
-        return None
-
-
-def api_post(path: str, json_data=None, headers=None):
-    try:
-        r = requests.post(
-            f"{st.session_state.api_base}{path}",
-            json=json_data,
-            headers=_build_headers(headers),
-            timeout=30,
-        )
-        return r
-    except requests.ConnectionError:
-        st.error(f"Cannot reach API at {st.session_state.api_base}. Is the backend running?")
-        return None
-
-
-def api_delete(path: str, headers=None):
-    try:
-        r = requests.delete(
-            f"{st.session_state.api_base}{path}",
-            headers=_build_headers(headers),
-            timeout=10,
-        )
-        return r
-    except requests.ConnectionError:
-        st.error(f"Cannot reach API at {st.session_state.api_base}. Is the backend running?")
-        return None
 
 
 # ─── Sidebar navigation ────────────────────────────────
@@ -110,14 +50,15 @@ PAGES = {
 st.sidebar.title("Open Analytics")
 st.sidebar.markdown("---")
 
-# API health indicator
-health_resp = api_get("/api/v1/health")
-if health_resp and health_resp.status_code == 200:
-    health = health_resp.json()
+# API health indicator (cached 30s — one probe max per 30s, not one per rerun)
+health = cached_health(st.session_state.api_base, st.session_state.get("api_key", ""))
+if health and health.get("status"):
     status_color = "🟢" if health["status"] == "healthy" else "🟡"
-    st.sidebar.markdown(f"{status_color} **{health['status'].title()}**")
+    st.sidebar.markdown(f"{status_color} **{str(health['status']).title()}**")
     st.sidebar.caption(f"API: {st.session_state.api_base}")
-    st.sidebar.caption(f"DB: {health['database']} | Engine: {health['ai_provider']}")
+    st.sidebar.caption(
+        f"DB: {health.get('database', '?')} | Engine: {health.get('ai_provider', '?')}"
+    )
 else:
     st.sidebar.markdown("🔴 **Offline**")
     st.sidebar.caption(f"API: {st.session_state.api_base}")
@@ -129,7 +70,7 @@ selection = st.sidebar.radio("Navigate", list(PAGES.keys()))
 
 # API base URL override
 with st.sidebar.expander("Settings"):
-    new_base = _clean_api_url(st.text_input("API Base URL", value=st.session_state.api_base))
+    new_base = clean_api_url(st.text_input("API Base URL", value=st.session_state.api_base))
     if new_base != st.session_state.api_base:
         st.session_state.api_base = new_base
         st.rerun()

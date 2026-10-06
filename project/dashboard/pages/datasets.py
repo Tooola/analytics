@@ -4,19 +4,20 @@ from __future__ import annotations
 
 import json
 import re
-import requests as _r
+import sys
+from pathlib import Path
+
 import streamlit as st
 
-import os
+# dashboard/ on sys.path → share the central API client (PLAN.md V4)
+_DASHBOARD_DIR = Path(__file__).resolve().parent.parent
+if str(_DASHBOARD_DIR) not in sys.path:
+    sys.path.insert(0, str(_DASHBOARD_DIR))
 
-
-def _clean_api_url(url: str) -> str:
-    if not url:
-        return ""
-    url = url.strip()
-    if url.startswith("API_BASE_URL="):
-        url = url[len("API_BASE_URL="):].strip()
-    return url.rstrip("/")
+from api_client import delete as _delete  # noqa: E402
+from api_client import get as _get
+from api_client import get_api_base as _get_api_base
+from api_client import post as _post
 
 
 def slugify(text: str) -> str:
@@ -28,41 +29,6 @@ def slugify(text: str) -> str:
     text = re.sub(r'[\s_]+', '-', text)
     text = re.sub(r'-+', '-', text)
     return text.strip('-')
-
-
-def _get_api_base():
-    raw = st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
-    return _clean_api_url(raw)
-
-
-
-def _get_headers():
-    key = st.session_state.get("api_key", "")
-    return {"X-API-Key": key} if key else {}
-
-
-def _get(path):
-    try:
-        return _r.get(f"{_get_api_base()}{path}", headers=_get_headers(), timeout=10)
-    except _r.ConnectionError:
-        return None
-
-
-def _post(path, json_data=None, custom_headers=None):
-    headers = _get_headers()
-    if custom_headers:
-        headers.update(custom_headers)
-    try:
-        return _r.post(f"{_get_api_base()}{path}", json=json_data, headers=headers, timeout=10)
-    except _r.ConnectionError:
-        return None
-
-
-def _delete(path):
-    try:
-        return _r.delete(f"{_get_api_base()}{path}", headers=_get_headers(), timeout=10)
-    except _r.ConnectionError:
-        return None
 
 
 st.title("Datasets")
@@ -157,7 +123,7 @@ with st.expander("Enregistrer un nouveau Dataset", expanded=True if not apps els
                                         "description": ds_desc.strip() if ds_desc else None,
                                         "fields": parsed_fields,
                                     },
-                                    custom_headers={"X-API-Key": api_key_for_app},
+                                    headers={"X-API-Key": api_key_for_app},
                                 )
                             if resp and resp.status_code == 201:
                                 # Mettre à jour la clé en session si elle a changé

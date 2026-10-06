@@ -4,38 +4,21 @@ from __future__ import annotations
 
 import json
 
+import sys
+from pathlib import Path
+
 import pandas as pd
-import requests as _r
 import streamlit as st
 
-
-import os
-
-
-def _clean_api_url(url: str) -> str:
-    if not url:
-        return ""
-    url = str(url).strip()
-    if url.startswith("API_BASE_URL="):
-        url = url[len("API_BASE_URL="):].strip()
-    return url.rstrip("/")
+# dashboard/ on sys.path → share the central API client (PLAN.md V4)
+_DASHBOARD_DIR = Path(__file__).resolve().parent.parent
+if str(_DASHBOARD_DIR) not in sys.path:
+    sys.path.insert(0, str(_DASHBOARD_DIR))
 
 
-def _get_api_base():
-    raw = st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
-    return _clean_api_url(raw)
-
-
-
-def _get(path):
-    headers = {}
-    key = st.session_state.get("api_key", "")
-    if key:
-        headers["X-API-Key"] = key
-    try:
-        return _r.get(f"{_get_api_base()}{path}", headers=headers, timeout=10)
-    except _r.ConnectionError:
-        return None
+from api_client import get as _get  # noqa: E402
+from api_client import get_api_base as _get_api_base
+from api_client import post as _post
 
 
 st.title("⚡ Insight Studio & API Sandbox")
@@ -109,20 +92,19 @@ if st.button("Run Full Pipeline", type="primary"):
 
     api_target = _get_api_base()
     with st.spinner("Running analytics + AI interpretation..."):
-        try:
-            r = _r.post(
-                f"{api_target}/api/v1/analyze",
-                json={
-                    "application": selected_app,
-                    "dataset": selected_ds,
-                    "analysis": ["summary", "trend", "anomaly"],
-                    "data": data,
-                    "include_ai": True,
-                },
-                headers={"X-API-Key": current_key},
-                timeout=60,
-            )
-        except _r.ConnectionError:
+        r = post(
+            "/api/v1/analyze",
+            json_data={
+                "application": selected_app,
+                "dataset": selected_ds,
+                "analysis": ["summary", "trend", "anomaly"],
+                "data": data,
+                "include_ai": True,
+            },
+            headers={"X-API-Key": current_key},
+            timeout=60,
+        )
+        if r is None:
             st.error(f"Cannot reach API at {api_target}. Is the backend running?")
             st.stop()
 

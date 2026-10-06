@@ -2,51 +2,20 @@
 
 from __future__ import annotations
 
-import requests as _r
+import sys
+from pathlib import Path
+
 import streamlit as st
 
-import os
+# dashboard/ on sys.path → share the central API client (PLAN.md V4)
+_DASHBOARD_DIR = Path(__file__).resolve().parent.parent
+if str(_DASHBOARD_DIR) not in sys.path:
+    sys.path.insert(0, str(_DASHBOARD_DIR))
 
-
-def _clean_api_url(url: str) -> str:
-    if not url:
-        return ""
-    url = str(url).strip()
-    if url.startswith("API_BASE_URL="):
-        url = url[len("API_BASE_URL="):].strip()
-    return url.rstrip("/")
-
-
-def _get_api_base():
-    raw = st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
-    return _clean_api_url(raw)
-
-
-
-def _get_headers():
-    key = st.session_state.get("api_key", "")
-    return {"X-API-Key": key} if key else {}
-
-
-def _get(path):
-    try:
-        return _r.get(f"{_get_api_base()}{path}", headers=_get_headers(), timeout=10)
-    except _r.ConnectionError:
-        return None
-
-
-def _post(path, json_data=None):
-    try:
-        return _r.post(f"{_get_api_base()}{path}", json=json_data, headers=_get_headers(), timeout=10)
-    except _r.ConnectionError:
-        return None
-
-
-def _delete(path):
-    try:
-        return _r.delete(f"{_get_api_base()}{path}", headers=_get_headers(), timeout=10)
-    except _r.ConnectionError:
-        return None
+from api_client import delete as _delete  # noqa: E402
+from api_client import get as _get
+from api_client import get_api_base as _get_api_base
+from api_client import post as _post
 
 
 st.title("Applications")

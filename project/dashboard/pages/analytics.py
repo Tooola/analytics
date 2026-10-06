@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 
 import pandas as pd
-import requests as _r
-import os
 import sys
 import streamlit as st
 from pathlib import Path
@@ -27,30 +25,9 @@ except ModuleNotFoundError as e:
 
 
 
-def _clean_api_url(url: str) -> str:
-    if not url:
-        return ""
-    url = str(url).strip()
-    if url.startswith("API_BASE_URL="):
-        url = url[len("API_BASE_URL="):].strip()
-    return url.rstrip("/")
-
-
-def _get_api_base():
-    raw = st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
-    return _clean_api_url(raw)
-
-
-
-def _get(path):
-    headers = {}
-    key = st.session_state.get("api_key", "")
-    if key:
-        headers["X-API-Key"] = key
-    try:
-        return _r.get(f"{_get_api_base()}{path}", headers=headers, timeout=10)
-    except _r.ConnectionError:
-        return None
+from api_client import get as _get  # noqa: E402
+from api_client import get_api_base as _get_api_base
+from api_client import post as _post
 
 
 st.title("Analytics")
@@ -163,21 +140,19 @@ if st.button("Lancer l'analyse", type="primary"):
         st.warning("Veuillez saisir une clé API correspondant à l'application sélectionnée.")
     else:
         with st.spinner("Running analysis..."):
-            try:
-                api_target = _get_api_base()
-                r = _r.post(
-                    f"{api_target}/api/v1/analyze",
-                    json={
-                        "application": selected_app,
-                        "dataset": selected_ds,
-                        "analysis": analysis_types,
-                        "data": data,
-                        "include_ai": include_ai,
-                    },
-                    headers={"X-API-Key": api_key},
-                    timeout=60,
-                )
-            except _r.ConnectionError:
+            r = post(
+                "/api/v1/analyze",
+                json_data={
+                    "application": selected_app,
+                    "dataset": selected_ds,
+                    "analysis": analysis_types,
+                    "data": data,
+                    "include_ai": include_ai,
+                },
+                headers={"X-API-Key": api_key},
+                timeout=60,
+            )
+            if r is None:
                 st.error(f"Cannot reach API at {_get_api_base()}.")
                 st.stop()
 

@@ -2,61 +2,36 @@
 
 from __future__ import annotations
 
-import requests as _r
+import sys
+from pathlib import Path
+
 import streamlit as st
+
+# dashboard/ on sys.path → share the central API client (PLAN.md V4)
+_DASHBOARD_DIR = Path(__file__).resolve().parent.parent
+if str(_DASHBOARD_DIR) not in sys.path:
+    sys.path.insert(0, str(_DASHBOARD_DIR))
+
+from api_client import cached_get, cached_health, get_api_base  # noqa: E402
 
 st.title("Overview")
 st.markdown("Platform-wide summary and health status.")
 
-# Health
-resp = st.session_state_api_get() if hasattr(st, "session_state_api_get") else None
-
-import os
-
-
-def _clean_api_url(url: str) -> str:
-    if not url:
-        return ""
-    url = str(url).strip()
-    if url.startswith("API_BASE_URL="):
-        url = url[len("API_BASE_URL="):].strip()
-    return url.rstrip("/")
-
-
-def _get_api_base():
-    raw = st.session_state.get("api_base") or os.environ.get("API_BASE_URL", "https://scintillating-kindness-production-d038.up.railway.app")
-    return _clean_api_url(raw)
-
-
-
-def _get(path):
-    headers = {}
-    key = st.session_state.get("api_key", "")
-    if key:
-        headers["X-API-Key"] = key
-    try:
-        return _r.get(f"{_get_api_base()}{path}", headers=headers, timeout=10)
-    except _r.ConnectionError:
-        return None
-
+base = get_api_base()
+key = st.session_state.get("api_key", "")
 
 col1, col2, col3, col4 = st.columns(4)
 
-# Applications count
-apps_resp = _get("/api/v1/applications")
-app_count = len(apps_resp.json()) if apps_resp and apps_resp.status_code == 200 else 0
+# Counts — cached 60s (V5): one probe per endpoint per minute, not per rerun.
+app_data = cached_get(base, key, "/api/v1/applications")
+ds_data = cached_get(base, key, "/api/v1/datasets")
+an_data = cached_get(base, key, "/api/v1/analysis")
+ins_data = cached_get(base, key, "/api/v1/insights")
 
-# Datasets count
-ds_resp = _get("/api/v1/datasets")
-ds_count = len(ds_resp.json()) if ds_resp and ds_resp.status_code == 200 else 0
-
-# Analyses count
-an_resp = _get("/api/v1/analysis")
-an_count = len(an_resp.json()) if an_resp and an_resp.status_code == 200 else 0
-
-# Insights count
-ins_resp = _get("/api/v1/insights")
-ins_count = len(ins_resp.json()) if ins_resp and ins_resp.status_code == 200 else 0
+app_count = len(app_data) if isinstance(app_data, list) else 0
+ds_count = len(ds_data) if isinstance(ds_data, list) else 0
+an_count = len(an_data) if isinstance(an_data, list) else 0
+ins_count = len(ins_data) if isinstance(ins_data, list) else 0
 
 with col1:
     st.metric("Applications", app_count)
@@ -69,29 +44,29 @@ with col4:
 
 st.markdown("---")
 
-# Health detail
-health = _get("/api/v1/health")
-if health and health.status_code == 200:
-    h = health.json()
+# Health detail (shared 30s cache with the sidebar probe)
+h = cached_health(base, key)
+if h and h.get("status"):
     st.subheader("System Health")
     hc1, hc2, hc3 = st.columns(3)
     with hc1:
-        st.metric("Status", h["status"].title())
+        st.metric("Status", str(h["status"]).title())
     with hc2:
-        st.metric("Database", h["database"].title())
+        st.metric("Database", str(h.get("database", "?")).title())
     with hc3:
-        st.metric("AI Provider", h["ai_provider"])
-    st.caption(f"Version {h['version']} | {h['timestamp']}")
+        st.metric("AI Provider", str(h.get("ai_provider", "?")))
+    st.caption(f"Version {h.get('version', '?')} | {h.get('timestamp', '?')}")
 else:
     st.warning("API is not reachable.")
 
 # Recent analyses
 st.markdown("---")
 st.subheader("Recent Analyses")
-if an_resp and an_resp.status_code == 200:
-    runs = an_resp.json()
+if isinstance(an_data, list):
+    runs = an_data
     if runs:
         import pandas as pd
+
         df = pd.DataFrame(runs)
         display_cols = [c for c in ["id", "status", "row_count", "created_at"] if c in df.columns]
         st.dataframe(df[display_cols], hide_index=True)
