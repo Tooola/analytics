@@ -4,6 +4,7 @@ Security model:
 - POST /applications  → Public. Required for initial onboarding (register once, get key).
 - All other endpoints → Require X-API-Key authentication.
   An application can only read/modify/delete itself (ownership enforced).
+  Cross-tenant access returns 404 (never 403) to avoid confirming existence.
 """
 
 from __future__ import annotations
@@ -57,12 +58,15 @@ def create_application(
 
 @router.get("", response_model=list[ApplicationRead])
 def list_applications(
-    db: Session = Depends(get_db),
+    authed_app: Application = Depends(get_application_by_api_key),
 ) -> list[ApplicationRead]:
-    """List all registered applications (for dashboard and monitoring UI)."""
-    repo = ApplicationRepository(db)
-    apps = repo.list()
-    return [ApplicationRead.model_validate(a) for a in apps]
+    """List the applications visible to the caller.
+
+    Requires X-API-Key: the listing must not expose other tenants'
+    application names/slugs to anonymous callers. Only the authenticated
+    application is returned (tenant isolation, consistent with /datasets).
+    """
+    return [ApplicationRead.model_validate(authed_app)]
 
 
 
@@ -124,43 +128,44 @@ def revoke_own_api_key(
 
 # ─── Administrative / By ID Endpoints ────────────────────────────────────────
 
+def _ensure_ownership(authed_app: Application, app_id: str) -> None:
+    """Reject cross-tenant access with 404 (never 403): never confirm existence."""
+    if authed_app.id != app_id:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+
 @router.get("/{app_id}", response_model=ApplicationRead)
 def get_application_by_id(
     app_id: str,
-    db: Session = Depends(get_db),
+    authed_app: Application = Depends(get_application_by_api_key),
 ) -> ApplicationRead:
-    """Retrieve an application by ID."""
-    repo = ApplicationRepository(db)
-    app = repo.get(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    return ApplicationRead.model_validate(app)
+    """Retrieve an application by ID — own application only."""
+    _ensure_ownership(authed_app, app_id)
+    return ApplicationRead.model_validate(authed_app)
 
 
 @router.delete("/{app_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_application_by_id(
     app_id: str,
     db: Session = Depends(get_db),
+    authed_app: Application = Depends(get_application_by_api_key),
 ) -> None:
-    """Delete an application by ID."""
+    """Delete an application by ID — own application only."""
+    _ensure_ownership(authed_app, app_id)
     repo = ApplicationRepository(db)
-    app = repo.get(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    repo.delete(app)
+    repo.delete(authed_app)
 
 
 @router.post("/{app_id}/regenerate-key", response_model=dict)
 def regenerate_api_key_by_id(
     app_id: str,
     db: Session = Depends(get_db),
+    authed_app: Application = Depends(get_application_by_api_key),
 ) -> dict:
-    """Issue a new API key for application identified by app_id."""
+    """Issue a new API key for application identified by app_id — own only."""
+    _ensure_ownership(authed_app, app_id)
     repo = ApplicationRepository(db)
-    app = repo.get(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    raw_key = repo.regenerate_key(app)
+    raw_key = repo.regenerate_key(authed_app)
     return {"api_key": raw_key}
 
 
@@ -168,11 +173,10 @@ def regenerate_api_key_by_id(
 def revoke_api_key_by_id(
     app_id: str,
     db: Session = Depends(get_db),
+    authed_app: Application = Depends(get_application_by_api_key),
 ) -> None:
-    """Revoke the API key for application identified by app_id."""
+    """Revoke the API key for application identified by app_id — own only."""
+    _ensure_ownership(authed_app, app_id)
     repo = ApplicationRepository(db)
-    app = repo.get(app_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    repo.revoke_key(app)
+    repo.revoke_key(authed_app)
 

@@ -102,6 +102,13 @@ def dataset_a(client, app_a):
     return resp.json()["id"]
 
 
+def _app_id(client, api_key: str) -> str:
+    """Return an application's id via its own authenticated profile."""
+    resp = client.get("/api/v1/applications/me", headers={"X-API-Key": api_key})
+    assert resp.status_code == 200
+    return resp.json()["id"]
+
+
 # ─── 1. Authentication Tests ─────────────────────────────────────────────────
 
 class TestAuthentication:
@@ -144,6 +151,36 @@ class TestAuthentication:
 
     def test_get_me_no_key_returns_401(self, client):
         resp = client.get("/api/v1/applications/me")
+        assert resp.status_code == 401
+
+    # ── Application admin / listing routes must not be anonymous ─────────────
+
+    def test_applications_list_no_key_returns_401(self, client):
+        resp = client.get("/api/v1/applications")
+        assert resp.status_code == 401
+
+    def test_application_by_id_no_key_returns_401(self, client):
+        resp = client.get("/api/v1/applications/some-id")
+        assert resp.status_code == 401
+
+    def test_application_delete_by_id_no_key_returns_401(self, client):
+        resp = client.delete("/api/v1/applications/some-id")
+        assert resp.status_code == 401
+
+    def test_application_regenerate_key_by_id_no_key_returns_401(self, client):
+        resp = client.post("/api/v1/applications/some-id/regenerate-key")
+        assert resp.status_code == 401
+
+    def test_application_revoke_key_by_id_no_key_returns_401(self, client):
+        resp = client.post("/api/v1/applications/some-id/revoke-key")
+        assert resp.status_code == 401
+
+    def test_datasets_all_no_key_returns_401(self, client):
+        resp = client.get("/api/v1/datasets/all")
+        assert resp.status_code == 401
+
+    def test_datasets_by_app_no_key_returns_401(self, client):
+        resp = client.get("/api/v1/datasets/by-app/any-slug")
         assert resp.status_code == 401
 
     def test_valid_key_can_list_datasets(self, client, app_a):
@@ -268,6 +305,129 @@ class TestIsolation:
             headers={"X-API-Key": key_a},
         )
         assert resp.status_code == 404
+
+
+# ─── 2b. Application Admin Route Isolation ───────────────────────────────────
+
+class TestApplicationAdminIsolation:
+    """The application by-id routes must enforce ownership (404, never 403)."""
+
+    def test_app_a_cannot_get_app_b_by_id(self, client, app_a, app_b):
+        _, key_a = app_a
+        _, key_b = app_b
+        id_b = _app_id(client, key_b)
+
+        resp = client.get(
+            f"/api/v1/applications/{id_b}", headers={"X-API-Key": key_a}
+        )
+        assert resp.status_code == 404
+
+    def test_app_a_cannot_delete_app_b(self, client, app_a, app_b):
+        """A must not be able to delete B — B must survive the attempt."""
+        _, key_a = app_a
+        _, key_b = app_b
+        id_b = _app_id(client, key_b)
+
+        resp = client.delete(
+            f"/api/v1/applications/{id_b}", headers={"X-API-Key": key_a}
+        )
+        assert resp.status_code == 404
+
+        # App B still authenticated and alive
+        assert (
+            client.get("/api/v1/applications/me", headers={"X-API-Key": key_b})
+            .status_code
+            == 200
+        )
+
+    def test_app_a_cannot_regenerate_app_b_key(self, client, app_a, app_b):
+        """A must not be able to take over B by rotating its key."""
+        _, key_a = app_a
+        _, key_b = app_b
+        id_b = _app_id(client, key_b)
+
+        resp = client.post(
+            f"/api/v1/applications/{id_b}/regenerate-key",
+            headers={"X-API-Key": key_a},
+        )
+        assert resp.status_code == 404
+
+        # B's original key still works (was NOT rotated)
+        assert (
+            client.get("/api/v1/applications/me", headers={"X-API-Key": key_b})
+            .status_code
+            == 200
+        )
+
+    def test_app_a_cannot_revoke_app_b_key(self, client, app_a, app_b):
+        """A must not be able to disable B's API access."""
+        _, key_a = app_a
+        _, key_b = app_b
+        id_b = _app_id(client, key_b)
+
+        resp = client.post(
+            f"/api/v1/applications/{id_b}/revoke-key",
+            headers={"X-API-Key": key_a},
+        )
+        assert resp.status_code == 404
+
+        assert (
+            client.get("/api/v1/applications/me", headers={"X-API-Key": key_b})
+            .status_code
+            == 200
+        )
+
+    def test_app_a_can_manage_own_application_by_id(self, client, app_a):
+        """Ownership must not break the legitimate own-application flow."""
+        _, key_a = app_a
+        id_a = _app_id(client, key_a)
+
+        resp = client.get(
+            f"/api/v1/applications/{id_a}", headers={"X-API-Key": key_a}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["id"] == id_a
+
+    def test_application_listing_returns_only_own_app(self, client, app_a, app_b):
+        """The listing must never expose another tenant's application."""
+        slug_a, key_a = app_a
+        _, key_b = app_b  # noqa: F841 — app_b must exist in the registry
+
+        resp = client.get("/api/v1/applications", headers={"X-API-Key": key_a})
+        assert resp.status_code == 200
+        assert [a["slug"] for a in resp.json()] == [slug_a]
+
+    def test_app_a_cannot_list_app_b_datasets_by_slug(self, client, app_a, app_b):
+        """GET /datasets/by-app/{slug} must 404 for another tenant's slug."""
+        _, key_a = app_a
+        slug_b, _ = app_b
+
+        resp = client.get(
+            f"/api/v1/datasets/by-app/{slug_b}", headers={"X-API-Key": key_a}
+        )
+        assert resp.status_code == 404
+
+    def test_datasets_all_returns_only_own_datasets(self, client, app_a, app_b):
+        """GET /datasets/all must not leak datasets from another tenant."""
+        _, key_a = app_a
+        _, key_b = app_b
+        id_a = _app_id(client, key_a)
+
+        # Ensure B owns at least one dataset
+        client.post(
+            "/api/v1/datasets",
+            json={
+                "name": "Dataset B Admin Test",
+                "slug": "dataset-b-admin-test",
+                "fields": [{"name": "amount", "type": "float", "required": True}],
+            },
+            headers={"X-API-Key": key_b},
+        )
+
+        resp = client.get("/api/v1/datasets/all", headers={"X-API-Key": key_a})
+        assert resp.status_code == 200
+        datasets = resp.json()
+        assert all(d["application_id"] == id_a for d in datasets)
 
 
 # ─── 3. Validation Tests ─────────────────────────────────────────────────────

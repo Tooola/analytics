@@ -50,10 +50,16 @@ def list_datasets(
 @router.get("/all", response_model=list[DatasetRead])
 def list_all_datasets_admin(
     db: Session = Depends(get_db),
+    app: Application = Depends(get_application_by_api_key),
 ) -> list[DatasetRead]:
-    """List all registered datasets across all applications (for dashboard browsing)."""
+    """List datasets for the authenticated application.
+
+    Requires X-API-Key. This path is kept for dashboard compatibility but
+    no longer exposes every tenant's datasets: only the caller's own
+    datasets are returned (tenant isolation, same as GET /datasets).
+    """
     repo = DatasetRepository(db)
-    datasets = repo.list()
+    datasets = repo.list_by_application(app.id)
     return [DatasetRead.model_validate(d) for d in datasets]
 
 
@@ -61,12 +67,14 @@ def list_all_datasets_admin(
 def list_datasets_by_app_slug(
     app_slug: str,
     db: Session = Depends(get_db),
+    app: Application = Depends(get_application_by_api_key),
 ) -> list[DatasetRead]:
-    """List datasets belonging to a specific application slug (for dashboard browsing)."""
-    from app.repositories.application_repo import ApplicationRepository
-    app_repo = ApplicationRepository(db)
-    app = app_repo.get_by_slug(app_slug)
-    if not app:
+    """List datasets belonging to an application slug — own application only.
+
+    Returns 404 (not 403) for another tenant's slug to avoid confirming
+    that the application exists.
+    """
+    if app.slug != app_slug:
         raise HTTPException(status_code=404, detail="Application not found")
     repo = DatasetRepository(db)
     datasets = repo.list_by_application(app.id)
