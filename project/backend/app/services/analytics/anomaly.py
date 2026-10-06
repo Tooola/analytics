@@ -43,7 +43,14 @@ class AnomalyService(BaseAnalyticsService):
         n = len(series)
         iqr_flags = set(self._detect_iqr(series))
         mad_flags = set(self._detect_mad(series))
-        iforest_flags = set(self._detect_iforest(series)) if (_HAS_SKLEARN and n >= 15) else set()
+        iforest_ran = _HAS_SKLEARN and n >= 15
+        iforest_flags = set(self._detect_iforest(series)) if iforest_ran else set()
+
+        # Confidence = votes / methods EXECUTED (PLAN.md S4). Dividing by 3
+        # while Isolation Forest was skipped capped every small-n score at
+        # 0.67 (barely above the insights filter) instead of 1.0 for a
+        # unanimous two-method consensus.
+        executed = 3 if iforest_ran else 2
 
         mean = float(series.mean())
         std = float(series.std()) if len(series) > 1 else 0.0
@@ -63,7 +70,7 @@ class AnomalyService(BaseAnalyticsService):
                     "row": int(idx),
                     "value": round(val, 4),
                     "z_score": z_score,
-                    "confidence_score": round(votes / 3.0, 2),
+                    "confidence_score": round(votes / executed, 2),
                     "detected_by": detected_methods,
                 })
 

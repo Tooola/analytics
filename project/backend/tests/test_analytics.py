@@ -169,6 +169,33 @@ class TestAnomalyService:
         result = self.service.run(df, fields)
         assert len(result["anomaly"]) == 0
 
+    def test_unanimous_two_method_confidence_is_full(self):
+        """PLAN.md S4: n < 15 → Isolation Forest skipped → a consensus of
+        the 2 executed methods must score 1.0, not votes/3 = 0.67."""
+        values = [10, 12, 11, 13, 10, 12, 11, 10, 12, 11, 500]
+        df = pd.DataFrame({"value": values})
+        fields = [{"name": "value", "technical_type": "float"}]
+        result = self.service.run(df, fields)
+
+        outlier = next(a for a in result["anomaly"][0]["anomalies"] if a["value"] == 500)
+        assert outlier["detected_by"] == ["iqr", "mad"]
+        assert outlier["confidence_score"] == 1.0
+
+    def test_confidence_uses_executed_method_count(self):
+        """A single-method detection on small n scores 0.5 (1 of 2 executed
+        methods), not 0.33 (1 of 3 — a method that never ran)."""
+        # 10 detected by IQR only: MAD is disabled (MAD == 0 guard),
+        # Isolation Forest skipped (n < 15).
+        df = pd.DataFrame({"value": [1, 1, 1, 1, 1, 1, 1, 2, 2, 10]})
+        fields = [{"name": "value", "technical_type": "float"}]
+        result = self.service.run(df, fields)
+
+        anomalies = result["anomaly"][0]["anomalies"]
+        assert len(anomalies) == 1
+        assert anomalies[0]["value"] == 10
+        assert anomalies[0]["detected_by"] == ["iqr"]
+        assert anomalies[0]["confidence_score"] == 0.5
+
 
 class TestCorrelationService:
     """Tests for the Correlation analytics service."""
