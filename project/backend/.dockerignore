@@ -20,8 +20,8 @@ index.js
 .pytest_cache
 .mypy_cache
 *.db
-alembic
-alembic.ini
+# alembic/ + alembic.ini are INCLUDED on purpose: the production image runs
+# migrations (see PLAN.md Jour 4). tests/docs stay out of the runtime image.
 tests
 docs
 README.md
