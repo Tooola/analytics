@@ -223,3 +223,27 @@ class TestForecastService:
         assert len(fore["predictions"]) == 3
         assert fore["trend_direction"] == "up"
 
+    def test_forecast_interval_widens_with_horizon(self):
+        """PLAN.md S1: the band must be a real prediction interval that
+        strictly grows with the horizon (slope-error bands did not)."""
+        # Noisy but trending series → non-zero residual variance.
+        df = pd.DataFrame({"val": [10.0, 12.5, 14.1, 17.8, 19.2, 22.6, 24.3, 27.9]})
+        fields = [{"name": "val", "technical_type": "float"}]
+        result = self.service.run(df, fields)
+        preds = result["forecast"][0]["predictions"]
+
+        widths = [p["upper_bound"] - p["lower_bound"] for p in preds]
+        assert all(w > 0 for w in widths)
+        assert widths[0] < widths[1] < widths[2]
+
+        for p in preds:
+            assert p["lower_bound"] <= p["predicted_value"] <= p["upper_bound"]
+
+    def test_forecast_perfect_line_has_zero_width_interval(self):
+        """sigma = 0 on a perfect fit → bounds collapse onto the prediction."""
+        df = pd.DataFrame({"val": [10, 20, 30, 40, 50]})
+        fields = [{"name": "val", "technical_type": "float"}]
+        preds = self.service.run(df, fields)["forecast"][0]["predictions"]
+        for p in preds:
+            assert p["lower_bound"] == p["upper_bound"] == p["predicted_value"]
+
