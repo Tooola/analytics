@@ -98,31 +98,31 @@ export default function Analytics() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 animate-fade-in">
+      {/* Header with high contrast in both light and dark mode */}
       <div>
-        <div className="flex items-center space-x-2 text-indigo-400 text-xs font-mono uppercase tracking-wider">
+        <div className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 text-xs font-mono uppercase tracking-wider">
           <Layers className="h-4 w-4" />
           <span>Pipeline Formel Sécurisé</span>
         </div>
-        <h1 className="text-2xl font-bold text-white mt-1">Exécution d'Analyse avec Schéma & Clé API</h1>
-        <p className="text-xs text-slate-400 mt-1">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">Exécution d'Analyse avec Schéma & Clé API</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           Appel sécurisé validant les données entrantes par rapport aux types déclarés dans la base de données.
         </p>
       </div>
 
       {/* Selectors Card */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4 transition-colors">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
-            <label className="block text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Application</label>
+            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Application</label>
             <select
               value={selectedApp}
               onChange={(e) => {
                 setSelectedApp(e.target.value);
                 setSelectedDs('');
               }}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 font-medium"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium"
             >
               <option value="">Sélectionnez une application...</option>
               {apps.map((a) => (
@@ -132,11 +132,11 @@ export default function Analytics() {
           </div>
 
           <div>
-            <label className="block text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Dataset Déclaré</label>
+            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Dataset Déclaré</label>
             <select
               value={selectedDs}
               onChange={(e) => setSelectedDs(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 font-medium"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium"
             >
               <option value="">Sélectionnez un dataset...</option>
               {filteredDatasets.map((d) => (
@@ -146,30 +146,30 @@ export default function Analytics() {
           </div>
 
           <div>
-            <label className="block text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Clé API (Header X-API-Key)</label>
+            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Clé API (Header X-API-Key)</label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="anal_..."
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 font-mono"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Données JSON</label>
+          <label className="block text-xs text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Données JSON</label>
           <textarea
             value={dataText}
             onChange={(e) => setDataText(e.target.value)}
             rows={6}
-            className="w-full p-3 bg-slate-950 font-mono text-xs text-emerald-300 border border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
+            className="w-full p-3 bg-slate-50 dark:bg-slate-950 font-mono text-xs text-emerald-700 dark:text-emerald-300 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
           />
         </div>
 
         {error && (
-          <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800/40 text-xs text-rose-300 flex items-center space-x-2">
-            <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/40 text-xs text-rose-700 dark:text-rose-300 flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -178,7 +178,7 @@ export default function Analytics() {
           <button
             onClick={handleRun}
             disabled={loading}
-            className="py-2.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors flex items-center space-x-2 shadow-md shadow-indigo-950/50"
+            className="py-2.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors flex items-center space-x-2 shadow-md shadow-indigo-600/20"
           >
             {loading ? (
               <span>Calcul en cours...</span>
