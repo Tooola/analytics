@@ -102,3 +102,38 @@ class TestTimestampSerialisation:
         assert resp.status_code == 200
         assert resp.json()["timestamp"].endswith("Z")
 
+
+class TestQuickAnalyzeEndpoint:
+    """Tests for POST /api/v1/analyze/quick"""
+
+    def test_quick_analyze_success(self, client):
+        payload = {
+            "data": [
+                {"date": "2026-01-01", "sales": 100, "price": 10.5},
+                {"date": "2026-01-02", "sales": 150, "price": 11.0},
+                {"date": "2026-01-03", "sales": 120, "price": 10.8},
+                {"date": "2026-01-04", "sales": 200, "price": 12.0},
+            ],
+            "analysis": ["summary", "trend"],
+            "include_ai": False,
+            "label": "unit-test-quick",
+        }
+        res = client.post("/api/v1/analyze/quick", json=payload)
+        assert res.status_code == 200
+        body = res.json()
+        assert body["success"] is True
+        assert body["row_count"] == 4
+        assert "summary" in body["results"]
+        assert "trend" in body["results"]
+        assert len(body["fields_inferred"]) == 3
+
+    def test_quick_analyze_empty_data_rejected(self, client):
+        payload = {
+            "data": [],
+            "analysis": ["summary"],
+            "include_ai": False,
+        }
+        res = client.post("/api/v1/analyze/quick", json=payload)
+        assert res.status_code == 422
+
+

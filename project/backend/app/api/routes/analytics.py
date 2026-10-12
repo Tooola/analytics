@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_application_by_api_key
@@ -28,6 +30,112 @@ from app.services.insights.engine import InsightEngine
 
 router = APIRouter(tags=["analytics"])
 logger = get_logger(__name__)
+
+
+# ─── Quick Analyze (no dataset registration required) ──────────────────────────
+
+class QuickAnalyzeRequest(BaseModel):
+    """Quick-test endpoint — auto-infers field types from the data.
+
+    For admin/dashboard testing only: skip the application + dataset registration
+    step and get instant analysis results from raw JSON.
+    """
+    data: list[dict[str, Any]]
+    analysis: list[str] = ["summary", "trend", "anomaly"]
+    include_ai: bool = False
+    label: str = "quick-test"  # optional label shown in results
+
+
+def _infer_fields(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Auto-detect column types from the first few rows of data."""
+    if not data:
+        return []
+    all_keys: set[str] = set()
+    for row in data:
+        all_keys.update(row.keys())
+
+    fields = []
+    for key in all_keys:
+        # Sample non-null values
+        samples = [row[key] for row in data if row.get(key) is not None][:10]
+        if not samples:
+            t = "string"
+        elif all(isinstance(v, bool) for v in samples):
+            t = "boolean"
+        elif all(isinstance(v, int) for v in samples):
+            t = "integer"
+        elif all(isinstance(v, (int, float)) for v in samples):
+            t = "float"
+        else:
+            # Try to detect date strings
+            str_samples = [str(v) for v in samples]
+            if any(c in str_samples[0] for c in ("-", "/")) and len(str_samples[0]) >= 8:
+                t = "date"
+            else:
+                t = "string"
+        fields.append({
+            "name": key,
+            "technical_type": t,
+            "semantic_type": "date" if t == "date" else ("quantity" if t in ("integer", "float") else "category"),
+            "required": False,
+        })
+    return fields
+
+
+@router.post("/analyze/quick")
+@limiter.limit("30/minute")
+def quick_analyze(
+    body: QuickAnalyzeRequest,
+    request: Request,
+) -> dict[str, Any]:
+    """Run analysis on raw JSON data without pre-registered application or dataset.
+
+    Designed for admin dashboard testing: paste any JSON array, get instant
+    results. Field types are auto-inferred from the data.
+    """
+    if not body.data:
+        raise HTTPException(status_code=422, detail="data must not be empty")
+    if len(body.data) > 10_000:
+        raise HTTPException(status_code=422, detail="Max 10 000 rows per request")
+
+    field_defs = _infer_fields(body.data)
+    analytics_engine = AnalyticsEngine()
+    _, results = analytics_engine.analyze(
+        data=body.data,
+        fields=field_defs,
+        analysis_types=body.analysis,
+    )
+
+    insight_engine = InsightEngine()
+    insight_dicts = insight_engine.generate(results, dataset_name=body.label)
+
+    ai_text = None
+    if body.include_ai:
+        try:
+            ai_engine = AIEngine()
+            context = ai_engine.build_context(
+                application=body.label,
+                dataset=body.label,
+                row_count=len(body.data),
+                analysis_results=results,
+                insights=insight_dicts,
+            )
+            ai_result = ai_engine.interpret(context)
+            ai_text = ai_result.model_dump_json()
+        except Exception as exc:
+            logger.warning("Quick analyze AI failed: %s", exc)
+
+    return {
+        "success": True,
+        "label": body.label,
+        "row_count": len(body.data),
+        "fields_inferred": field_defs,
+        "results": results,
+        "insights": insight_dicts,
+        "ai_interpretation": ai_text,
+    }
+
+
 
 
 @router.post("/analyze", response_model=AnalysisResponse)

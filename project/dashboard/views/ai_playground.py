@@ -18,7 +18,7 @@ if str(_DASHBOARD_DIR) not in sys.path:
 
 from api_client import get as _get  # noqa: E402
 from api_client import get_api_base as _get_api_base
-from api_client import post as _post
+from api_client import post
 
 
 st.title("⚡ Insight Studio & API Sandbox")

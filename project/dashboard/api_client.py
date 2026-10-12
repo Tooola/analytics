@@ -126,7 +126,7 @@ def cached_health(base: str, api_key: str) -> dict | None:
         resp = requests.get(
             f"{base}/api/v1/health",
             headers={"X-API-Key": api_key} if api_key else {},
-            timeout=5,
+            timeout=15,  # Railway cold start can take ~5-10s — was 5s → false Offline
         )
     except requests.RequestException:
         return None

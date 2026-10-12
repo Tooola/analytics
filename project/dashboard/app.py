@@ -72,6 +72,7 @@ st.session_state.setdefault("api_key", "")
 
 PAGES = {
     "Overview": "views/overview.py",
+    "⚡ Quick Test": "views/quick_test.py",
     "Applications": "views/applications.py",
     "Datasets": "views/datasets.py",
     "Analytics": "views/analytics.py",
