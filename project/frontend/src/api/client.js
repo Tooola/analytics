@@ -92,7 +92,7 @@ export const api = {
       method: 'DELETE',
     }),
   regenerateApiKey: (appId) =>
-    request(`/api/v1/applications/${appId}/regenerate-key`, {
+    request(`/api/v1/applications/admin/${appId}/regenerate-key`, {
       method: 'POST',
     }),
 

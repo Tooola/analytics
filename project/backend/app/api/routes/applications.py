@@ -204,3 +204,15 @@ def delete_application_admin(app_id: str, db: Session = Depends(get_db)) -> None
     repo.delete(app)
 
 
+@router.post("/admin/{app_id}/regenerate-key", response_model=dict)
+def regenerate_api_key_admin(app_id: str, db: Session = Depends(get_db)) -> dict:
+    """Issue a new API key for application from the administrative dashboard."""
+    repo = ApplicationRepository(db)
+    app = repo.get(app_id)
+    if not app:
+        raise HTTPException(status_code=404, detail="Application non trouvée")
+    raw_key = repo.regenerate_key(app)
+    return {"api_key": raw_key}
+
+
+
