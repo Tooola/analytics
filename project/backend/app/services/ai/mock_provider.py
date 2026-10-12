@@ -37,23 +37,23 @@ class MockAIProvider(AIProvider):
                 net_gain = round(rev_change - cost_change, 2)
                 findings.append(f"La croissance du chiffre d'affaires (+{rev_change}%) surpasse l'évolution des coûts (+{cost_change}%), générant un gain de marge nette de +{net_gain}%.")
                 recommendations.append("Prioriser la commercialisation des gammes à forte marge pour amplifier la rentabilité globale.")
-                action_plan.append("🔴 IMMÉDIAT (< 7 jours) : Réallouer le budget d'acquisition sur les catégories de produits les plus rentables.")
+                action_plan.append("Priorité Immédiate (< 7 jours) : Réallouer le budget d'acquisition sur les catégories de produits les plus rentables et ajuster les objectifs commerciaux.")
             else:
                 margin_drag = round(cost_change - rev_change, 2)
                 findings.append(f"La progression des charges (+{cost_change}%) est supérieure à celle des revenus (+{rev_change}%), provoquant une compression de marge de -{margin_drag}%.")
                 recommendations.append("Mener un audit ciblé sur les postes de coûts d'exploitation et négocier les tarifs fournisseurs.")
-                action_plan.append("🔴 IMMÉDIAT (< 7 jours) : Geler temporairement les dépenses non essentielles et réviser la structure de coûts.")
+                action_plan.append("Priorité Immédiate (< 7 jours) : Geler temporairement les dépenses non essentielles et réviser la structure de coûts d'exploitation.")
 
         if qty_change is not None and qty_change > 30:
             recommendations.append(f"La forte hausse des volumes (+{qty_change}%) nécessite un ajustement des niveaux de stock pour éviter toute rupture.")
-            action_plan.append("🟡 COURT TERME (1-4 semaines) : Réajuster les seuils de réapprovisionnement et sécuriser les contrats logistiques.")
+            action_plan.append("Court Terme (1-4 semaines) : Réajuster les seuils de réapprovisionnement et sécuriser les contrats logistiques avec les transporteurs.")
 
         # Summarize anomalies
         anomaly_count = sum(a.get("count", 0) for a in context.anomalies)
         if anomaly_count:
-            findings.append(f"{anomaly_count} anomalie(s) statistique(s) détectée(s) nécessitant une vérification opérationnelle.")
-            recommendations.append("Analyser les points de données atypiques pour écarter tout risque de saisie ou d'erreur de facturation.")
-            action_plan.append("🟡 COURT TERME (1-4 semaines) : Mettre en place des alertes automatisées de seuil en temps réel.")
+            findings.append(f"{anomaly_count} anomalie(s) ou valeur(s) atypique(s) nécessitant une vérification des opérations.")
+            recommendations.append("Contrôler les enregistrements isolés pour écarter tout risque de double facturation ou anomalie technique.")
+            action_plan.append("Moyen Terme (> 1 mois) : Mettre en place des alertes automatisées de seuil et former les équipes de saisie.")
 
         if not findings:
             findings.append(f"Les indicateurs clés de l'application '{context.application}' restent stables dans la plage nominale.")

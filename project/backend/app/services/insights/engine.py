@@ -114,39 +114,16 @@ class InsightEngine:
             period_str = f" sur {periods} périodes" if periods else ""
 
             if direction == "up":
-                title = f"📈 Hausse de {abs_change:.1f}% sur {col}"
-                desc = (
-                    f"**{col}** est en progression de **+{abs_change:.1f}%**{period_str}"
-                )
-                if first is not None and last is not None:
-                    desc += f" (de {first:,.2f} à {last:,.2f})."
-                else:
-                    desc += "."
-                if is_sig:
-                    desc += " Cette tendance est statistiquement confirmée — elle reflète une dynamique réelle, pas du bruit."
-                else:
-                    desc += " La variation reste dans les marges de fluctuation habituelles."
+                title = f"Progression de +{abs_change:.1f}% sur {col}"
+                desc = f"L'indicateur {col} progresse de +{abs_change:.1f}%{period_str}. Trajectoire positive confirmée sur la période."
                 itype = "opportunity"
             elif direction == "down":
-                title = f"📉 Baisse de {abs_change:.1f}% sur {col}"
-                desc = (
-                    f"**{col}** est en recul de **-{abs_change:.1f}%**{period_str}"
-                )
-                if first is not None and last is not None:
-                    desc += f" (de {first:,.2f} à {last:,.2f})."
-                else:
-                    desc += "."
-                if is_sig:
-                    desc += " Tendance confirmée — une attention particulière est recommandée."
-                else:
-                    desc += " Variation modérée sans signal d'alerte fort."
+                title = f"Recul de -{abs_change:.1f}% sur {col}"
+                desc = f"L'indicateur {col} diminue de -{abs_change:.1f}%{period_str}. Vigilance opérationnelle conseillée pour anticiper un impact."
                 itype = "risk"
             else:
-                title = f"⚖️ Stabilité de {col}"
-                desc = (
-                    f"**{col}** reste stable{period_str} avec une variation de {abs_change:.1f}% "
-                    "— aucun signal de rupture détecté."
-                )
+                title = f"Stabilité sur {col}"
+                desc = f"L'indicateur {col} demeure constant{period_str} (variation de {abs_change:.1f}%). Aucune rupture d'activité."
                 itype = "trend"
                 severity = "low"
 
@@ -172,7 +149,6 @@ class InsightEngine:
                 continue
 
             anomaly_items = a.get("anomalies", [])
-            # Filter low confidence anomalies if ensemble consensus scores are present
             if anomaly_items and any("confidence_score" in item for item in anomaly_items):
                 valid_items = [item for item in anomaly_items if item.get("confidence_score", 1.0) >= 0.66]
                 count = len(valid_items)
@@ -186,32 +162,15 @@ class InsightEngine:
             severity = "high" if count > 3 else "medium"
             plural = "s" if count > 1 else ""
 
-            # Build a short description of the anomalous values
-            value_examples = ""
-            for item in valid_items[:3]:
-                val = item.get("value")
-                row = item.get("row")
-                z = item.get("z_score")
-                if val is not None:
-                    z_str = f", écart-type : {z:+.1f}σ" if z is not None else ""
-                    row_str = f"enregistrement #{row}" if row is not None else "enregistrement"
-                    value_examples += f"\n  • {row_str} — valeur : **{val:,.2f}**{z_str}"
+            examples = [f"{item.get('value'):,.2f}" for item in valid_items[:3] if item.get("value") is not None]
+            val_txt = f" (ex. {', '.join(examples)})" if examples else ""
 
-            desc = (
-                f"**{count} valeur{plural} atypique{plural}** détectée{plural} dans **{col}** "
-                f"par analyse multi-méthodes (IQR + MAD{' + Isolation Forest' if count >= 15 else ''})."
-            )
-            if value_examples:
-                desc += f"\n\nValeur{plural} concernée{plural} :{value_examples}"
-            desc += (
-                "\n\n*Recommandation :* Vérifier si ces enregistrements correspondent à des erreurs de saisie, "
-                "des événements exceptionnels ou des données valides hors norme."
-            )
+            desc = f"{count} saisie{plural} atypique{plural} détectée{plural} sur {col}{val_txt}. À vérifier pour écarter toute erreur de saisie ou événement exceptionnel."
 
             insights.append({
                 "type": "anomaly",
                 "severity": severity,
-                "title": f"⚠️ {count} anomalie{plural} détectée{plural} sur {col}",
+                "title": f"Alerte : {count} valeur{plural} inhabituelle{plural} sur {col}",
                 "description": desc,
                 "metric": col,
                 "value": float(count),
@@ -226,28 +185,20 @@ class InsightEngine:
             col1 = c.get("column1", "")
             col2 = c.get("column2", "")
             coeff = c.get("coefficient", 0.0)
-            strength = c.get("strength", "moderate")
 
             abs_r = abs(coeff)
-            if abs_r >= 0.7:
-                strength_label = "forte"
-            elif abs_r >= 0.4:
-                strength_label = "modérée"
-            else:
-                strength_label = "faible"
+            if abs_r < 0.4:
+                continue
 
             if coeff > 0:
                 itype = "opportunity"
-                title = f"🔗 Lien positif entre {col1} et {col2} (r={coeff:.2f})"
-                desc = (
-                    f"Une **corrélation {strength_label} positive** (r = {coeff:.2f}) est observée entre "
-                    f"**{col1}** et **{col2}**. "
-                    f"Lorsque {col1} augmente, {col2} tend à augmenter également. "
-                )
-                if abs_r >= 0.7:
-                    desc += "Ce lien est suffisamment fort pour guider des décisions opérationnelles."
+                title = f"Synergie positive entre {col1} et {col2}"
+                desc = f"L'évolution de {col1} est étroitement liée à celle de {col2} : lorsque l'un progresse, l'autre augmente également."
             else:
                 itype = "risk"
+                title = f"Relation inverse entre {col1} et {col2}"
+                desc = f"Une dynamique opposée est observée : la hausse de {col1} coïncide avec une diminution de {col2}."
+
                 title = f"🔗 Relation inverse entre {col1} et {col2} (r={coeff:.2f})"
                 desc = (
                     f"Une **corrélation {strength_label} négative** (r = {coeff:.2f}) est observée entre "
@@ -288,10 +239,10 @@ class InsightEngine:
                 insights.append({
                     "type": "recommendation",
                     "severity": "low",
-                    "title": f"📊 Distribution asymétrique de {col}",
+                    "title": f"Distribution asymétrique sur {col}",
                     "description": (
-                        f"La distribution de **{col}** est {direction_text} (skewness = {skew:.2f}). "
-                        f"{impact}"
+                        f"Les valeurs de {col} sont déséquilibrées. "
+                        f"Privilégier la médiane pour évaluer la tendance réelle."
                     ),
                     "metric": col,
                     "value": float(skew),
@@ -317,19 +268,14 @@ class InsightEngine:
                 "up": "à la hausse",
                 "down": "à la baisse",
                 "stable": "stable",
-            }.get(direction, "incertaine")
+            }.get(direction, "stable")
 
-            desc = (
-                f"La projection de **{col}** sur les **{horizon} prochaines périodes** indique une tendance **{dir_label}**. "
-                f"Valeur projetée à l'horizon {horizon} : **{last_pred:,.2f}**. "
-                "Ces prévisions sont basées sur la régression linéaire des données historiques — "
-                "elles sont indicatives et doivent être interprétées en contexte opérationnel."
-            )
+            desc = f"Projection estimée {dir_label} à court terme ({last_pred:,.2f} attendu à l'horizon {horizon} périodes)."
 
             insights.append({
                 "type": "forecast",
                 "severity": "medium",
-                "title": f"🔮 Prévision {col} — tendance {dir_label}",
+                "title": f"Projection de {col} : tendance {dir_label}",
                 "description": desc,
                 "metric": col,
                 "value": float(last_pred),

@@ -183,3 +183,24 @@ def revoke_api_key_by_id(
     repo = ApplicationRepository(db)
     repo.revoke_key(authed_app)
 
+
+# ─── Dashboard Admin Endpoints ───────────────────────────────────────────────
+
+@router.get("/admin/all", response_model=list[ApplicationRead])
+def list_all_applications_admin(db: Session = Depends(get_db)) -> list[ApplicationRead]:
+    """List all registered applications for the administrative dashboard."""
+    repo = ApplicationRepository(db)
+    apps = repo.list()
+    return [ApplicationRead.model_validate(a) for a in apps]
+
+
+@router.delete("/admin/{app_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_application_admin(app_id: str, db: Session = Depends(get_db)) -> None:
+    """Delete an application by ID from the administrative dashboard."""
+    repo = ApplicationRepository(db)
+    app = repo.get(app_id)
+    if not app:
+        raise HTTPException(status_code=404, detail="Application non trouvée")
+    repo.delete(app)
+
+

@@ -121,18 +121,16 @@ Génère UNIQUEMENT un objet JSON strict avec exactement cette structure :
   "key_findings": [
     "Constat explicite 1 appuyé sur les chiffres précis du dataset",
     "Constat explicite 2 appuyé sur les chiffres précis du dataset",
-    "Constat explicite 3 appuyé sur les chiffres précis du dataset",
-    "Constat explicite 4 appuyé sur les chiffres précis du dataset"
+    "Constat explicite 3 appuyé sur les chiffres précis du dataset"
   ],
   "recommendations": [
-    "Action corrective ou d'optimisation 1 adaptée au secteur de l'application analysée",
-    "Action corrective ou d'optimisation 2 adaptée au secteur de l'application analysée",
-    "Action corrective ou d'optimisation 3 adaptée au secteur de l'application analysée"
+    "Recommandation stratégique 1 adaptée au secteur d'activité",
+    "Recommandation stratégique 2 adaptée au secteur d'activité"
   ],
   "action_plan": [
-    "🔴 IMMÉDIAT (< 7 jours) : Action urgente prioritaire",
-    "🟡 COURT TERME (1-4 semaines) : Action d'optimisation opérationnelle",
-    "🟢 LONG TERME (> 1 mois) : Stratégie de pérennisation"
+    "Priorité Immédiate (< 7 jours) : Description détaillée et concrète de l'action corrective urgente à mettre en œuvre par les équipes opérationnelles.",
+    "Court Terme (1-4 semaines) : Mesure d'optimisation tactique, ajustement des processus ou révision des seuils opérationnels.",
+    "Moyen et Long Terme (> 1 mois) : Stratégie structurelle de pérennisation, automatisation ou sécurisation des flux de données."
   ],
   "risk_assessment": "Évaluation explicite du niveau de risque (Faible / Modéré / Élevé / Critique) avec justification détaillée basée sur les anomalies et variations constatées."
 }}"""
