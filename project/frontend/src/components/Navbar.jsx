@@ -60,11 +60,11 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Platform Name */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('overview')}>
+          <div className="flex items-center space-x-3 cursor-pointer shrink-0" onClick={() => setActiveTab('overview')}>
             <div className="h-9 w-9 rounded-xl bg-indigo-50 dark:bg-indigo-600/20 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm">
               <Activity className="h-5 w-5" />
             </div>
-            <div>
+            <div className="whitespace-nowrap">
               <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">Open Analytics AI</span>
               <span className="ml-2 text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                 v1.0.0
@@ -73,7 +73,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
           </div>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex space-x-1">
+          <nav className="hidden md:flex flex-nowrap space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -81,7 +81,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                     isActive
                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 shadow-sm'
                       : item.highlight
@@ -97,26 +97,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
           </nav>
 
           {/* Health Status, Theme Toggle & Target Settings */}
-          <div className="flex items-center space-x-2.5">
-            {/* Connected user + logout */}
-            {user && (
-              <span
-                className="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-xs text-slate-700 dark:text-slate-300"
-                title={`Connecté en tant que ${user.username}`}
-              >
-                <UserRound className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
-                <span className="font-medium max-w-[100px] truncate">{user.username}</span>
-              </span>
-            )}
-            <button
-              onClick={onLogout}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-200 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 text-slate-700 dark:text-slate-300 text-xs transition-colors"
-              title="Se déconnecter"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Déconnexion</span>
-            </button>
-
+          <div className="flex items-center space-x-2.5 flex-nowrap">
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
@@ -153,6 +134,27 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
                 <AlertCircle className="h-3.5 w-3.5 mr-1 text-rose-600 dark:text-rose-400" />
                 <span>Hors ligne</span>
               </span>
+            )}
+
+            {/* Connected operator — avatar circle (end of the bar) */}
+            {user && (
+              <span
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-600/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 shrink-0 select-none"
+                title={`Connecté en tant que ${user.username}`}
+              >
+                <UserRound className="h-4 w-4" />
+              </span>
+            )}
+
+            {/* Logout — icon only */}
+            {user && (
+              <button
+                onClick={onLogout}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-200 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 text-slate-600 dark:text-slate-300 shrink-0 transition-colors"
+                title="Se déconnecter"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>
