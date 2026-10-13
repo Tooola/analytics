@@ -5,6 +5,8 @@
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
+const TOKEN_KEY = 'oak_token';
+
 export function getApiBase() {
   return localStorage.getItem('oak_api_base') || DEFAULT_API_BASE;
 }
@@ -15,6 +17,24 @@ export function setApiBase(url) {
   } else {
     localStorage.setItem('oak_api_base', url.replace(/\/+$/, ''));
   }
+}
+
+// ─── Dashboard session (JWT from POST /auth/login) ────────────────────────
+
+export function getAuthToken() {
+  return localStorage.getItem(TOKEN_KEY) || '';
+}
+
+export function setAuthToken(token) {
+  if (!token) {
+    localStorage.removeItem(TOKEN_KEY);
+  } else {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 export function getStoredApiKey() {
@@ -33,8 +53,11 @@ async function request(endpoint, options = {}) {
   const base = getApiBase();
   const url = `${base}${endpoint}`;
 
+  const token = getAuthToken();
   const headers = {
     'Content-Type': 'application/json',
+    // Send the dashboard JWT when a session exists (admin routes need it).
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
 
@@ -47,6 +70,10 @@ async function request(endpoint, options = {}) {
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
+      // Session expired / revoked → force back to the login page.
+      if (response.status === 401 && endpoint !== '/api/v1/auth/login' && getAuthToken()) {
+        window.dispatchEvent(new CustomEvent('oak:unauthorized'));
+      }
       const errorMsg = data?.detail || data?.error || `HTTP ${response.status} ${response.statusText}`;
       const err = new Error(errorMsg);
       err.status = response.status;
@@ -67,6 +94,14 @@ async function request(endpoint, options = {}) {
 export const api = {
   // System Health
   getHealth: () => request('/api/v1/health'),
+
+  // Dashboard authentication
+  login: ({ username, password }) =>
+    request('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    }),
+  me: () => request('/api/v1/auth/me'),
 
   // Quick Analyze (No registration needed)
   quickAnalyze: ({ data, analysis = ['summary', 'trend', 'anomaly'], include_ai = true, label = 'quick-test' }) =>

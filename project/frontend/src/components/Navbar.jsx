@@ -9,12 +9,14 @@ import {
   CheckCircle2, 
   AlertCircle,
   Sun,
-  Moon
+  Moon,
+  LogOut,
+  UserRound
 } from 'lucide-react';
 import { api, getApiBase, setApiBase } from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 
-export default function Navbar({ activeTab, setActiveTab }) {
+export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -96,6 +98,25 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
           {/* Health Status, Theme Toggle & Target Settings */}
           <div className="flex items-center space-x-2.5">
+            {/* Connected user + logout */}
+            {user && (
+              <span
+                className="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-xs text-slate-700 dark:text-slate-300"
+                title={`Connecté en tant que ${user.username}`}
+              >
+                <UserRound className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
+                <span className="font-medium max-w-[100px] truncate">{user.username}</span>
+              </span>
+            )}
+            <button
+              onClick={onLogout}
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-200 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 text-slate-700 dark:text-slate-300 text-xs transition-colors"
+              title="Se déconnecter"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Déconnexion</span>
+            </button>
+
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
