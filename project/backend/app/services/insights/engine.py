@@ -96,8 +96,6 @@ class InsightEngine:
             change = t.get("change_pct")
             direction = t.get("direction", "stable")
             is_sig = t.get("is_significant", True)
-            first = t.get("first_value")
-            last = t.get("last_value")
             periods = t.get("periods", 0)
 
             if change is None:
@@ -190,15 +188,26 @@ class InsightEngine:
             if abs_r < 0.4:
                 continue
 
+            # Strength levels — used for both wording and severity.
+            if abs_r >= 0.8:
+                strength = "strong"
+                strength_label = "forte"
+            elif abs_r >= 0.6:
+                strength = "moderate"
+                strength_label = "modérée"
+            else:
+                strength = "weak"
+                strength_label = "faible"
+
             if coeff > 0:
                 itype = "opportunity"
-                title = f"Synergie positive entre {col1} et {col2}"
-                desc = f"L'évolution de {col1} est étroitement liée à celle de {col2} : lorsque l'un progresse, l'autre augmente également."
+                title = f"🔗 Synergie positive entre {col1} et {col2} (r={coeff:.2f})"
+                desc = (
+                    f"Une **corrélation {strength_label} positive** (r = {coeff:.2f}) est observée entre "
+                    f"**{col1}** et **{col2}** : lorsque l'un progresse, l'autre augmente également."
+                )
             else:
                 itype = "risk"
-                title = f"Relation inverse entre {col1} et {col2}"
-                desc = f"Une dynamique opposée est observée : la hausse de {col1} coïncide avec une diminution de {col2}."
-
                 title = f"🔗 Relation inverse entre {col1} et {col2} (r={coeff:.2f})"
                 desc = (
                     f"Une **corrélation {strength_label} négative** (r = {coeff:.2f}) est observée entre "
@@ -208,7 +217,7 @@ class InsightEngine:
 
             insights.append({
                 "type": itype,
-                "severity": "medium" if strength == "moderate" else "high",
+                "severity": {"strong": "high", "moderate": "medium"}.get(strength, "low"),
                 "title": title,
                 "description": desc,
                 "metric": f"{col1}_vs_{col2}",
@@ -241,8 +250,8 @@ class InsightEngine:
                     "severity": "low",
                     "title": f"Distribution asymétrique sur {col}",
                     "description": (
-                        f"Les valeurs de {col} sont déséquilibrées. "
-                        f"Privilégier la médiane pour évaluer la tendance réelle."
+                        f"Les valeurs de {col} sont {direction_text}. "
+                        f"{impact}"
                     ),
                     "metric": col,
                     "value": float(skew),
