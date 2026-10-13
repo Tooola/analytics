@@ -208,7 +208,7 @@ def main() -> None:
     print("=" * 60)
     print()
     print("Next steps:")
-    print(f"  1. Open Streamlit dashboard: http://localhost:8501")
+    print(f"  1. Open the React dashboard: cd frontend && npm run dev (http://localhost:5173)")
     print(f"  2. Use API key: {api_key}")
     print(f"  3. Explore Analytics and AI Playground pages")
 

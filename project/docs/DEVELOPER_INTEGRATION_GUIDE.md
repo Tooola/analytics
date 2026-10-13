@@ -40,7 +40,7 @@ Open Analytics AI est un moteur backend centralisé qui reçoit des données bru
                                │ Consultation Admin
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
-│             Streamlit Admin Dashboard (Port 8501)           │
+│            React Admin Dashboard (Port 5173)            │
 └─────────────────────────────────────────────────────────────┘
 ```
 

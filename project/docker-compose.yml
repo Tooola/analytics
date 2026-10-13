@@ -36,20 +36,5 @@ services:
     volumes:
       - ./backend:/app
 
-  dashboard:
-    build:
-      context: .
-      dockerfile: dashboard/Dockerfile
-    ports:
-      - "8501:8501"
-    environment:
-      API_BASE_URL: http://backend:8000
-      # Optional dashboard password gate (V3); empty = disabled, as before.
-      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-}
-    depends_on:
-      - backend
-    volumes:
-      - ./dashboard:/app/dashboard
-
 volumes:
   pgdata:

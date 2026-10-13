@@ -3,7 +3,7 @@
 > **La plateforme d'Intelligence Artificielle et d'Analyse Décisionnelle réutilisable pour tout l'écosystème applicatif.**
 >
 > 🌐 **URL de l'API en Production (Railway)** : `https://scintillating-kindness-production-d038.up.railway.app`  
-> 🖥️ **Dashboard Administrateur & BI (Streamlit)** : `https://analytics-juyrngykeyfzfv9jtfg3st.streamlit.app`
+> 🖥️ **Dashboard Administrateur & BI (React)** : application Vite — `http://localhost:5173` en local (déploiement web à configurer)
 
 ---
 
@@ -80,7 +80,7 @@ Traduction des chiffres bruts en **rapports managériaux clairs et chiffrés** c
 
 ## 5. 🖥️ Interface d'Administration & Démonstration
 
-L'entreprise dispose d'un **Dashboard Streamlit** complet accessible par la direction et les administrateurs :
+L'entreprise dispose d'un **Dashboard React** complet accessible par la direction et les administrateurs (connexion par identifiants, voir §login) :
 
 - 📊 **Overview** : Indicateurs de santé globaux du système et volume d'analyses effectuées.
 - 📱 **Applications** : Gestion des applications enregistrées et régénération des clés API.
@@ -103,7 +103,7 @@ L'entreprise dispose d'un **Dashboard Streamlit** complet accessible par la dire
 
 - [x] Déploiement en Production sur **Railway** (Backend API).
 - [x] Intégration du moteur IA ultra-rapide **Groq Cloud API** (Qwen 27B / LLaMA 3.3).
-- [x] Finalisation du Dashboard Admin & BI Streamlit.
+- [x] Finalisation du Dashboard Admin & BI (React).
 - [ ] Connecteurs natifs pour export PDF/Excel des rapports décisionnels.
 - [ ] Alertes automatisées par Email / Webhook Slack / WhatsApp en cas d'anomalie critique.
 

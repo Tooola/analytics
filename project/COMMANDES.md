@@ -1,12 +1,12 @@
 # 🚀 Commandes de lancement — Open Analytics AI
 
-Ce document regroupe l'ensemble des commandes pour démarrer, tester et configurer **Open Analytics AI** (Backend FastAPI + Dashboard Admin Streamlit).
+Ce document regroupe l'ensemble des commandes pour démarrer, tester et configurer **Open Analytics AI** (Backend FastAPI + Frontend React).
 
 ---
 
 ## ⚡ Méthode 1 : Démarrage rapide avec Docker Compose (Recommandé)
 
-Cette méthode lance automatiquement PostgreSQL, le Backend FastAPI et le Dashboard Streamlit dans des conteneurs isolés.
+Cette méthode lance automatiquement PostgreSQL et le Backend FastAPI dans des conteneurs isolés (le frontend React se lance séparément, voir Méthode 2).
 
 ```bash
 # Depuis le dossier /project
@@ -16,7 +16,7 @@ docker compose up -d
 ### 📍 Accès aux services :
 - **API Backend FastAPI** : [http://localhost:8000](http://localhost:8000)
 - **Documentation Swagger (API interactive)** : [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Dashboard Admin Streamlit** : [http://localhost:8501](http://localhost:8501)
+- **Frontend React** : [http://localhost:5173](http://localhost:5173) (lancé via `npm run dev` dans `frontend/`)
 - **Base de données PostgreSQL** : `localhost:5432` (User: `analytics`, DB: `open_analytics`)
 
 ### 🛑 Arrêter les conteneurs :
@@ -77,25 +77,22 @@ uvicorn app.main:app --reload --port 8000
 
 ---
 
-### 3️⃣ Lancement du Dashboard / Frontend (Streamlit)
+### 3️⃣ Lancement du Frontend (React)
 
 Ouvrez un **deuxième terminal** (pendant que le backend tourne) :
 
-#### 💻 **Sous Windows (PowerShell / CMD) :**
-```powershell
-# 1. Se placer dans le dossier dashboard
-cd dashboard
-
-# 2. Lancer l'application Streamlit avec le Python de l'environnement virtuel
-..\backend\.venv\Scripts\python.exe -m streamlit run app.py
-```
-*(Si votre terminal a déjà l'environnement virtuel activé, tapez simplement : `streamlit run app.py`)*
-
-#### 🐧 / 🍎 **Sous Linux / macOS :**
+#### 💻 **Sous Windows / 🐧 Linux / 🍎 macOS :**
 ```bash
-cd dashboard
-../backend/.venv/bin/streamlit run app.py
+# 1. Se placer dans le dossier frontend
+cd frontend
+
+# 2. Installer les dépendances (première fois uniquement)
+npm install
+
+# 3. Démarrer le serveur de dev Vite (http://localhost:5173)
+npm run dev
 ```
+*(Ou utilisez le script tout-en-un : `./start-dev.ps1` depuis `project/` — backend + frontend.)*
 
 ---
 
@@ -118,4 +115,5 @@ cd backend
 | `AI_PROVIDER` | `gemini` | Moteur d'analyse IA (`gemini`, `mock`, `local_llm`) |
 | `GEMINI_API_KEY` | `AQ...` | Clé d'API Google Gemini AI Studio |
 | `API_KEY_HASH_SECRET` | `dev-secret-...` | Clé secrète pour le hachage des clés d'accès applicatives |
-| `DASHBOARD_PORT` | `8501` | Port du Dashboard Admin Streamlit |
+| `DASHBOARD_ADMIN_USERNAME` | `admin` | Identifiant du compte administrateur seedé au démarrage |
+| `DASHBOARD_ADMIN_PASSWORD` | *(vide)* | Mot de passe du compte administrateur (requis pour la connexion) |

@@ -50,7 +50,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
 
-    # Dashboard
+    # Legacy dashboard leftovers — kept only so existing .env files keep
+    # loading (Settings uses extra="forbid"); nothing reads them anymore.
     dashboard_port: int = 8501
     api_base_url: str = "http://localhost:8000"
 

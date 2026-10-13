@@ -19,8 +19,9 @@ docker compose up
 This starts:
 - **FastAPI** at http://localhost:8000
 - **Swagger docs** at http://localhost:8000/docs
-- **Streamlit dashboard** at http://localhost:8501
 - **PostgreSQL** at localhost:5432
+
+The React dashboard is a separate Vite app — see below.
 
 ### Manual Setup
 
@@ -38,9 +39,10 @@ alembic upgrade head
 python -m scripts.generate_demo_data
 uvicorn app.main:app --reload --port 8000
 
-# 2. Dashboard (Terminal 2)
-cd dashboard
-..\backend\.venv\Scripts\python.exe -m streamlit run app.py
+# 2. Frontend React (Terminal 2)
+cd frontend
+npm install
+npm run dev        # http://localhost:5173
 ```
 
 
@@ -63,8 +65,7 @@ pytest -v
 ```
 open-analytics-ai/
 ├── backend/          # FastAPI REST API + Analytics Engine
-├── dashboard/        # Streamlit admin/testing UI
-├── docker/           # Docker configuration
+├── frontend/         # React dashboard (Vite + Tailwind + Recharts)
 ├── docs/             # Documentation
 └── docker-compose.yml
 ```
@@ -94,7 +95,7 @@ See [docs/developer-integration.md](docs/developer-integration.md) for full inte
 
 ## Roadmap
 
-- **V1** (current): Data Registry, Validation, Analytics, Insights, Streamlit
+- **V1** (current): Data Registry, Validation, Analytics, Insights, React dashboard
 - **V2**: Machine Learning, Advanced Anomaly Detection, Forecasting
 - **V3**: Local Open Source LLM, Natural Language Analysis
 - **V4**: React SDK, Easy Integration

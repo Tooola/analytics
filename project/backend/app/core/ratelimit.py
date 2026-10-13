@@ -6,8 +6,8 @@ importing it from ``app.main`` would create a circular import.
 
 Design notes:
 - Limits are declared per-route (heavy/expensive POSTs only). A global
-  ``default_limits`` + middleware would throttle the Streamlit dashboard,
-  which fires several GETs on every rerun.
+  ``default_limits`` + middleware would throttle the dashboard, which fires
+  several GETs on every page load.
 - Bucket strategy: API key when the request carries one (each tenant gets
   its own quota even if every client sits behind the same proxy IP),
   else first X-Forwarded-For hop, else socket address.

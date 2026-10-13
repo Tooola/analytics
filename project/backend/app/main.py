@@ -73,7 +73,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS — origins are configured per-environment via CORS_ORIGINS env var.
 # API calls from client backends (server-to-server) are not browser requests
 # and are therefore not constrained by CORS. This middleware protects the
-# Streamlit dashboard and any browser-based tooling only.
+# React dashboard and any browser-based tooling only.
 # NOTE: never use allow_credentials=True with allow_origins=["*"].
 app.add_middleware(
     CORSMiddleware,

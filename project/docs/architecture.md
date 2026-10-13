@@ -39,8 +39,8 @@ Open Analytics AI is designed as a modular platform with clear separation of con
          └───────────────────────┘
                      │
          ┌───────────▼───────────┐
-         │  Streamlit Dashboard  │
-         │  (Internal Admin)     │
+         │  React Dashboard      │
+         │  (Admin + Analytics)  │
          └───────────────────────┘
 ```
 
@@ -127,5 +127,5 @@ All database access goes through repositories, keeping business logic clean and 
 | Analytics | Pandas, NumPy, SciPy |
 | ML | Scikit-learn |
 | AI | Pluggable (Mock / Ollama) |
-| Dashboard | Streamlit |
+| Dashboard | React (Vite + Tailwind + Recharts) |
 | Containerization | Docker |
