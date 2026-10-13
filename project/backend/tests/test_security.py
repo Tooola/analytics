@@ -684,6 +684,55 @@ class TestSecretsHygiene:
             "API key comparison must use secrets.compare_digest for constant-time safety"
         )
 
+    def test_no_provider_secrets_anywhere_in_tracked_files(self):
+        """No real provider credential may live in ANY tracked file.
+
+        Scans the whole repository (docs, fixtures, configs) — not just
+        app/. This is the guard that would have caught the Groq key that
+        once leaked into diagnostic_et_plan.md. Secrets belong in env vars
+        only (.env is gitignored and never scanned).
+        """
+        import re
+        import subprocess
+
+        project_root = pathlib.Path(__file__).parents[2]
+        patterns = {
+            "Groq": re.compile(r"gsk_[A-Za-z0-9]{20,}"),
+            "Google AI": re.compile(r"AIza[A-Za-z0-9_-]{30,}"),
+            "OpenAI/Anthropic": re.compile(r"sk-(?:proj|ant|live|test)[-_][A-Za-z0-9_-]{20,}"),
+            "Slack": re.compile(r"xox[abprs]-[A-Za-z0-9-]{10,}"),
+        }
+        try:
+            listing = subprocess.run(
+                ["git", "ls-files"],
+                cwd=project_root,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=30,
+            ).stdout.splitlines()
+        except (OSError, subprocess.SubprocessError):
+            pytest.skip("git is not available — cannot enumerate tracked files")
+
+        hits = []
+        for rel in listing:
+            if rel.endswith("package-lock.json"):
+                continue  # generated lockfile: integrity hashes only
+            path = project_root / rel
+            if not path.is_file():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            for label, pat in patterns.items():
+                if pat.search(text):
+                    hits.append(f"{rel} ({label})")
+        assert hits == [], (
+            "Provider secrets found in tracked files — move them to env vars:\n"
+            + "\n".join(hits)
+        )
+
 
 class TestRunLifecycle:
     """PLAN.md S8: a post-processing crash must mark the run "failed",

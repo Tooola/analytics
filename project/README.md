@@ -13,6 +13,7 @@ Open Analytics AI is a reusable backend that provides analytics, trend analysis,
 ### Using Docker (recommended)
 
 ```bash
+cp .env.example .env   # fill in POSTGRES_PASSWORD (and GROQ_API_KEY if used)
 docker compose up
 ```
 

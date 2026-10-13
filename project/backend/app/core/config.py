@@ -25,6 +25,10 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "sqlite:///./analytics.db"
+    # Only consumed by docker-compose interpolation (the app reads
+    # DATABASE_URL); declared here so a shared .env never trips
+    # extra="forbid".
+    postgres_password: str | None = None
 
     # API
     api_v1_prefix: str = "/api/v1"

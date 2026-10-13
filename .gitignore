@@ -33,6 +33,7 @@ htmlcov/
 # ─── Artefacts scratch (jamais versionnés) ──────────────
 scratch_*.py
 result.md
+diagnostic_et_plan.md
 
 # ─── OS / IDE ───────────────────────────────────────────
 .DS_Store

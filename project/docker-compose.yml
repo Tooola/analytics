@@ -3,8 +3,9 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: analytics
-      # Password comes from project/.env (default keeps the historical value).
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-analytics}
+      # Required: no default password in the compose file — set it in
+      # project/.env (copy .env.example first).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in project/.env (copy .env.example)}
       POSTGRES_DB: open_analytics
     ports:
       - "5432:5432"
@@ -24,7 +25,7 @@ services:
       - "8000:8000"
     environment:
       # Keep in sync with POSTGRES_PASSWORD above (same interpolation).
-      DATABASE_URL: postgresql+psycopg2://analytics:${POSTGRES_PASSWORD:-analytics}@postgres:5432/open_analytics
+      DATABASE_URL: postgresql+psycopg2://analytics:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in project/.env (copy .env.example)}@postgres:5432/open_analytics
       APP_ENV: development
       DEBUG: "true"
       AI_PROVIDER: mock

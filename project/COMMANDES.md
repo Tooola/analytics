@@ -10,6 +10,7 @@ Cette méthode lance automatiquement PostgreSQL et le Backend FastAPI dans des c
 
 ```bash
 # Depuis le dossier /project
+cp .env.example .env   # première fois : renseigner POSTGRES_PASSWORD
 docker compose up -d
 ```
 

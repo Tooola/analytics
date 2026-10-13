@@ -10,6 +10,7 @@ Conçu pour les équipes multi-applications (Farmtinz, CRMtinz, Sharetinz, …) 
 ```bash
 git clone https://github.com/Tooola/analytics.git
 cd analytics/project
+cp .env.example .env   # puis remplir GROQ_API_KEY / POSTGRES_PASSWORD
 docker compose up
 ```
 
