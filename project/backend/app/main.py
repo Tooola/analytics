@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import Base, SessionLocal, engine
 from app.core.logging import get_logger, setup_logging
 
 
@@ -35,6 +35,19 @@ async def lifespan(app: FastAPI):
             "local",
         ):
             raise
+    # Seed dashboard operator accounts (no-op when DASHBOARD_ADMIN_* unset)
+    try:
+        if settings.dashboard_admin_username and settings.dashboard_admin_password:
+            with SessionLocal() as db:
+                from app.services.dashboard_auth import ensure_dashboard_users
+
+                ensure_dashboard_users(db)
+        elif settings.app_env.lower() not in ("development", "dev", "testing", "test", "local"):
+            logger.warning(
+                "DASHBOARD_ADMIN_USERNAME/PASSWORD not set — dashboard login is disabled."
+            )
+    except Exception as exc:
+        logger.error("Failed to seed dashboard users: %s", exc)
     yield
     logger.info("Shutting down %s", settings.app_name)
 
@@ -80,7 +93,7 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    allow_headers=["Content-Type", "X-API-Key", "Authorization"],
 )
 
 # Register the v1 API router

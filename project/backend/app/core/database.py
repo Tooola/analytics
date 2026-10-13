@@ -6,6 +6,7 @@ from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.core.config import settings
 
@@ -16,14 +17,20 @@ if db_url.startswith("postgres://"):
 is_sqlite = db_url.startswith("sqlite")
 connect_args = {"check_same_thread": False} if is_sqlite else {}
 
-engine = create_engine(
-    db_url,
-    pool_pre_ping=not is_sqlite,
-    connect_args=connect_args,
+engine_kwargs: dict = {
+    "pool_pre_ping": not is_sqlite,
+    "connect_args": connect_args,
     # SQL echo stays off permanently: DEBUG=true (the default in local .env)
     # must not spam every row of data into the production logs.
-    echo=False,
-)
+    "echo": False,
+}
+if is_sqlite and db_url in ("sqlite://", "sqlite:///:memory:"):
+    # In-memory database: one shared connection for the whole process,
+    # otherwise every threadpool worker would silently get its own empty
+    # database (only used by the test suite).
+    engine_kwargs["poolclass"] = StaticPool
+
+engine = create_engine(db_url, **engine_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

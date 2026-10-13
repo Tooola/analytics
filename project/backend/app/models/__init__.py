@@ -205,3 +205,19 @@ class Insight(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     analysis_run: Mapped[AnalysisRun] = relationship(back_populates="insights")
+
+
+class User(Base):
+    """Dashboard operator account (React dashboard login, JWT bearer).
+
+    Seeded at startup from DASHBOARD_ADMIN_USERNAME/PASSWORD — see
+    app/services/dashboard_auth.py.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

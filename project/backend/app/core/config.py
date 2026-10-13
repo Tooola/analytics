@@ -50,6 +50,16 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
 
+    # Dashboard authentication (React login)
+    # Accounts declared here are created at startup when missing (seeded).
+    # Password must be set in production; login stays disabled without it.
+    dashboard_admin_username: str | None = None
+    dashboard_admin_password: str | None = None
+    dashboard_token_expire_minutes: int = 720  # 12h
+    # Login brute-force protection (attempts/minute per client bucket).
+    # The test suite raises this so fixtures never trip the limiter.
+    dashboard_login_per_minute: int = 5
+
     # Legacy dashboard leftovers — kept only so existing .env files keep
     # loading (Settings uses extra="forbid"); nothing reads them anymore.
     dashboard_port: int = 8501

@@ -12,10 +12,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_application_by_api_key
+from app.api.dependencies import get_application_by_api_key, require_dashboard_user
 from app.core.database import get_db
 from app.core.ratelimit import limiter
-from app.models import Application
+from app.models import Application, User
 from app.repositories.application_repo import ApplicationRepository
 from app.schemas.application import (
     ApplicationCreate,
@@ -185,18 +185,27 @@ def revoke_api_key_by_id(
 
 
 # ─── Dashboard Admin Endpoints ───────────────────────────────────────────────
+# All of these are cross-tenant: they require a dashboard login (JWT),
+# never an application API key. See app/api/dependencies.py.
 
 @router.get("/admin/all", response_model=list[ApplicationRead])
-def list_all_applications_admin(db: Session = Depends(get_db)) -> list[ApplicationRead]:
-    """List all registered applications for the administrative dashboard."""
+def list_all_applications_admin(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_dashboard_user),
+) -> list[ApplicationRead]:
+    """List all registered applications — dashboard login required."""
     repo = ApplicationRepository(db)
     apps = repo.list()
     return [ApplicationRead.model_validate(a) for a in apps]
 
 
 @router.delete("/admin/{app_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_application_admin(app_id: str, db: Session = Depends(get_db)) -> None:
-    """Delete an application by ID from the administrative dashboard."""
+def delete_application_admin(
+    app_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_dashboard_user),
+) -> None:
+    """Delete an application by ID — dashboard login required."""
     repo = ApplicationRepository(db)
     app = repo.get(app_id)
     if not app:
@@ -205,8 +214,15 @@ def delete_application_admin(app_id: str, db: Session = Depends(get_db)) -> None
 
 
 @router.post("/admin/{app_id}/regenerate-key", response_model=dict)
-def regenerate_api_key_admin(app_id: str, db: Session = Depends(get_db)) -> dict:
-    """Issue a new API key for application from the administrative dashboard."""
+def regenerate_api_key_admin(
+    app_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_dashboard_user),
+) -> dict:
+    """Issue a new API key for an application — dashboard login required.
+
+    The old key is immediately invalidated; the new one is returned once.
+    """
     repo = ApplicationRepository(db)
     app = repo.get(app_id)
     if not app:

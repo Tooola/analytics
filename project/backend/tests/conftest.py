@@ -13,6 +13,10 @@ os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["APP_ENV"] = "testing"
 os.environ["DEBUG"] = "true"
 os.environ["API_KEY_HASH_SECRET"] = "test-secret"
+# Seeded dashboard admin (login tests) — never a production value
+os.environ["DASHBOARD_ADMIN_USERNAME"] = "admin"
+os.environ["DASHBOARD_ADMIN_PASSWORD"] = "test-dashboard-password"
+os.environ["DASHBOARD_LOGIN_PER_MINUTE"] = "1000"
 
 from app.core.database import Base
 

@@ -5,10 +5,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_application_by_api_key, get_pagination
+from app.api.dependencies import get_application_by_api_key, get_pagination, require_dashboard_user
 from app.core.database import get_db
 from app.core.ratelimit import limiter
-from app.models import Application
+from app.models import Application, User
+from app.repositories.application_repo import ApplicationRepository
 from app.repositories.dataset_repo import DatasetRepository
 from app.schemas.dataset import DatasetCreate, DatasetRead, DatasetUpdate
 
@@ -59,16 +60,15 @@ def list_datasets(
 @router.get("/all", response_model=list[DatasetRead])
 def list_all_datasets_admin(
     db: Session = Depends(get_db),
-    app: Application = Depends(get_application_by_api_key),
+    user: User = Depends(require_dashboard_user),
 ) -> list[DatasetRead]:
-    """List datasets for the authenticated application.
+    """List every tenant's datasets — dashboard login required (admin view).
 
-    Requires X-API-Key. This path is kept for dashboard compatibility but
-    no longer exposes every tenant's datasets: only the caller's own
-    datasets are returned (tenant isolation, same as GET /datasets).
+    Cross-tenant on purpose: this backs the operator dashboard. Tenants
+    use GET /datasets (own data only) with their API key.
     """
     repo = DatasetRepository(db)
-    datasets = repo.list_by_application(app.id)
+    datasets = repo.list(limit=500)
     return [DatasetRead.model_validate(d) for d in datasets]
 
 
@@ -76,14 +76,11 @@ def list_all_datasets_admin(
 def list_datasets_by_app_slug(
     app_slug: str,
     db: Session = Depends(get_db),
-    app: Application = Depends(get_application_by_api_key),
+    user: User = Depends(require_dashboard_user),
 ) -> list[DatasetRead]:
-    """List datasets belonging to an application slug — own application only.
-
-    Returns 404 (not 403) for another tenant's slug to avoid confirming
-    that the application exists.
-    """
-    if app.slug != app_slug:
+    """List datasets belonging to any application slug — dashboard login required."""
+    app = ApplicationRepository(db).get_by_slug(app_slug)
+    if app is None:
         raise HTTPException(status_code=404, detail="Application not found")
     repo = DatasetRepository(db)
     datasets = repo.list_by_application(app.id)

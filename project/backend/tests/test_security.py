@@ -111,6 +111,21 @@ def dataset_a(client, app_a):
     return resp.json()["id"]
 
 
+@pytest.fixture(scope="module")
+def dashboard_token(client):
+    """Seed the env-defined admin into THIS module's test DB and log in."""
+    from app.services.dashboard_auth import ensure_dashboard_users
+
+    with _SessionLocal() as db:
+        ensure_dashboard_users(db)
+    resp = client.post(
+        "/api/v1/auth/login",
+        json={"username": "admin", "password": "test-dashboard-password"},
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()["access_token"]
+
+
 def _app_id(client, api_key: str) -> str:
     """Return an application's id via its own authenticated profile."""
     resp = client.get("/api/v1/applications/me", headers={"X-API-Key": api_key})
@@ -406,21 +421,21 @@ class TestApplicationAdminIsolation:
         assert resp.status_code == 200
         assert [a["slug"] for a in resp.json()] == [slug_a]
 
-    def test_app_a_cannot_list_app_b_datasets_by_slug(self, client, app_a, app_b):
-        """GET /datasets/by-app/{slug} must 404 for another tenant's slug."""
+    def test_admin_dataset_routes_reject_api_keys(self, client, app_a):
+        """Admin dataset routes need the dashboard JWT — never an API key."""
         _, key_a = app_a
-        slug_b, _ = app_b
 
         resp = client.get(
-            f"/api/v1/datasets/by-app/{slug_b}", headers={"X-API-Key": key_a}
+            "/api/v1/datasets/by-app/any-slug", headers={"X-API-Key": key_a}
         )
-        assert resp.status_code == 404
+        assert resp.status_code == 401
+        resp = client.get("/api/v1/datasets/all", headers={"X-API-Key": key_a})
+        assert resp.status_code == 401
 
-    def test_datasets_all_returns_only_own_datasets(self, client, app_a, app_b):
-        """GET /datasets/all must not leak datasets from another tenant."""
-        _, key_a = app_a
+    def test_datasets_all_admin_shows_every_tenant(self, client, app_b, dashboard_token):
+        """With a dashboard JWT, /datasets/all lists datasets from ALL tenants."""
         _, key_b = app_b
-        id_a = _app_id(client, key_a)
+        id_b = _app_id(client, key_b)
 
         # Ensure B owns at least one dataset
         client.post(
@@ -433,10 +448,22 @@ class TestApplicationAdminIsolation:
             headers={"X-API-Key": key_b},
         )
 
-        resp = client.get("/api/v1/datasets/all", headers={"X-API-Key": key_a})
+        resp = client.get(
+            "/api/v1/datasets/all",
+            headers={"Authorization": f"Bearer {dashboard_token}"},
+        )
         assert resp.status_code == 200
-        datasets = resp.json()
-        assert all(d["application_id"] == id_a for d in datasets)
+        owners = {d["application_id"] for d in resp.json()}
+        assert id_b in owners  # B's datasets are visible to the operator
+
+    def test_datasets_by_app_slug_admin_with_jwt(self, client, app_b, dashboard_token):
+        """An operator can list any tenant's datasets by slug."""
+        slug_b, _ = app_b
+        resp = client.get(
+            f"/api/v1/datasets/by-app/{slug_b}",
+            headers={"Authorization": f"Bearer {dashboard_token}"},
+        )
+        assert resp.status_code == 200
 
 
 # ─── 2c. Rate Limiting ───────────────────────────────────────────────────────
