@@ -17,6 +17,10 @@ os.environ["API_KEY_HASH_SECRET"] = "test-secret"
 os.environ["DASHBOARD_ADMIN_USERNAME"] = "admin"
 os.environ["DASHBOARD_ADMIN_PASSWORD"] = "test-dashboard-password"
 os.environ["DASHBOARD_LOGIN_PER_MINUTE"] = "1000"
+# Consolidated /analyze/multi route tests fire many calls in one minute
+os.environ["ANALYZE_MULTI_PER_MINUTE"] = "1000"
+# Route tests must never reach a real provider (local .env may set groq)
+os.environ["AI_PROVIDER"] = "mock"
 
 from app.core.database import Base
 

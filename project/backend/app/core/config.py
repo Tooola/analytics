@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     # The test suite raises this so fixtures never trip the limiter.
     dashboard_login_per_minute: int = 5
 
+    # Consolidated multi-dataset analysis (POST /analyze/multi) is heavier
+    # than a single run — tighter default than /analyze (20/min). Tests
+    # raise it via ANALYZE_MULTI_PER_MINUTE.
+    analyze_multi_per_minute: int = 10
+
     # Legacy dashboard leftovers — kept only so existing .env files keep
     # loading (Settings uses extra="forbid"); nothing reads them anymore.
     dashboard_port: int = 8501

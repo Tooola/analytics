@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models import AnalysisStatus, AnalysisType, InsightSeverity, InsightType
 from app.schemas.common import UTCDateTime
@@ -174,3 +174,141 @@ class AnalysisDetailResponse(AnalysisResponse):
     created_at: UTCDateTime
     completed_at: UTCDateTime | None = None
     status: AnalysisStatus
+
+
+# ─── Consolidated multi-dataset analysis ─────────────────
+
+# Maximum number of datasets analysed in one consolidated pass.
+MAX_MULTI_DATASETS = 10
+
+
+class MultiAnalysisRequest(BaseModel):
+    """One request, N datasets — the consolidated analysis entry point.
+
+    Every dataset of ONE application is validated, analysed, persisted and
+    returned under its own slug; on top of that the endpoint computes the
+    links BETWEEN datasets (aligned on ``join_key``) and a decision-oriented
+    synthesis. Payload keys must match ``datasets`` exactly.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    application: str = Field(
+        ...,
+        description="Application slug",
+        min_length=1,
+        max_length=255,
+        validation_alias=AliasChoices("application", "application_slug"),
+    )
+    datasets: list[str] = Field(
+        ...,
+        min_length=1,
+        max_length=MAX_MULTI_DATASETS,
+        description=(
+            "Dataset slugs to analyse together "
+            f"(1..{MAX_MULTI_DATASETS}, unique, same application)."
+        ),
+    )
+    analysis: list[AnalysisType] = Field(..., min_length=1)
+    payloads: dict[str, list[dict[str, Any]]] = Field(
+        ...,
+        description="Data rows keyed by dataset slug — must match `datasets` exactly.",
+    )
+    join_key: str | None = Field(
+        default=None,
+        max_length=255,
+        description=(
+            "Common column aligning rows across datasets (e.g. 'mois'). "
+            "When omitted, per-dataset analysis still runs but cross-dataset "
+            "correlations are skipped (no safe way to align rows)."
+        ),
+    )
+    include_ai: bool = False
+
+    @field_validator("application")
+    @classmethod
+    def slug_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("must not be blank")
+        return v.strip()
+
+    @field_validator("datasets")
+    @classmethod
+    def datasets_clean(cls, v: list[str]) -> list[str]:
+        cleaned = [d.strip() for d in v]
+        if any(not d for d in cleaned):
+            raise ValueError("dataset slugs must not be blank")
+        if len(set(cleaned)) != len(cleaned):
+            raise ValueError("dataset slugs must be unique")
+        return cleaned
+
+    @field_validator("join_key")
+    @classmethod
+    def join_key_blank_is_none(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        return v.strip() or None
+
+    @model_validator(mode="after")
+    def payloads_match_datasets(self) -> "MultiAnalysisRequest":
+        wanted = set(self.datasets)
+        got = set(self.payloads)
+        if wanted != got:
+            parts = []
+            missing = sorted(wanted - got)
+            extra = sorted(got - wanted)
+            if missing:
+                parts.append(f"missing payload(s) for: {', '.join(missing)}")
+            if extra:
+                parts.append(f"unknown payload key(s): {', '.join(extra)}")
+            raise ValueError("; ".join(parts))
+        for slug, rows in self.payloads.items():
+            if not rows:
+                raise ValueError(f"payload for '{slug}' must not be empty")
+            if len(rows) > MAX_DATA_ROWS:
+                raise ValueError(
+                    f"payload for '{slug}' exceeds {MAX_DATA_ROWS} rows"
+                )
+        return self
+
+
+class CrossCorrelationResult(BaseModel):
+    """A statistically significant link BETWEEN two datasets."""
+
+    dataset1: str
+    column1: str
+    dataset2: str
+    column2: str
+    coefficient: float
+    p_value: float
+    strength: str  # "strong" (|r| >= 0.7) | "moderate"
+    relationship: str  # "positive" | "negative"
+
+
+class ConsolidatedSynthesis(BaseModel):
+    """Decision block computed across all datasets of one run."""
+
+    datasets_analyzed: int
+    total_rows: int
+    join_key: str | None = None
+    trends: dict[str, str] = {}  # slug -> "up" | "down" | "stable"
+    divergent: bool = False
+    top_links: list[CrossCorrelationResult] = []
+    risks: list[str] = []
+    verdict: str = "equilibre"  # "positif" | "equilibre" | "tension" | "surveiller"
+    summary: str = ""
+
+
+class MultiAnalysisResponse(BaseModel):
+    success: bool
+    application: str
+    datasets: list[str]
+    join_key: str | None = None
+    validations: dict[str, DataValidationResult] = {}
+    results: dict[str, AnalysisResult] = {}
+    insights: dict[str, list[InsightRead]] = {}
+    cross_correlations: list[CrossCorrelationResult] = []
+    synthesis: ConsolidatedSynthesis | None = None
+    ai_interpretation: str | None = None
+    # One analysis run per dataset (history stays per-dataset).
+    analysis_ids: dict[str, str] = {}

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_application_by_api_key
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.core.ratelimit import limiter
@@ -22,10 +23,15 @@ from app.schemas.analytics import (
     AnalysisRequest,
     AnalysisResponse,
     AnalysisRunRead,
+    DataValidationResult,
     InsightRead,
+    MultiAnalysisRequest,
+    MultiAnalysisResponse,
 )
 from app.services.ai.engine import AIEngine
+from app.services.analytics.cross_correlation import cross_correlate
 from app.services.analytics.engine import AnalyticsEngine
+from app.services.analytics.synthesis import build_synthesis
 from app.services.insights.engine import InsightEngine
 
 router = APIRouter(tags=["analytics"])
@@ -261,6 +267,208 @@ def analyze(
         results=results,
         insights=insight_reads,
         ai_interpretation=ai_text,
+    )
+
+
+# ─── Consolidated multi-dataset analysis ─────────────────────────────────────
+
+
+def _merge_results_for_ai(
+    results_by_dataset: dict[str, dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Flatten per-dataset results into one dict for the AI context.
+
+    Every entry is tagged with the dataset it came from so the provider can
+    talk about departments/sources by name. Originals are never mutated —
+    they feed the response untouched.
+    """
+    merged: dict[str, list[dict[str, Any]]] = {}
+    for slug, res in results_by_dataset.items():
+        for key, entries in res.items():
+            bucket = merged.setdefault(key, [])
+            for entry in entries or []:
+                if isinstance(entry, dict):
+                    tagged = dict(entry)
+                    tagged["dataset"] = slug
+                    bucket.append(tagged)
+    return merged
+
+
+def _insights_for_ai(
+    insights_by_dataset: dict[str, list[InsightRead]],
+    synthesis: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """All per-dataset insights + the consolidated synthesis as one extra entry,
+    in the same dict shape InsightEngine.generate() produces."""
+    keys = ("type", "severity", "title", "description", "metric", "confidence")
+    flat: list[dict[str, Any]] = [
+        {k: dumped[k] for k in keys}
+        for slug in insights_by_dataset
+        for dumped in (
+            insight.model_dump(mode="json")
+            for insight in insights_by_dataset[slug]
+        )
+    ]
+    flat.append({
+        "type": "recommendation",
+        "severity": {"surveiller": "high", "tension": "medium"}.get(
+            synthesis.get("verdict", ""), "low"
+        ),
+        "title": "Synthèse consolidée multi-jeux",
+        "description": synthesis.get("summary", ""),
+        "metric": "consolidated",
+        "confidence": 0.9,
+    })
+    return flat
+
+
+@router.post("/analyze/multi", response_model=MultiAnalysisResponse)
+@limiter.limit(lambda: f"{settings.analyze_multi_per_minute}/minute")
+def analyze_multi(
+    body: MultiAnalysisRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    authed_app: Application = Depends(get_application_by_api_key),
+) -> MultiAnalysisResponse:
+    """Analyse SEVERAL datasets of this application in ONE pass.
+
+    Each dataset keeps its own validation, results, insights and analysis
+    run (history stays per-dataset). On top of that the response carries
+    the consolidated layer:
+    - cross_correlations: links BETWEEN datasets, aligned on ``join_key``,
+    - synthesis: one decision narrative (trends, divergence, risks, verdict),
+    - ai_interpretation (optional): the AI reads the whole picture at once.
+    """
+    if authed_app.slug != body.application:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="API key does not match the requested application",
+        )
+
+    app_repo = ApplicationRepository(db)
+    dataset_repo = DatasetRepository(db)
+
+    app = app_repo.get_by_slug(body.application)
+    if app is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    # Resolve every slug INSIDE the authenticated application — a slug that
+    # belongs to another tenant is simply "not found" here (isolation).
+    datasets: dict[str, Any] = {}
+    for slug in body.datasets:
+        dataset = dataset_repo.get_by_slug(app.id, slug)
+        if dataset is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dataset '{slug}' not found for this application",
+            )
+        datasets[slug] = dataset
+
+    fields_by_slug: dict[str, list[dict[str, Any]]] = {
+        slug: [
+            {
+                "name": f.name,
+                "technical_type": f.technical_type.value,
+                "semantic_type": f.semantic_type,
+                "unit": f.unit,
+                "required": f.required,
+            }
+            for f in dataset.fields
+        ]
+        for slug, dataset in datasets.items()
+    }
+
+    analytics_engine = AnalyticsEngine()
+    insight_engine = InsightEngine()
+    run_repo = AnalysisRunRepository(db)
+    analysis_type_strs = [a.value for a in body.analysis]
+
+    validations: dict[str, DataValidationResult] = {}
+    results: dict[str, dict[str, Any]] = {}
+    insights: dict[str, list[InsightRead]] = {}
+    analysis_ids: dict[str, str] = {}
+    ai_insights: list[dict[str, Any]] = []
+    failed: set[str] = set()
+
+    for slug in body.datasets:
+        payload = body.payloads[slug]
+        validation, res = analytics_engine.analyze(
+            data=payload,
+            fields=fields_by_slug[slug],
+            analysis_types=analysis_type_strs,
+        )
+        validations[slug] = validation
+
+        run = run_repo.create_run(
+            application_id=app.id,
+            dataset_id=datasets[slug].id,
+            analysis_types=analysis_type_strs,
+            row_count=len(payload),
+        )
+        analysis_ids[slug] = run.id
+
+        if not validation.valid:
+            run_repo.fail_run(run, "Data validation failed")
+            failed.add(slug)
+            continue
+
+        # Insights + persistence. A crash here marks THIS run failed
+        # instead of leaking it as "running" (PLAN.md S8 contract).
+        try:
+            insight_dicts = insight_engine.generate(res, dataset_name=datasets[slug].name)
+            run_repo.add_insights(run, insight_dicts)
+            run_repo.complete_run(run, res)
+            results[slug] = res
+            ai_insights.extend(insight_dicts)
+            db.refresh(run)
+            insights[slug] = [InsightRead.model_validate(i) for i in run.insights]
+        except Exception as exc:
+            logger.exception("Multi post-processing failed for dataset %s", slug)
+            run_repo.fail_run(run, f"Post-processing failed: {exc}")
+            failed.add(slug)
+
+    all_valid = not failed
+
+    cross_links: list[dict[str, Any]] = []
+    synthesis: dict[str, Any] | None = None
+    ai_text: str | None = None
+
+    if all_valid:
+        row_counts = {slug: len(body.payloads[slug]) for slug in body.datasets}
+        cross_links = cross_correlate(body.payloads, fields_by_slug, body.join_key)
+        synthesis = build_synthesis(
+            results, cross_links, row_counts, join_key=body.join_key
+        )
+
+        if body.include_ai:
+            try:
+                ai_engine = AIEngine()
+                context = ai_engine.build_context(
+                    application=body.application,
+                    dataset=", ".join(body.datasets),
+                    row_count=sum(row_counts.values()),
+                    analysis_results=_merge_results_for_ai(results),
+                    insights=_insights_for_ai(insights, synthesis),
+                )
+                ai_result = ai_engine.interpret(context)
+                ai_text = ai_result.model_dump_json()
+            except Exception as exc:
+                # Same contract as /analyze/quick: analysis stands on its
+                # own, a provider failure must not sink the whole run.
+                logger.warning("Multi-analysis AI interpretation failed: %s", exc)
+
+    return MultiAnalysisResponse(
+        success=all_valid,
+        application=body.application,
+        datasets=body.datasets,
+        join_key=body.join_key,
+        validations=validations,
+        results=results,
+        insights=insights,
+        cross_correlations=cross_links,
+        synthesis=synthesis,
+        ai_interpretation=ai_text,
+        analysis_ids=analysis_ids,
     )
 
 

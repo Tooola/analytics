@@ -182,6 +182,96 @@ Run analysis on data.
 }
 ```
 
+#### `POST /api/v1/analyze/multi`
+
+Consolidated analysis: **several datasets of one application in ONE pass** —
+per-dataset results + links BETWEEN datasets + a decision synthesis.
+
+Each dataset is validated, analysed and persisted under its own run; on top
+of that the endpoint aligns the datasets on `join_key`, computes
+cross-dataset correlations, and builds a consolidated verdict. Typical use:
+a structure with several departments/sources (ventes, achats, électricité…).
+
+**Headers:** `X-API-Key: YOUR_KEY`
+
+**Limits:** max 10 datasets, 10 000 rows per payload, `analyze_multi_per_minute`
+per client bucket (default 10/min).
+
+**Request:**
+```json
+{
+  "application": "structure-finance",
+  "datasets": ["ventes-terrain", "achats-maison", "electricite"],
+  "analysis": ["summary", "trend", "anomaly", "correlation"],
+  "join_key": "mois",
+  "include_ai": true,
+  "payloads": {
+    "ventes-terrain": [
+      {"mois": "2026-01", "montant": 12000},
+      {"mois": "2026-02", "montant": 15500}
+    ],
+    "achats-maison": [
+      {"mois": "2026-01", "montant": 8000},
+      {"mois": "2026-02", "montant": 9500}
+    ],
+    "electricite": [
+      {"mois": "2026-01", "montant": 420},
+      {"mois": "2026-02", "montant": 460}
+    ]
+  }
+}
+```
+
+- `payloads` keys must match `datasets` exactly (422 otherwise).
+- `join_key`: common column aligning rows across datasets (`mois`, `date`…).
+  Omit it to run per-dataset analysis only — cross links are then skipped
+  (never guessed), and the synthesis says so.
+
+**Response:**
+```json
+{
+  "success": true,
+  "application": "structure-finance",
+  "datasets": ["ventes-terrain", "achats-maison", "electricite"],
+  "join_key": "mois",
+  "validations": {"ventes-terrain": {"valid": true, "row_count": 2}, "...": {}},
+  "results": {"ventes-terrain": {"summary": [], "trend": [], "...": []}, "...": {}},
+  "insights": {"ventes-terrain": [{"type": "trend", "title": "..."}], "...": []},
+  "cross_correlations": [
+    {
+      "dataset1": "ventes-terrain", "column1": "montant",
+      "dataset2": "achats-maison", "column2": "montant",
+      "coefficient": 0.98, "p_value": 0.001,
+      "strength": "strong", "relationship": "positive"
+    }
+  ],
+  "synthesis": {
+    "datasets_analyzed": 3,
+    "total_rows": 6,
+    "join_key": "mois",
+    "trends": {"ventes-terrain": "up", "electricite": "up"},
+    "divergent": false,
+    "top_links": ["..."],
+    "risks": [],
+    "verdict": "positif",
+    "summary": "3 jeu(x) de données analysés en une seule passe..."
+  },
+  "ai_interpretation": "{\"provider\": \"...\", \"summary\": \"...\"}",
+  "analysis_ids": {"ventes-terrain": "uuid", "achats-maison": "uuid", "electricite": "uuid"}
+}
+```
+
+- **One run per dataset** — history (`GET /api/v1/analysis`) stays per-dataset.
+- `cross_correlations`: `|r| >= 0.4`, `p < 0.05`, ≥5 aligned rows, strongest
+  first (max 20). Constant columns never yield a link.
+- `synthesis.verdict`: `positif` | `equilibre` | `tension` | `surveiller`
+  (risks beat divergence beat direction).
+- `success: false` when any dataset fails validation: that dataset appears in
+  `validations` (invalid) with a `failed` run id, the others still report —
+  and the consolidated layer (`cross_correlations`, `synthesis`) is withheld.
+- `include_ai: true` feeds the whole picture (all datasets + synthesis) to
+  the AI provider in one interpretation.
+
 #### `GET /api/v1/analysis`
 
 List recent analysis runs.
