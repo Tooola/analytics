@@ -10,6 +10,10 @@ import {
 } from 'lucide-react';
 import { api, getStoredApiKey, setStoredApiKey } from '../api/client';
 import BiReport from '../components/BiReport';
+import ConsolidatedPanel from '../components/ConsolidatedPanel';
+
+const SINGLE_DEFAULT = '[\n  {"valeur": 120, "score": 4.5},\n  {"valeur": 140, "score": 4.8}\n]';
+const MULTI_DEFAULT = '{\n  "ventes-terrain": [\n    {"mois": "2026-01", "montant": 12000},\n    {"mois": "2026-02", "montant": 15500},\n    {"mois": "2026-03", "montant": 14800},\n    {"mois": "2026-04", "montant": 17200},\n    {"mois": "2026-05", "montant": 16900},\n    {"mois": "2026-06", "montant": 19500}\n  ],\n  "electricite": [\n    {"mois": "2026-01", "montant": 420},\n    {"mois": "2026-02", "montant": 460},\n    {"mois": "2026-03", "montant": 440},\n    {"mois": "2026-04", "montant": 470},\n    {"mois": "2026-05", "montant": 455},\n    {"mois": "2026-06", "montant": 480}\n  ]\n}';
 
 export default function Analytics() {
   const [apps, setApps] = useState([]);
@@ -17,12 +21,17 @@ export default function Analytics() {
   const [selectedApp, setSelectedApp] = useState('');
   const [selectedDs, setSelectedDs] = useState('');
   const [apiKey, setApiKey] = useState(getStoredApiKey());
-  const [dataText, setDataText] = useState('[\n  {"valeur": 120, "score": 4.5},\n  {"valeur": 140, "score": 4.8}\n]');
+  const [dataText, setDataText] = useState(SINGLE_DEFAULT);
   const [analyses, setAnalyses] = useState(['summary', 'trend', 'anomaly']);
   const [includeAi, setIncludeAi] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [report, setReport] = useState(null);
+  // Consolidated multi-dataset mode (POST /analyze/multi)
+  const [multiMode, setMultiMode] = useState(false);
+  const [selectedDsList, setSelectedDsList] = useState([]);
+  const [joinKey, setJoinKey] = useState('mois');
+  const [multiReport, setMultiReport] = useState(null);
 
   useEffect(() => {
     async function init() {
@@ -41,7 +50,34 @@ export default function Analytics() {
     init();
   }, []);
 
-  const filteredDatasets = datasets.filter(d => d.application_slug === selectedApp || !selectedApp);
+  // DatasetRead exposes application_id (not slug) — resolve the selected
+  // app's id so the list matches in BOTH single and multi modes.
+  const filteredDatasets = datasets.filter((d) => {
+    if (!selectedApp) return true;
+    const appObj = apps.find((a) => a.slug === selectedApp);
+    return !!appObj && d.application_id === appObj.id;
+  });
+
+  const toggleMultiMode = () => {
+    const next = !multiMode;
+    setMultiMode(next);
+    setReport(null);
+    setMultiReport(null);
+    setError(null);
+    if (next) {
+      setSelectedDsList(selectedDs ? [selectedDs] : []);
+      setDataText(MULTI_DEFAULT);
+    } else {
+      setSelectedDsList([]);
+      setDataText(SINGLE_DEFAULT);
+    }
+  };
+
+  const toggleDsInList = (slug) => {
+    setSelectedDsList((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
+    );
+  };
 
   const handleRun = async () => {
     setError(null);
@@ -49,7 +85,7 @@ export default function Analytics() {
       setError('Veuillez sélectionner une application.');
       return;
     }
-    if (!selectedDs) {
+    if (!selectedDs && !multiMode) {
       setError('Veuillez sélectionner un dataset.');
       return;
     }
@@ -58,6 +94,70 @@ export default function Analytics() {
       return;
     }
 
+    // ─── Consolidated multi-dataset pass ──────────────────────────────
+    if (multiMode) {
+      if (selectedDsList.length < 2) {
+        setError("Sélectionnez au moins 2 datasets pour l'analyse consolidée.");
+        return;
+      }
+      let parsedPayloads = null;
+      try {
+        parsedPayloads = JSON.parse(dataText);
+        if (typeof parsedPayloads !== 'object' || Array.isArray(parsedPayloads) || parsedPayloads === null) {
+          throw new Error('les données doivent être un objet {"slug": [lignes], ...}.');
+        }
+      } catch (e) {
+        setError(`JSON invalide : ${e.message}`);
+        return;
+      }
+      const got = Object.keys(parsedPayloads);
+      const missing = selectedDsList.filter((s) => !got.includes(s));
+      const extra = got.filter((s) => !selectedDsList.includes(s));
+      if (missing.length || extra.length) {
+        const parts = [];
+        if (missing.length) parts.push(`données manquantes : ${missing.join(', ')}`);
+        if (extra.length) parts.push(`clés en trop : ${extra.join(', ')}`);
+        setError(`L'objet JSON doit correspondre exactement aux datasets sélectionnés (${parts.join(' ; ')}).`);
+        return;
+      }
+      for (const slug of selectedDsList) {
+        if (!Array.isArray(parsedPayloads[slug]) || parsedPayloads[slug].length === 0) {
+          setError(`Le payload « ${slug} » doit être un tableau non vide.`);
+          return;
+        }
+      }
+
+      setStoredApiKey(apiKey);
+      setLoading(true);
+      try {
+        const res = await api.analyzeMulti({
+          application: selectedApp,
+          datasets: selectedDsList,
+          analysis: analyses,
+          payloads: parsedPayloads,
+          join_key: joinKey.trim(),
+          include_ai: includeAi,
+          apiKey,
+        });
+        if (!res.success) {
+          const invalid = Object.entries(res.validations || {})
+            .filter(([, v]) => v && v.valid === false)
+            .map(([s]) => s);
+          throw new Error(invalid.length
+            ? `Échec de la validation du schéma : ${invalid.join(', ')}`
+            : "Échec de l'analyse consolidée.");
+        }
+        setReport(null);
+        setMultiReport({ res, payloads: parsedPayloads });
+      } catch (err) {
+        setError(err.message || "Erreur lors de l'exécution de l'analyse.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // ─── Single-dataset pass ──────────────────────────────────────────
     let parsedData = null;
     try {
       parsedData = JSON.parse(dataText);
@@ -113,6 +213,17 @@ export default function Analytics() {
 
       {/* Selectors Card */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4 transition-colors">
+        {/* Mode toggle */}
+        <label className="inline-flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none font-medium">
+          <input
+            type="checkbox"
+            checked={multiMode}
+            onChange={toggleMultiMode}
+            className="h-4 w-4 rounded accent-indigo-600"
+          />
+          <span>Analyse multi-datasets — plusieurs jeux en un passage (liens croisés + verdict consolidé)</span>
+        </label>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
             <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Application</label>
@@ -121,6 +232,7 @@ export default function Analytics() {
               onChange={(e) => {
                 setSelectedApp(e.target.value);
                 setSelectedDs('');
+                setSelectedDsList([]);
               }}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium"
             >
@@ -132,17 +244,43 @@ export default function Analytics() {
           </div>
 
           <div>
-            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Dataset Déclaré</label>
-            <select
-              value={selectedDs}
-              onChange={(e) => setSelectedDs(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium"
-            >
-              <option value="">Sélectionnez un dataset...</option>
-              {filteredDatasets.map((d) => (
-                <option key={d.id} value={d.slug}>{d.name} ({d.slug})</option>
-              ))}
-            </select>
+            {multiMode ? (
+              <>
+                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">
+                  Datasets ({selectedDsList.length} / 10)
+                </label>
+                <div className="max-h-28 overflow-y-auto px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5">
+                  {filteredDatasets.length === 0 && (
+                    <span className="text-slate-400 italic">Aucun dataset déclaré pour cette application.</span>
+                  )}
+                  {filteredDatasets.map((d) => (
+                    <label key={d.id} className="flex items-center space-x-2 text-slate-700 dark:text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedDsList.includes(d.slug)}
+                        onChange={() => toggleDsInList(d.slug)}
+                        className="h-3.5 w-3.5 rounded accent-indigo-600"
+                      />
+                      <span>{d.name} <span className="text-slate-400 font-mono">({d.slug})</span></span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Dataset Déclaré</label>
+                <select
+                  value={selectedDs}
+                  onChange={(e) => setSelectedDs(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium"
+                >
+                  <option value="">Sélectionnez un dataset...</option>
+                  {filteredDatasets.map((d) => (
+                    <option key={d.id} value={d.slug}>{d.name} ({d.slug})</option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
 
           <div>
@@ -157,8 +295,29 @@ export default function Analytics() {
           </div>
         </div>
 
+        {multiMode && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs items-end">
+            <div>
+              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Clé d'alignement (join_key)</label>
+              <input
+                type="text"
+                value={joinKey}
+                onChange={(e) => setJoinKey(e.target.value)}
+                placeholder="mois"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono"
+              />
+            </div>
+            <p className="md:col-span-2 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed pb-1">
+              Le JSON doit contenir un tableau de lignes <b>par dataset sélectionné</b> (même forme que l'exemple).
+              Sans clé d'alignement, chaque jeu est analysé mais les liens croisés sont ignorés (jamais devinés).
+            </p>
+          </div>
+        )}
+
         <div>
-          <label className="block text-xs text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Données JSON</label>
+          <label className="block text-xs text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">
+            {multiMode ? 'Données JSON (objet par dataset)' : 'Données JSON'}
+          </label>
           <textarea
             value={dataText}
             onChange={(e) => setDataText(e.target.value)}
@@ -185,15 +344,35 @@ export default function Analytics() {
             ) : (
               <>
                 <Play className="h-3.5 w-3.5 fill-current" />
-                <span>Exécuter l'Analyse</span>
+                <span>{multiMode ? "Exécuter l'Analyse Consolidée" : "Exécuter l'Analyse"}</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Report Render */}
-      {report && (
+      {/* Consolidated render: synthesis panel + one BiReport per dataset */}
+      {multiReport && (
+        <div className="space-y-6 pt-4">
+          <ConsolidatedPanel res={multiReport.res} />
+          {Object.keys(multiReport.res.results || {}).map((slug) => (
+            <BiReport
+              key={slug}
+              report={{
+                label: `${selectedApp} / ${slug}`,
+                results: multiReport.res.results[slug] || {},
+                insights: multiReport.res.insights?.[slug] || [],
+                row_count: multiReport.payloads[slug]?.length || 0,
+                ai_interpretation: null,
+              }}
+              rawData={multiReport.payloads[slug] || []}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Single-dataset render */}
+      {report && !multiReport && (
         <div className="pt-4">
           <BiReport report={report} rawData={JSON.parse(dataText || '[]')} />
         </div>

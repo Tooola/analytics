@@ -154,4 +154,21 @@ export const api = {
         include_ai,
       }),
     }),
+
+  // Consolidated multi-dataset analysis (one pass, cross links + synthesis)
+  analyzeMulti: ({ application, datasets, analysis, payloads, join_key, include_ai = true, apiKey }) =>
+    request('/api/v1/analyze/multi', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': apiKey || getStoredApiKey(),
+      },
+      body: JSON.stringify({
+        application,
+        datasets,
+        analysis,
+        payloads,
+        ...(join_key ? { join_key } : {}),
+        include_ai,
+      }),
+    }),
 };
