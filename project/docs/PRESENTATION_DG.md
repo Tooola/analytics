@@ -28,7 +28,8 @@
 | 8 | [Où on en est & feuille de route](#8--où-on-en-est--feuille-de-route) | 1 min |
 | 9 | [Version 5 minutes](#9--version-5-minutes--si-le-dg-n-a-pas-le-temps) | 5 min |
 | 10 | [Questions du DG — réponses prêtes](#10--questions-du-dg--réponses-prêtes) | — |
-| 11 | [Annexes : glossaire & repères](#11--annexes--glossaire--repères) | — |
+| 11 | [« Pourquoi cette méthode ? » — la réponse pour chaque analyse](#11--pourquoi-cette-méthode--la-réponse-pour-chaque-analyse) | — |
+| 12 | [Annexes : glossaire & repères](#12--annexes--glossaire--repères) | — |
 
 ---
 
@@ -349,7 +350,213 @@ Farmtinz comme pilote. »**
 
 ---
 
-## 11️⃣ Annexes — glossaire & repères
+## 11️⃣ « Pourquoi cette méthode ? » — la réponse pour chaque analyse
+
+> 🗣️ **La question attendue, formulée autrement** : *« Pourquoi l'anomalie plutôt que… ? »*
+> *« Pourquoi ce calcul ? »* *« D'où vient ce chiffre ? »*
+> Voici la réponse pour **chacune** des six analyses — le rôle, la méthode réelle (celle du
+> code, pas celle de la plaquette), et la phrase à dire. Si on vous enfonce : la **réplique**
+> est sous chaque tableau.
+
+### Le tableau d'ensemble (à retenir pour l'oral)
+
+| Analyse | Son rôle en un trait | La méthode réelle | Pourquoi elle, en une phrase |
+|---------|---------------------|-------------------|------------------------------|
+| **summary** | L'état des lieux | count / moyenne / médiane / min / max / écart-type (pandas) | La base factuelle dont tout le reste se raconte — moyenne **et** médiane ensemble pour sentir les extrêmes |
+| **trend** | La direction | Régression linéaire (moindres carrés, scipy) + R² + p-value | On ne dit « ça monte » que si c'est **statistiquement significatif**, pas une impression sur deux points |
+| **anomaly** | Ce qui cloche | **Ensemble** : IQR + z-score modifié (MAD) + isolation forest, à la majorité | Une seule méthode a des angles morts ; trois méthodes qui **votent** tuent les fausses alertes |
+| **correlation** | Les liens cachés | Pearson + seuils \|r\| ≥ 0,4 **et** p < 0,05 | Sans test de significativité, on trouve toujours une corrélation nulle part |
+| **distribution** | La forme des données | Asymétrie, aplatissement, déciles + test de normalité (Shapiro-Wilk) | La moyenne suppose une symétrie — on vérifie qu'elle mérite d'être crue |
+| **forecast** | La suite probable | Prolongement de la régression, 3 périodes, **intervalle** t-student | Une prévision sans marge d'erreur est un pari ; on livre un ordre de grandeur borné |
+
+---
+
+### 📊 summary — « Pourquoi des moyennes et des écart-types ? »
+
+**Son rôle** : poser le socle factuel — *« voilà où on est »* — sur lequel toutes les
+autres analyses construisent leur récit.
+
+**Ce qui se passe vraiment** : sur chaque colonne numérique (telles que déclarées dans le
+schéma — aucune inférence), le moteur calcule `count`, moyenne, médiane, min, max et
+l'écart-type d'échantillon, arrondis à4 décimales. `std = 0` pour une seule valeur (pas
+de dispersion à estimer).
+
+🗣️ **À dire** : *« Le résumé, c'est l'état des lieux. Notez qu'on calcule la moyenne **et**
+la médianensemble — parce que la moyenne ment dès qu'un extrême apparaît, et l'écart
+entre les deux nous signale justement qu'il y en a un. L'écart-type donne la largeur :
+c'est lui qui, plus loin, permettra de dire d'un chiffre s'il est hors norme. »*
+
+🔎 **Si on insiste** (« un tableur fait ça ») : *« Oui — et c'est le but : c'est le métier le
+plus banal, fait une fois, avec des colonnes typées et validées côté serveur, pour
+n'importe quelle application. Ce qui change, c'est que ce socle alimente
+automatiquement les détections suivantes. »*
+
+---
+
+### 📈 trend — « Pourquoi une régression et pas 'dernier moins premier' ? »
+
+**Son rôle** : la direction — répondre à la question du manager *« est-ce que ça monte ? »*
+avec une **preuve**, pas une impression.
+
+**Ce qui se passe vraiment** : régression linéaire des moindres carrés (`scipy.stats.linregress`)
+sur l'index de période, produisant la pente, le R² et la p-value. La direction `up`/`down`
+n'est affirmée que si **p < 0,05 ET R² ≥ 0,25** (seuil anti-bruit codé en dur) ; sinon la
+réponse est `stable`. Sous5 périodes, un repli honnête : variation > 1 % minimum. Le
+`change_pct` vient de (premier → dernier).
+
+🗣️ **À dire** : *« Si je vous disais 'les ventes ont monté de 62 %', je pourrais vous
+mentir avec deux points de données au mauvais endroit. La régression, elle, utilise
+toutes les périodes pour tracer la droite qui les représente, et surtout elle fournit une
+p-value : on n'affirme 'hausse' que si le mouvement est statistiquement significatif —
+moins de5 %de risque que ce soit du hasard — et si la tendance explique au moins25 %
+de la variation. Tout le reste est classé 'stable'. C'est ce qui nous empêche de raconter
+une histoire sur du bruit. »*
+
+🔎 **Si on insiste** (« pourquoi pas une moyenne mobile ? ») : *« Une moyenne mobile
+lisse, c'est vrai — mais elle ne fournit aucun test de significativité. Nous avons choisi
+la régression pour la p-value, qui est notre garde-fou. »*
+
+---
+
+### 🚨 anomaly — « Pourquoi trois méthodes au lieu d'une ? »
+
+**Son rôle** : la fuite de valeur — alerter **avant** que l'anormal ne coûte cher.
+
+**Ce qui se passe vraiment** : pour chaque colonne (≥4 points), **trois** détecteurs
+travaillent : IQR (hors `[Q1 −1,5×IQR ; Q3 +1,5×IQR]`), z-score **modifié** sur MAD
+(`0,6745·|x − médiane|/MAD > 3,5` — la version robuste du z-score), et isolation forest
+(scikit-learn, contamination5 %, **`random_state=42`** → reproductible), activée à partir
+de15 points. **Vote** : une alerte ne remonte que si **≥2 méthodes sont d'accord** ; la
+`confidence_score` est exactement `votes / méthodes exécutées`. Chaque alerte liste ses
+méthodes (`detected_by`) et son z-score.
+
+🗣️ **À dire** : *« Nous ne faisons pas confiance à une seule méthode de détection, parce
+qu'elles ont toutes un angle mort : l'IQR suppose une répartition à peu près symétrique ;
+l'isolation forest a besoin de volume ; et le z-score classique — la moyenne et
+l'écart-type — se laisse précisément déformer par les extrêmes qu'il est censé trouver,
+c'est pourquoi on le calcule sur la médiane et le MAD, robustes par nature. Alors on fait
+voter les trois : une alerte n'existe que si au moins deux méthodes signent dessus, et la
+confiance affichée est le ratio de votes. Résultat : les fausses alertes meurent en
+coulisse. Une direction qui se trompe une fois paie en crédibilité — nous, on préfère le
+silence à l'alerte qui crie au loup. »*
+
+🔎 **Si on insiste** (« pourquoi pas un simple z-score ? ») : *« Parce qu'il suppose la
+cloche et qu'il est non robuste — et qu'il reste univarié. Le vote combine le simple
+(médianes) et le sophistiqué (forêt isole les profils bizarres) : c'est la raison pour
+laquelle notre détection marche aussi sur six lignes que sur dix mille. »*
+
+---
+
+### 🔗 correlation — « Pourquoi seuiller les corrélations ? »
+
+**Son rôle** : révéler ce qu'aucun rapport par application ne montre — les colonnes qui
+**bougent ensemble**.
+
+**Ce qui se passe vraiment** : toutes les paires de colonnes numériques (≥2), calcul de
+Pearson (`scipy.stats.pearsonr`) sur les lignes valides, **≥5 points**. N'affiche **que**
+les liens avec `|r| ≥ 0,4` **et** `p < 0,05`. Étiquette : `strong` si `|r| ≥ 0,7`, sinon
+`moderate`.
+
+🗣️ **À dire** : *« Pearson est la mesure canonique du co-mouvement — et scipy nous donne
+sa p-value avec. Le vrai choix, ici, n'est pas la formule : c'est le refus. Nous
+n'affichons un lien que s'il est à la fois substantiel — coefficient d'au moins0,4 — et
+significativement — moins de5 %de risque que ce soit un hasard. Sans ce double filtre,
+avec assez de colonnes, on trouve toujours une corrélation par pure chance — et une
+corrélation de hasard est pire qu'aucune information. »*
+
+🔎 **Si on insiste** (« et les relations non linéaires ? ») : *« Pearson capte le linéaire,
+notre cas d'usage. Pour les relations monotones non linéaires, Spearman est la suite
+logique — c'est identifié en feuille de route. Nous préférons publier une méthode tenue
+que six approximées. »*
+
+---
+
+### 📐 distribution — « À quoi ça sert concrètement ? »
+
+**Son rôle** : le test de lucidité des autres chiffres — est-ce que la moyenne mérite
+d'être crue telle quelle ?
+
+**Ce qui se passe vraiment** : par colonne (≥3 points) : asymétrie (`skewness`,0=symétrique),
+aplatissement (`kurtosis`,0=loi normale, positif=queues épaisses = extrêmes fréquents),
+déciles `p10/p25/p50/p75/p90`, et test de normalité **Shapiro-Wilk** (entre3et5000points,
+au-delà : `null` plutôt qu'un chiffre de comptoir).
+
+🗣️ **À dire** : *« La moyenne est un raccourci qui suppose une certaine symétrie. La
+distribution vérifie cette hypothèse : on mesure l'asymétrie, l'épaisseur des queues, les
+déciles — et on teste même la normalité avec Shapiro-Wilk. Deux exemples qui parlent :
+deux marchés, l'un gros et l'autre petit — la moyenne ne correspond à aucun des deux, et
+les déciles le montrent ; des données à queues épaisses signifient que les extrêmes sont
+fréquents, donc que la moyenne sous-estime le risque. »*
+
+🔎 **Si on insiste** (« pourquoi un test de normalité ? ») : *« Parce que la moitié des
+statistiques que l'on cite part en coulisse d'une hypothèse de normalité. Nous, on
+l'écrit noir sur blanc — et quand elle échoue, on s'abstient plutôt que de mentir :
+Shapiro-Wilk est borné à5000points, au-delà le champ est `null`, volontairement. »*
+
+---
+
+### 🔮 forecast — « Vous pouvez vraiment prédire ? »
+
+**Son rôle** : la suite probable — un **ordre de grandeur borné** pour budgétiser et
+arbitrer, pas une boule de cristal.
+
+**Ce qui se passe vraiment** : prolongement de la droite de régression sur **3 périodes**
+(horizon court par défaut), avec **intervalle de prédiction** : marge `t-critique(0,975;
+n−2) · σ · √(1 +1/n + (x₀−x̄)²/Sxx)`, où σ est l'écart-type des résidus — et non
+`linregress.stderr`, qui mesure l'erreur de la **pente**. Le quantile `t` de Student
+(plutôt que `1,96`) évite de sous-estimer l'intervalle sur petits échantillons. L'intervalle
+s'élargit mécaniquement avec l'horizon.
+
+🗣️ **À dire** : *« On prolonge la tendance sur trois périodes — court, exprès : au-delà,
+l'incertitude explose et la prévision devient un slogan. Et surtout : nous ne livrons
+jamais un chiffre nu, toujours un intervalle. Cet intervalle est calculé sur les résidus
+avec la loi de Student, et il s'élargit quand on s'éloigne — ce qui est la définition
+même de l'honnêteté d'une prévision. Si vous devez budgéter, vous prenez le milieu ;
+si vous devez parer au risque, vous prenez les bornes. »*
+
+🔎 **Si on insiste** (« et si la tendance casse ? ») : *« Exactement — et c'est pour ça
+que la prévision n'est jamais donnée seule : elle arrive avec le verdict, les anomalies
+et l'IA qui commentent le contexte. Une régression décrit la trajectoire, pas l'avenir du
+monde. »*
+
+---
+
+### 🧩 La couche consolidée (multi) — « Pourquoi un verdict par règles, pas par IA ? »
+
+**Son rôle** : trancher sur **plusieurs** tableaux à la fois — liens croisés + verdict.
+
+**Ce qui se passe vraiment** : alignement des datasets sur la `join_key` (jointure
+extérieure), mêmes seuils de Pearson, top20 des liens. La synthèse classe la direction
+dominante par jeu, détecte les divergences, collecte les risques (anomalies) et produit un
+verdict par **hiérarchie explicite** : `surveiller` (un risque existe) > `tension`
+(divergence ou négatif) > `équilibre` (majorité stable) > `positif`.
+
+🗣️ **À dire** : *« Deux choix méritent d'être expliqués. Premierement : la clé de
+jointure — mois, date — est **demandée**, jamais devinée. Aligner deux séries est une
+décision métier ; laisser la machine chercher des liens partout, c'est fabriquer des
+corrélations de hasard. Deuxièmement : le verdict n'est pas une opinion d'IA. C'est une
+hiérarchie de règles écrites — un risque l'emporte sur une divergence, qui l'emporte sur
+une tendance négative. L'IA **raconte**, les règles **tranche** — c'est ce qui rend la
+décision reproductible, auditable, et défendable devant un client ou un commissaire aux
+comptes. »*
+
+🔎 **Si on insiste** (« l'IA peut-elle donner un autre verdict ? ») : *« Non : elle ne reçoit
+pas le verdict en entrée, elle le commente. Si son avis diverge, les chiffres qui l'ont
+produit sont à côté dans la même réponse — chacun vérifie. »*
+
+---
+
+### 🎯 La phrase de synthèse (si vous ne retenez qu'une chose)
+
+🗣️ *« Derrière chaque analyse, il y a une méthode choisie pour une raison explicitable :
+la régression parce qu'elle teste sa propre significance, l'ensemble de détection parce
+qu'une seule méthode a un angle mort, le seuillage parce que le hasard fabrique des
+corrélations, l'intervalle de prévision parce qu'un chiffre nu est un pari. Rien n'est
+découvert au hasard — et tout est relisible dans le code. »*
+
+---
+
+## 12️⃣ Annexes — glossaire & repères
 
 ### Glossaire en un trait (si un mot bloque)
 
