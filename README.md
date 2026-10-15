@@ -33,6 +33,7 @@ pytest
 | Document | Contenu |
 |---|---|
 | [project/README.md](project/README.md) | Présentation, architecture, usage de l'API |
+| [🎤 Présentation DG](project/docs/PRESENTATION_DG.md) | Script complet : récit, démo, technique, FAQ — tout ce qu'il faut dire |
 | [🔌 Guide d'intégration pas-à-pas](project/docs/GUIDE_INTEGRATION_DEV.md) | Appeler l'API depuis votre backend — explicite, copier-coller, validé en live (FR) |
 | [Guide d'intégration développeur](project/docs/DEVELOPER_INTEGRATION_GUIDE.md) | Brancher votre application (FR) |
 | [Developer integration](project/docs/developer-integration.md) | Intégration & sécurité (EN) |
