@@ -41,6 +41,7 @@ def _summary_text(
     verdict: str,
     join_key: str | None,
     row_counts: dict[str, int],
+    alignment_note: str | None = None,
 ) -> str:
     parts: list[str] = []
     total = sum(row_counts.values())
@@ -81,6 +82,9 @@ def _summary_text(
             "sur la période."
         )
 
+    if alignment_note:
+        parts.append(f"Alignement des clés — {alignment_note}.")
+
     if risks:
         parts.append(f"Vigilance — {'; '.join(risks)}.")
 
@@ -93,11 +97,16 @@ def build_synthesis(
     cross_links: list[dict[str, Any]],
     row_counts: dict[str, int],
     join_key: str | None = None,
+    alignment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the consolidated decision block from per-dataset results.
 
     Pure function over data already computed elsewhere — no I/O, fully
     deterministic (the same inputs always produce the same synthesis).
+    ``alignment`` (optional) reports the grain applied to ``join_key`` and
+    how many keys actually met between datasets — surfaced verbatim, and as
+    a summary sentence, WITHOUT steering the verdict (verdicts describe the
+    data, not the join mechanics).
     """
     trends: dict[str, str] = {}
     for slug, res in results_by_dataset.items():
@@ -140,5 +149,14 @@ def build_synthesis(
         "top_links": top_links,
         "risks": risks,
         "verdict": verdict,
-        "summary": _summary_text(trends, top_links, risks, verdict, join_key, row_counts),
+        "alignment": alignment,
+        "summary": _summary_text(
+            trends,
+            top_links,
+            risks,
+            verdict,
+            join_key,
+            row_counts,
+            alignment_note=(alignment or {}).get("note"),
+        ),
     }

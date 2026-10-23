@@ -209,6 +209,7 @@ per client bucket (default 10/min).
   "datasets": ["ventes-terrain", "achats-maison", "electricite"],
   "analysis": ["summary", "trend", "anomaly", "correlation"],
   "join_key": "mois",
+  "join_granularity": "auto",
   "include_ai": true,
   "payloads": {
     "ventes-terrain": [
@@ -231,6 +232,11 @@ per client bucket (default 10/min).
 - `join_key`: common column aligning rows across datasets (`mois`, `date`…).
   Omit it to run per-dataset analysis only — cross links are then skipped
   (never guessed), and the synthesis says so.
+- `join_granularity`: `auto` (default) | `exact` | `day` | `month`. With
+  `auto`, if EVERY key value of every dataset parses as a date, keys are
+  normalized to month — a day-grain dataset meets a month-grain one. Non-date
+  keys always keep raw string equality. The outcome is always reported in
+  `join_alignment` (never silent).
 
 **Response:**
 ```json
@@ -259,7 +265,16 @@ per client bucket (default 10/min).
     "top_links": ["..."],
     "risks": [],
     "verdict": "positif",
-    "summary": "3 jeu(x) de données analysés en une seule passe..."
+    "summary": "3 jeu(x) de données analysés en une seule passe...",
+    "alignment": {"join_key": "mois", "granularity": "month",
+                  "keys_by_dataset": {"ventes-terrain": 2, "achats-maison": 2, "electricite": 2},
+                  "aligned_keys": 2, "note": "clé normalisée en mois — 2 clé(s) partagée(s) entre les jeux"}
+  },
+  "join_alignment": {
+    "join_key": "mois", "requested": "auto", "granularity": "month",
+    "keys_by_dataset": {"ventes-terrain": 2, "achats-maison": 2, "electricite": 2},
+    "aligned_keys": 2,
+    "note": "clé normalisée en mois — 2 clé(s) partagée(s) entre les jeux"
   },
   "ai_interpretation": "{\"provider\": \"...\", \"summary\": \"...\"}",
   "analysis_ids": {"ventes-terrain": "uuid", "achats-maison": "uuid", "electricite": "uuid"}
@@ -269,6 +284,12 @@ per client bucket (default 10/min).
 - **One run per dataset** — history (`GET /api/v1/analysis`) stays per-dataset.
 - `cross_correlations`: `|r| >= 0.4`, `p < 0.05`, ≥5 aligned rows, strongest
   first (max 20). Constant columns never yield a link.
+- `join_alignment`: grain actually applied (`granularity`: `exact` | `day` |
+  `month`, `requested` echoes your `join_granularity`), `keys_by_dataset`
+  (keys per dataset after normalization), `aligned_keys` (keys present in ≥2
+  datasets), French `note` when normalization kicked in or alignment is
+  partial. `null` when `join_key` was omitted (not attempted ≠ zero aligned).
+  The same facts ride along in `synthesis.alignment` for the AI context.
 - `synthesis.verdict`: `positif` | `equilibre` | `tension` | `surveiller`
   (risks beat divergence beat direction).
 - `success: false` when any dataset fails validation: that dataset appears in

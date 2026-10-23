@@ -393,6 +393,7 @@ curl -X POST http://localhost:8000/api/v1/analyze/multi \
     "datasets": ["ventes-terrain", "electricite"],
     "analysis": ["summary", "trend", "anomaly"],
     "join_key": "mois",
+    "join_granularity": "auto",
     "include_ai": true,
     "payloads": {
       "ventes-terrain": [
@@ -415,7 +416,7 @@ curl -X POST http://localhost:8000/api/v1/analyze/multi \
   }'
 ```
 
-### Les 6 règles de l'endpoint
+### Les 7 règles de l'endpoint
 
 | # | Règle | Sinon |
 |---|---|---|
@@ -423,8 +424,9 @@ curl -X POST http://localhost:8000/api/v1/analyze/multi \
 | 2 | Les clés de `payloads` doivent **correspondre exactement** à `datasets` | `422` — voir l'exemple réel ci-dessous |
 | 3 | Chaque payload : tableau **non vide**, **≤ 10 000 lignes** | `422` |
 | 4 | `join_key` = colonne commune d'alignement (`mois`, `date`…) | Sans elle : analyse OK mais **liens croisés ignorés** (jamais devinés) |
-| 5 | Liens croisés : **≥ 5 lignes alignées** sur la clé, colonnes **numériques**, \|r\| ≥ 0.4 et p < 0.05 | `cross_correlations: []` |
-| 6 | Si **un seul** dataset échoue la validation → `success: false`, la couche consolidée est **retenue** | cf. §5 |
+| 5 | `join_granularity` (défaut `auto`) : si **toutes** les clés sont des dates → normalisation en **mois** (un jeu par jour rejoint un jeu par mois) ; clés non-dates (`region`…) → égalité stricte. `exact`/`day`/`month` forcent | Le détail est toujours rendu dans `join_alignment` — **jamais de silence** |
+| 6 | Liens croisés : **≥ 5 lignes alignées** sur la clé, colonnes **numériques**, \|r\| ≥ 0.4 et p < 0.05 | `cross_correlations: []` + **`join_alignment.note`** dit pourquoi (grain, format…) |
+| 7 | Si **un seul** dataset échoue la validation → `success: false`, la couche consolidée est **retenue** | cf. §5 |
 
 **Exemple réel de `422` (payload manquant) :**
 
@@ -469,8 +471,14 @@ curl -X POST http://localhost:8000/api/v1/analyze/multi \
     "top_links": ["…"],
     "risks": [],
     "verdict": "positif",
-    "summary": "2 jeu(x) de données analysés en une seule passe (12 lignes, alignés sur « mois »). Tendances dominantes — ventes-terrain : hausse, electricite : stable. Lien le plus fort : « montant » (electricite) et « montant » (ventes-terrain) évoluent dans le même sens (r = 0.9546). Verdict : dynamique globale positive."
+    "summary": "2 jeu(x) de données analysés en une seule passe (12 lignes, alignés sur « mois »). Tendances dominantes — ventes-terrain : hausse, electricite : stable. Lien le plus fort : « montant » (electricite) et « montant » (ventes-terrain) évoluent dans le même sens (r = 0.9546). Alignement des clés — clé normalisée en mois — 6 clé(s) partagée(s) entre les jeux. Verdict : dynamique globale positive.",
+    "alignment": {"join_key": "mois", "requested": "auto", "granularity": "month",
+                  "keys_by_dataset": {"ventes-terrain": 6, "electricite": 6},
+                  "aligned_keys": 6, "note": "clé normalisée en mois — 6 clé(s) partagée(s) entre les jeux"}
   },
+  "join_alignment": {"join_key": "mois", "requested": "auto", "granularity": "month",
+                     "keys_by_dataset": {"ventes-terrain": 6, "electricite": 6},
+                     "aligned_keys": 6, "note": "clé normalisée en mois — 6 clé(s) partagée(s) entre les jeux"},
   "ai_interpretation": "{ \"provider\": \"groq\", \"summary\": \"…\", \"…\": \"…\" }",
   "analysis_ids": {"ventes-terrain": "6b2ce29d-…", "electricite": "…"}
 }
@@ -485,6 +493,8 @@ curl -X POST http://localhost:8000/api/v1/analyze/multi \
 | `synthesis.divergent` | `true` si des jeux montent **et** d'autres descendent |
 | `synthesis.risks` | Alertes d'anomalies par jeu |
 | `synthesis.summary` | Phrase de synthèse prête à afficher (FR) |
+| `join_alignment` | **Comment les clés se sont réellement rencontrées** : `granularity` appliquée (`exact`/`day`/`month` — `requested` = ce que vous avez demandé), `keys_by_dataset` (clés par jeu), `aligned_keys` (clés réellement partagées), `note` (FR) quand la normalisation a joué ou l'alignement est partiel. `null` si pas de `join_key` |
+| `synthesis.alignment` | Mêmes faits copiés dans la synthèse (l'IA les reçoit dans son contexte) |
 | `analysis_ids` | **Une run par dataset** (l'historique reste par jeu) |
 
 ---
@@ -737,7 +747,7 @@ def analyser(application: str, dataset: str, lignes: list[dict]) -> dict:
 | `422 missing payload(s) for: X` | `payloads` ≠ `datasets` (§6 règle 2) | Clés **identiques**, mot pour mot |
 | `200 success:false` + `validation.errors` | Ligne sans colonne `required` / mauvais type | Corriger d'après `field` + `row` |
 | `429 Rate limit exceeded` | Trop d'appels en 1 min | Retry après la fenêtre (§10) |
-| `cross_correlations: []` | (a) pas de `join_key` · (b) < 5 lignes alignées · (c) colonnes non numériques | Vérifier les3 points — la `synthesis.summary` le signale |
+| `cross_correlations: []` | (a) pas de `join_key` · (b) < 5 lignes alignées · (c) colonnes non numériques · (d) **grain/format de clé différent** (jour vs mois…) | Lire **`join_alignment`** : `aligned_keys: 0` → c'est (d), la `note` dit pourquoi. Sinon vérifier (a)(b)(c) — la `synthesis.summary` le signale |
 | `ai_interpretation: null` | `include_ai: false`, **ou** provider IA en panne | Mettre `true` ; vérifier `GET /health` → `ai_provider` |
 | Réponse JSON illisible / `Expecting property name` sous PowerShell | PowerShell mange les guillemets du `-d '{…}'` | Écrire le corps dans un fichier : `-d "@payload.json"` |
 | Dashboard : sélecteur de datasets vide | App sans dataset déclaré | Déclarer via `POST /datasets` (§4) |

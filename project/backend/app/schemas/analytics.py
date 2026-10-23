@@ -226,6 +226,16 @@ class MultiAnalysisRequest(BaseModel):
             "correlations are skipped (no safe way to align rows)."
         ),
     )
+    join_granularity: Literal["auto", "exact", "day", "month"] = Field(
+        default="auto",
+        description=(
+            "How join_key values meet across datasets. 'auto' (default) "
+            "normalizes date-parseable keys to month so a day-grain dataset "
+            "aligns with a month-grain one; 'exact' keeps raw strings "
+            "strictly equal; 'day'/'month' force the normalization. "
+            "Non-date keys always keep raw equality."
+        ),
+    )
     include_ai: bool = False
 
     @field_validator("application")
@@ -288,6 +298,23 @@ class CrossCorrelationResult(BaseModel):
     relationship: str  # "positive" | "negative"
 
 
+class JoinAlignment(BaseModel):
+    """How join_key values actually met between datasets (never silent).
+
+    ``granularity`` is what was APPLIED (``requested`` is what the client
+    asked for — 'auto' resolves to one of exact/day/month); ``note`` explains
+    the outcome in French when normalization kicked in or alignment is
+    partial, ``None`` when every key met exactly as sent.
+    """
+
+    join_key: str
+    requested: str = "auto"
+    granularity: str = "exact"
+    keys_by_dataset: dict[str, int] = {}
+    aligned_keys: int = 0
+    note: str | None = None
+
+
 class ConsolidatedSynthesis(BaseModel):
     """Decision block computed across all datasets of one run."""
 
@@ -300,6 +327,9 @@ class ConsolidatedSynthesis(BaseModel):
     risks: list[str] = []
     verdict: str = "equilibre"  # "positif" | "equilibre" | "tension" | "surveiller"
     summary: str = ""
+    # Join facts (grain applied + keys that met) — informational, never
+    # steers the verdict. See JoinAlignment for the shape.
+    alignment: dict[str, Any] | None = None
 
 
 class MultiAnalysisResponse(BaseModel):
@@ -312,6 +342,9 @@ class MultiAnalysisResponse(BaseModel):
     insights: dict[str, list[InsightRead]] = {}
     cross_correlations: list[CrossCorrelationResult] = []
     synthesis: ConsolidatedSynthesis | None = None
+    # Grain applied to join_key + how many keys met — absent when join_key
+    # is omitted (nothing attempted, not "no alignment found").
+    join_alignment: JoinAlignment | None = None
     ai_interpretation: str | None = None
     # None = IA non demandée/non tentée ; "ok" = interprétation livrée ;
     # "error" = demandée mais le fournisseur n'a rien rendu.

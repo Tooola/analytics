@@ -25,12 +25,13 @@ from app.schemas.analytics import (
     AnalysisRunRead,
     DataValidationResult,
     InsightRead,
+    JoinAlignment,
     MultiAnalysisRequest,
     MultiAnalysisResponse,
 )
 from app.services.ai.business_context import build_business_context
 from app.services.ai.engine import AIEngine
-from app.services.analytics.cross_correlation import cross_correlate
+from app.services.analytics.cross_correlation import cross_correlate_ex
 from app.services.analytics.engine import AnalyticsEngine
 from app.services.analytics.synthesis import build_synthesis
 from app.services.insights.engine import InsightEngine
@@ -497,13 +498,23 @@ def analyze_multi(
 
     cross_links: list[dict[str, Any]] = []
     synthesis: dict[str, Any] | None = None
+    join_alignment: dict[str, Any] | None = None
     ai_text: str | None = None
 
     if all_valid:
         row_counts = {slug: len(body.payloads[slug]) for slug in body.datasets}
-        cross_links = cross_correlate(body.payloads, fields_by_slug, body.join_key)
+        cross_links, join_alignment = cross_correlate_ex(
+            body.payloads,
+            fields_by_slug,
+            body.join_key,
+            requested=body.join_granularity,
+        )
         synthesis = build_synthesis(
-            results, cross_links, row_counts, join_key=body.join_key
+            results,
+            cross_links,
+            row_counts,
+            join_key=body.join_key,
+            alignment=join_alignment,
         )
 
         if body.include_ai:
@@ -546,6 +557,11 @@ def analyze_multi(
         insights=insights,
         cross_correlations=cross_links,
         synthesis=synthesis,
+        join_alignment=(
+            JoinAlignment.model_validate(join_alignment)
+            if join_alignment is not None
+            else None
+        ),
         ai_interpretation=ai_text,
         ai_status=_ai_status(body.include_ai, ai_text, attempted=all_valid),
         analysis_ids=analysis_ids,
