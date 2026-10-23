@@ -34,12 +34,19 @@ class AnalysisRunRepository(BaseRepository[AnalysisRun]):
         )
         return list(self.db.scalars(stmt))
 
-    def list_by_application(self, application_id: str, limit: int = 50) -> list[AnalysisRun]:
-        """Return recent analysis runs scoped to a specific application."""
+    def list_by_application(
+        self, application_id: str, limit: int = 50, skip: int = 0
+    ) -> list[AnalysisRun]:
+        """Return recent analysis runs scoped to a specific application.
+
+        ``skip`` paginates (newest page first): ``skip=limit`` moves to the
+        next page. Default 0 keeps the historical single-page behaviour.
+        """
         stmt = (
             select(AnalysisRun)
             .where(AnalysisRun.application_id == application_id)
             .order_by(AnalysisRun.created_at.desc())
+            .offset(skip)
             .limit(limit)
         )
         return list(self.db.scalars(stmt))

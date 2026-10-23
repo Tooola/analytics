@@ -320,6 +320,7 @@ curl -X POST http://localhost:8000/api/v1/analyze \
 | `results` | Résultats **par type d'analyse demandé** (les non demandés = `null`) |
 | `insights` | Conseils générés par règles : `type` (`trend`, `anomaly`, `risk`, `forecast`, `opportunity`, `recommendation`), `severity` (`low`/`medium`/`high`), `confidence` |
 | `ai_interpretation` | `null` ici (include_ai false). Avec `include_ai: true` → **une chaîne JSON** à parser (voir ci-dessous) |
+| `ai_status` | Statut honnête de l'IA : `null` = non demandée, `"ok"` = interprétation livrée, `"error"` = demandée mais fournisseur en panne (**vos résultats statistiques sont quand même là** — plus de `null` silencieux). Idem sur `/analyze/multi` et `/analyze/quick` |
 | `analysis_id` | UUID de la run — réutilisable avec `GET /analysis/{id}` |
 
 **Types d'analyse disponibles** (dans `analysis[]`) :
@@ -493,9 +494,14 @@ curl -X POST http://localhost:8000/api/v1/analyze/multi \
 Tout ce que vous analyse est persisté — vous pouvez le relire **plus tard, avec la même clé** :
 
 ```bash
-# Dernières runs de VOTRE application (?limit=1..200, défaut 50)
+# Dernières runs de VOTRE application (?limit=1..200 défaut 50, ?skip=0 défaut 0)
 curl -H "X-API-Key: $ANALYTICS_API_KEY" \
   "http://localhost:8000/api/v1/analysis?limit=2"
+
+# Page suivante : on saute les N premières (rangées les plus récentes d'abord)
+curl -H "X-API-Key: $ANALYTICS_API_KEY" \
+  "http://localhost:8000/api/v1/analysis?limit=2&skip=2"
+# Page vide = fin de l'historique (200, [] — pas une erreur)
 ```
 
 ```json

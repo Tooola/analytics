@@ -178,9 +178,14 @@ Run analysis on data.
     "key_findings": ["..."],
     "recommendations": ["..."],
     "confidence": 0.75
-  }
+  },
+  "ai_status": "ok"
 }
 ```
+
+`ai_status`: `null` = AI not requested, `"ok"` = interpretation delivered,
+`"error"` = requested but the provider returned nothing (statistical results
+are still delivered). Same field on `/analyze/multi` and `/analyze/quick`.
 
 #### `POST /api/v1/analyze/multi`
 
@@ -274,7 +279,9 @@ per client bucket (default 10/min).
 
 #### `GET /api/v1/analysis`
 
-List recent analysis runs.
+List recent analysis runs. Query: `?limit=1..200` (default 50) and
+`?skip=0` (pagination cursor — skip the N newest rows; empty array = end
+of history).
 
 #### `GET /api/v1/analysis/{run_id}`
 

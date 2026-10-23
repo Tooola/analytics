@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -168,6 +168,9 @@ class AnalysisResponse(BaseModel):
     results: AnalysisResult | None = None
     insights: list[InsightRead] = []
     ai_interpretation: str | None = None
+    # None = IA non demandée ; "ok" = interprétation livrée ;
+    # "error" = demandée mais le fournisseur n'a rien rendu (résultats seuls).
+    ai_status: Literal["ok", "error"] | None = None
 
 
 class AnalysisDetailResponse(AnalysisResponse):
@@ -310,5 +313,8 @@ class MultiAnalysisResponse(BaseModel):
     cross_correlations: list[CrossCorrelationResult] = []
     synthesis: ConsolidatedSynthesis | None = None
     ai_interpretation: str | None = None
+    # None = IA non demandée/non tentée ; "ok" = interprétation livrée ;
+    # "error" = demandée mais le fournisseur n'a rien rendu.
+    ai_status: Literal["ok", "error"] | None = None
     # One analysis run per dataset (history stays per-dataset).
     analysis_ids: dict[str, str] = {}

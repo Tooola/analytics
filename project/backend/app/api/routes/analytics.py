@@ -149,6 +149,7 @@ def quick_analyze(
         "results": results,
         "insights": insight_dicts,
         "ai_interpretation": ai_text,
+        "ai_status": _ai_status(body.include_ai, ai_text),
     }
 
 
@@ -239,25 +240,31 @@ def analyze(
 
         # AI interpretation (optional)
         if body.include_ai:
-            ai_engine = AIEngine()
-            context = ai_engine.build_context(
-                application=body.application,
-                dataset=body.dataset,
-                row_count=len(body.data),
-                analysis_results=results,
-                insights=insight_dicts,
-            )
-            # Tenant's own words (descriptions, units, semantics): each app
-            # gets ITS context, rebuilt per request — engine.py untouched.
-            context = context.model_copy(
-                update={
-                    "business_context": build_business_context(
-                        app.name, app.description, [_dataset_context_dict(dataset)]
-                    )
-                }
-            )
-            ai_result = ai_engine.interpret(context)
-            ai_text = ai_result.model_dump_json()
+            try:
+                ai_engine = AIEngine()
+                context = ai_engine.build_context(
+                    application=body.application,
+                    dataset=body.dataset,
+                    row_count=len(body.data),
+                    analysis_results=results,
+                    insights=insight_dicts,
+                )
+                # Tenant's own words (descriptions, units, semantics): each app
+                # gets ITS context, rebuilt per request — engine.py untouched.
+                context = context.model_copy(
+                    update={
+                        "business_context": build_business_context(
+                            app.name, app.description, [_dataset_context_dict(dataset)]
+                        )
+                    }
+                )
+                ai_result = ai_engine.interpret(context)
+                ai_text = ai_result.model_dump_json()
+            except Exception as exc:
+                # Same contract as /analyze/quick: analysis stands on its own,
+                # a provider failure must not sink the run (results kept,
+                # ai_status reports the degradation instead).
+                logger.warning("AI interpretation failed for run %s: %s", run.id, exc)
 
         # Persist results
         run_repo.complete_run(run, results, ai_interpretation=ai_text)
@@ -271,6 +278,8 @@ def analyze(
             dataset=body.dataset,
             validation=validation,
             results=results,
+            # Requested but nothing delivered in THIS response.
+            ai_status=_ai_status(body.include_ai, None),
         )
 
     # Load insights from DB for response
@@ -286,6 +295,7 @@ def analyze(
         results=results,
         insights=insight_reads,
         ai_interpretation=ai_text,
+        ai_status=_ai_status(body.include_ai, ai_text),
     )
 
 
@@ -309,6 +319,21 @@ def _dataset_context_dict(dataset) -> dict[str, Any]:
             for f in dataset.fields
         ],
     }
+
+
+def _ai_status(
+    include_ai: bool, ai_text: str | None, attempted: bool = True
+) -> str | None:
+    """Honest AI status carried by the response.
+
+    ``None`` = not requested (or not attempted — validation failed, dataset
+    rejected), ``"ok"`` = interpretation delivered, ``"error"`` = requested
+    but the provider returned nothing: the statistical results stand on their
+    own and the client can SEE the degradation instead of a silent null.
+    """
+    if not include_ai or not attempted:
+        return None
+    return "ok" if ai_text else "error"
 
 
 # ─── Consolidated multi-dataset analysis ─────────────────────────────────────
@@ -522,6 +547,7 @@ def analyze_multi(
         cross_correlations=cross_links,
         synthesis=synthesis,
         ai_interpretation=ai_text,
+        ai_status=_ai_status(body.include_ai, ai_text, attempted=all_valid),
         analysis_ids=analysis_ids,
     )
 
@@ -570,10 +596,11 @@ def get_analysis(
 @router.get("/analysis", response_model=list[AnalysisRunRead])
 def list_analyses(
     limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0, description="Rows to skip — pagination cursor"),
     db: Session = Depends(get_db),
     authed_app: Application = Depends(get_application_by_api_key),
 ) -> list[AnalysisRunRead]:
     """List recent analysis runs for the authenticated application only."""
     run_repo = AnalysisRunRepository(db)
-    runs = run_repo.list_by_application(authed_app.id, limit=limit)
+    runs = run_repo.list_by_application(authed_app.id, limit=limit, skip=skip)
     return [AnalysisRunRead.model_validate(r) for r in runs]
