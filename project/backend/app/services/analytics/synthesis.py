@@ -12,12 +12,23 @@ from typing import Any
 
 _DIR_LABELS = {"up": "hausse", "down": "baisse", "stable": "stable"}
 
+# Prose forms used in the narrative sentences ("en hausse" reads better
+# than a bare "hausse" after a dataset name).
+_DIR_TEXT = {"up": "en hausse", "down": "en baisse", "stable": "stable"}
+
 _VERDICT_LABELS = {
     "positif": "dynamique globale positive",
     "equilibre": "équilibre relatif",
     "tension": "tensions entre jeux de données",
     "surveiller": "points à surveiller",
 }
+
+
+def _plural(n: int, singular: str, plural: str | None = None) -> str:
+    """Minimal French pluralisation for the narrative ("jeu" → "jeux")."""
+    if n == 1:
+        return f"1 {singular}"
+    return f"{n} {plural or singular + 's'}"
 
 
 def _dominant_direction(trend_entries: list[dict[str, Any]] | None) -> str | None:
@@ -42,18 +53,33 @@ def _summary_text(
     join_key: str | None,
     row_counts: dict[str, int],
     alignment_note: str | None = None,
+    dataset_names: dict[str, str] | None = None,
 ) -> str:
+    """Decision narrative — correct French plurals, readable dataset names.
+
+    ``dataset_names`` (slug → display name) only feeds the prose; the
+    structured blocks always keep the slugs.
+    """
+    names = dataset_names or {}
+
+    def label(slug: str) -> str:
+        return names.get(slug) or slug
+
     parts: list[str] = []
     total = sum(row_counts.values())
     aligned = f", alignés sur « {join_key} »" if join_key else ""
+    n_ds = len(row_counts)
     parts.append(
-        f"{len(row_counts)} jeu(x) de données analysés en une seule passe "
+        f"{_plural(n_ds, 'jeu', 'jeux')} de données "
+        f"{'analysé' if n_ds == 1 else 'analysés'} en une seule passe "
         f"({total} lignes{aligned})."
     )
 
     if trends:
-        moves = ", ".join(f"{slug} : {_DIR_LABELS[d]}" for slug, d in trends.items())
-        parts.append(f"Tendances dominantes — {moves}.")
+        moves = ", ".join(
+            f"{label(slug)} {_DIR_TEXT[d]}" for slug, d in trends.items()
+        )
+        parts.append(f"Tendances dominantes : {moves}.")
 
     if top_links:
         first = top_links[0]
@@ -62,16 +88,20 @@ def _summary_text(
         else:
             sens = "évoluent en sens inverse"
         parts.append(
-            f"Lien le plus fort : « {first['column1']} » ({first['dataset1']}) et "
-            f"« {first['column2']} » ({first['dataset2']}) {sens} "
+            f"Lien le plus fort : « {first['column1']} » "
+            f"({label(first['dataset1'])}) et "
+            f"« {first['column2']} » ({label(first['dataset2'])}) {sens} "
             f"(r = {first['coefficient']})."
         )
         others = len(top_links) - 1
         if others:
             parts.append(
-                f"{others} autre(s) lien(s) significatif(s) entre jeux de données."
+                f"{others} "
+                f"{'autres liens significatifs' if others > 1 else 'autre lien significatif'} "
+                "entre les jeux de données."
             )
     elif not join_key:
+        # "join_key" stays: it names the API field to fill in.
         parts.append(
             "Aucun lien croisé calculé : renseignez join_key (ex. « mois ») "
             "pour relier les jeux entre eux."
@@ -98,6 +128,7 @@ def build_synthesis(
     row_counts: dict[str, int],
     join_key: str | None = None,
     alignment: dict[str, Any] | None = None,
+    dataset_names: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Build the consolidated decision block from per-dataset results.
 
@@ -106,8 +137,11 @@ def build_synthesis(
     ``alignment`` (optional) reports the grain applied to ``join_key`` and
     how many keys actually met between datasets — surfaced verbatim, and as
     a summary sentence, WITHOUT steering the verdict (verdicts describe the
-    data, not the join mechanics).
+    data, not the join mechanics). ``dataset_names`` (slug → display name)
+    only polishes the prose; structured fields keep the slugs.
     """
+    names = dataset_names or {}
+
     trends: dict[str, str] = {}
     for slug, res in results_by_dataset.items():
         direction = _dominant_direction(res.get("trend"))
@@ -123,7 +157,12 @@ def build_synthesis(
             int(a.get("count") or 0) for a in (res.get("anomaly") or [])
         )
         if anomaly_count:
-            risks.append(f"{slug}: {anomaly_count} anomalie(s) détectée(s)")
+            det = "détectée" if anomaly_count == 1 else "détectées"
+            risks.append(
+                f"{names.get(slug) or slug} : "
+                f"{anomaly_count} anomalie"
+                f"{'s' if anomaly_count > 1 else ''} {det}"
+            )
 
     strong = [link for link in cross_links if link.get("strength") == "strong"]
     top_links = strong[:5] or cross_links[:3]
@@ -145,6 +184,7 @@ def build_synthesis(
         "total_rows": sum(row_counts.values()),
         "join_key": join_key,
         "trends": trends,
+        "dataset_names": dict(names),
         "divergent": divergent,
         "top_links": top_links,
         "risks": risks,
@@ -158,5 +198,6 @@ def build_synthesis(
             join_key,
             row_counts,
             alignment_note=(alignment or {}).get("note"),
+            dataset_names=names,
         ),
     }

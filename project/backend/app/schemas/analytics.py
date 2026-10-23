@@ -380,6 +380,8 @@ class ConsolidatedSynthesis(BaseModel):
     total_rows: int
     join_key: str | None = None
     trends: dict[str, str] = {}  # slug -> "up" | "down" | "stable"
+    # slug -> display name (polished prose only; structured fields keep slugs)
+    dataset_names: dict[str, str] = {}
     divergent: bool = False
     top_links: list[CrossCorrelationResult] = []
     risks: list[str] = []

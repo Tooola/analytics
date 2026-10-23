@@ -20,6 +20,7 @@ aligned rows, |r| >= 0.4 and p < 0.05.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import numpy as np
@@ -45,11 +46,15 @@ def resolve_granularity(
     ``auto`` → ``month`` when EVERY key value of EVERY dataset parses as a
     date (day-grain and month-grain then meet on "YYYY-MM"), ``exact``
     otherwise — non-date keys keep raw string equality, i.e. the historical
-    behaviour. Explicit ``day`` / ``month`` / ``exact`` are honoured as-is.
+    behaviour. Pure year keys ("2021", "2022"…) also resolve to ``exact``:
+    pandas parses them as dates, but raw equality already aligns them and
+    reporting their grain as "month" would contradict the join key shown to
+    the user. Explicit ``day`` / ``month`` / ``exact`` are honoured as-is.
     """
     if requested in RESOLVED_GRANULARITIES:
         return requested
     seen = False
+    all_years = True
     for keys in keys_by_dataset.values():
         if not keys:
             continue
@@ -59,7 +64,11 @@ def resolve_granularity(
         )
         if parsed.isna().any():
             return "exact"
-    return "month" if seen else "exact"
+        if not all(re.fullmatch(r"\d{4}", str(k)) for k in keys):
+            all_years = False
+    if not seen or all_years:
+        return "exact"
+    return "month"
 
 
 def _normalize_keys(keys: pd.Series, granularity: str) -> pd.Series:
@@ -91,13 +100,15 @@ def _alignment_block(
     smallest = min(keys_by_dataset.values(), default=0)
     if granularity != "exact":
         label = "mois" if granularity == "month" else "jour"
+        shared = "clé partagée" if aligned_keys <= 1 else "clés partagées"
         note = (
-            f"clé normalisée en {label} — {aligned_keys} clé(s) partagée(s) "
+            f"clé normalisée en {label} — {aligned_keys} {shared} "
             f"entre les jeux"
         )
     elif keys_by_dataset and aligned_keys < smallest:
+        shared = "clé partagée" if aligned_keys <= 1 else "clés partagées"
         note = (
-            f"alignement partiel : {aligned_keys} clé(s) partagée(s) sur "
+            f"alignement partiel : {aligned_keys} {shared} sur "
             f"{smallest} — vérifiez que « {join_key} » a le même format et "
             "le même grain dans chaque jeu"
         )

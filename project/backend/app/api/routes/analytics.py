@@ -562,6 +562,9 @@ def analyze_multi(
             row_counts,
             join_key=body.join_key,
             alignment=join_alignment,
+            dataset_names={
+                s: datasets[s].name for s in body.datasets if s in datasets
+            },
         )
 
         if body.include_ai:
