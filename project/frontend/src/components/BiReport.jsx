@@ -158,7 +158,7 @@ export default function BiReport({ report, rawData }) {
                     : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
                 }`}
               >
-                ia_status: {report.ai_status}
+                IA : {report.ai_status === 'ok' ? 'ok' : 'erreur'}
               </span>
             )}
           </div>
@@ -279,7 +279,7 @@ export default function BiReport({ report, rawData }) {
                 Découpe par segment — {grouped.group_by}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
-                Classé par {grouped.ranked_by} total · {grouped.segment_count} segment(s)
+                Classé par {grouped.ranked_by} total · {grouped.segment_count} segment{(grouped.segment_count || 0) === 1 ? '' : 's'}
                 {grouped.note ? ` · ${grouped.note}` : ''}
               </p>
               <div className="space-y-3">

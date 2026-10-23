@@ -100,8 +100,8 @@ export default function ConsolidatedPanel({ res }) {
           {Object.entries(syn.trends).map(([slug, dir]) => {
             const T = TRENDS[dir] || TRENDS.stable;
             return (
-              <span key={slug} className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300">
-                <span>{slug}</span>
+              <span key={slug} title={slug} className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300">
+                <span>{syn.dataset_names?.[slug] || slug}</span>
                 <T.Icon className={`h-3.5 w-3.5 ${T.cls}`} />
                 <span className={T.cls}>{T.label}</span>
               </span>
@@ -170,7 +170,7 @@ export default function ConsolidatedPanel({ res }) {
             </table>
             {links.length > shownLinks.length && (
               <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">
-                +{links.length - shownLinks.length} autre(s) lien(s) significatif(s)
+                +{links.length - shownLinks.length} autre{links.length - shownLinks.length > 1 ? 's' : ''} lien{links.length - shownLinks.length > 1 ? 's' : ''} significatif{links.length - shownLinks.length > 1 ? 's' : ''}
               </p>
             )}
           </div>

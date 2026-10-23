@@ -97,11 +97,12 @@ export default function Analytics() {
     return !!appObj && d.application_id === appObj.id;
   });
 
-  // Groupable columns = string fields shared by the selected dataset(s).
+  // Common string columns across the selected dataset(s): the alignment
+  // control picks one of them (multi), the segment cut picks one of the rest.
   const selectedDatasetObjects = multiMode
     ? filteredDatasets.filter((d) => selectedDsList.includes(d.slug))
     : filteredDatasets.filter((d) => d.slug === selectedDs);
-  const groupByOptions = (() => {
+  const commonStringCols = (() => {
     const lists = selectedDatasetObjects.map((d) =>
       (d.fields || [])
         .filter((f) => f.technical_type === 'string')
@@ -110,11 +111,35 @@ export default function Analytics() {
     if (lists.length === 0) return [];
     return lists.reduce((common, l) => common.filter((c) => l.includes(c)));
   })();
+  // Declared period columns (semantic "période") drive the alignment, they
+  // are not categorical segments.
+  const periodCols = new Set(
+    selectedDatasetObjects.flatMap((d) =>
+      (d.fields || [])
+        .filter((f) => f.semantic_type === 'période')
+        .map((f) => f.name)
+    )
+  );
+  // Segment options: categorical columns only (no period, no join column).
+  const groupByOptions = commonStringCols.filter(
+    (c) => !periodCols.has(c) && !(multiMode && c === joinKey)
+  );
+  // Alignment options (multi only): every string column shared by the
+  // selected datasets — a visible choice, never guessed.
+  const joinOptions = multiMode ? commonStringCols : [];
 
-  // Keep group_by valid when the selection changes (e.g. app switch).
+  // Keep both choices valid when the selection changes (e.g. app switch).
   useEffect(() => {
     if (groupBy && !groupByOptions.includes(groupBy)) setGroupBy('');
   }, [groupByOptions, groupBy]);
+  useEffect(() => {
+    if (!multiMode) return;
+    if (!joinOptions.includes(joinKey)) {
+      // Prefer a declared period column, else the first shared one.
+      const preferred = joinOptions.find((c) => periodCols.has(c));
+      setJoinKey(preferred || joinOptions[0] || '');
+    }
+  }, [joinOptions, joinKey, multiMode]);
 
   const toggleMultiMode = () => {
     const next = !multiMode;
@@ -356,43 +381,41 @@ export default function Analytics() {
           </div>
         </div>
 
-        {multiMode && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs items-end">
+        {/* One row: align the datasets (multi) then cut them by category */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs items-end">
+          {multiMode && (
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Clé d'alignement (join_key)</label>
-              <input
-                type="text"
+              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Aligner les jeux sur</label>
+              <select
                 value={joinKey}
                 onChange={(e) => setJoinKey(e.target.value)}
-                placeholder="mois"
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono"
-              />
+                disabled={joinOptions.length === 0}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium disabled:opacity-50"
+              >
+                <option value="">{joinOptions.length === 0 ? 'Aucune colonne commune...' : '— aucun —'}</option>
+                {joinOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
-            <p className="md:col-span-2 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed pb-1">
-              Le JSON doit contenir un tableau de lignes <b>par dataset sélectionné</b> (même forme que l'exemple).
-              Sans clé d'alignement, chaque jeu est analysé mais les liens croisés sont ignorés (jamais devinés).
-            </p>
-          </div>
-        )}
-
-        {/* Segmentation (group_by) — optional categorical cut, both modes */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs items-end">
+          )}
           <div>
-            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Analyser par segment (group_by)</label>
+            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Découper en segments par</label>
             <select
               value={groupBy}
               onChange={(e) => setGroupBy(e.target.value)}
               disabled={groupByOptions.length === 0}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium disabled:opacity-50"
             >
-              <option value="">{groupByOptions.length === 0 ? 'Sélectionnez un dataset...' : '— aucun segment —'}</option>
+              <option value="">{groupByOptions.length === 0 ? 'Aucune colonne catégorielle...' : '— aucun segment —'}</option>
               {groupByOptions.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
-          <p className="md:col-span-2 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed pb-1">
-            Découpe toutes les mesures par colonne catégorielle : parts, moyennes et classement des segments.
+          <p className={`${multiMode ? 'md:col-span-1' : 'md:col-span-2'} text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed pb-1`}>
+            {multiMode && <>Rapproche les jeux ligne à ligne pour calculer les liens entre eux (sans colonne commune, chaque jeu reste analysé seul). </>}
+            Découpe les mesures par catégorie : parts, moyennes et classement des segments.
             {demoApp
               ? <> Exemple de démo «&nbsp;{demoApp.name}&nbsp;» pré-rempli (données + clé API) — modifiable librement.</>
               : <> Sans segment, le rapport reste strictement identique à l'ancienne API.</>}
@@ -409,6 +432,11 @@ export default function Analytics() {
             rows={6}
             className="w-full p-3 bg-slate-50 dark:bg-slate-950 font-mono text-xs text-emerald-700 dark:text-emerald-300 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
           />
+          {multiMode && (
+            <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+              Le JSON doit contenir un tableau de lignes <b>par dataset sélectionné</b> (même forme que l'exemple).
+            </p>
+          )}
         </div>
 
         {error && (
