@@ -35,6 +35,9 @@ scratch_*.py
 result.md
 diagnostic_et_plan.md
 
+# ─── Seed de démo (contient des clés API locales) ───────
+project/frontend/public/demo-samples.json
+
 # ─── OS / IDE ───────────────────────────────────────────
 .DS_Store
 Thumbs.db
