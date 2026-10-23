@@ -9,6 +9,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { api } from '../api/client';
+import { saveHistory } from '../api/history';
 import BiReport from '../components/BiReport';
 
 const SAMPLE_FARMTINZ = [
@@ -81,6 +82,18 @@ export default function QuickTest() {
       });
       setReport(result);
       setParsedData(dataToSubmit);
+      // Saved to the local history so leaving the page never loses a run.
+      saveHistory({
+        kind: 'quick',
+        title: label || 'quick-test',
+        app: 'Test rapide',
+        datasets: [],
+        rows: dataToSubmit.length,
+        analyses,
+        aiStatus: result.ai_status || null,
+        report: result,
+        payloads: dataToSubmit,
+      });
     } catch (err) {
       setError(err.message || "Erreur lors de l'exécution de l'analyse.");
     } finally {

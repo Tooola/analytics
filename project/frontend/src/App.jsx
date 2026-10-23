@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Overview from './pages/Overview';
 import QuickTest from './pages/QuickTest';
 import Analytics from './pages/Analytics';
+import History from './pages/History';
 import AppsManager from './pages/AppsManager';
 import Login from './pages/Login';
 import { ThemeProvider } from './context/ThemeContext';
@@ -68,6 +69,7 @@ export default function App() {
             {activeTab === 'overview' && <Overview setActiveTab={setActiveTab} />}
             {activeTab === 'quick-test' && <QuickTest />}
             {activeTab === 'analytics' && <Analytics />}
+            {activeTab === 'history' && <History />}
             {activeTab === 'apps' && <AppsManager />}
           </main>
 

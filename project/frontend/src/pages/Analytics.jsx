@@ -9,6 +9,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { api, getStoredApiKey, setStoredApiKey } from '../api/client';
+import { saveHistory } from '../api/history';
 import BiReport from '../components/BiReport';
 import ConsolidatedPanel from '../components/ConsolidatedPanel';
 
@@ -233,6 +234,23 @@ export default function Analytics() {
         }
         setReport(null);
         setMultiReport({ res, payloads: parsedPayloads });
+        // Full-fidelity history entry (synthesis + links + AI included).
+        saveHistory({
+          kind: 'multi',
+          title: `${selectedApp} · ${selectedDsList.length} jeux`,
+          app: selectedApp,
+          datasets: selectedDsList,
+          rows: Object.values(parsedPayloads).reduce(
+            (n, p) => n + (p?.length || 0), 0
+          ),
+          analyses,
+          aiStatus: res.ai_status || null,
+          verdict: res.synthesis?.verdict || null,
+          groupBy: groupBy || null,
+          joinKey: joinKey || null,
+          res,
+          payloads: parsedPayloads,
+        });
       } catch (err) {
         setError(err.message || "Erreur lors de l'exécution de l'analyse.");
       } finally {
@@ -271,9 +289,22 @@ export default function Analytics() {
         throw new Error(res.error || 'Échec de la validation du schéma de données.');
       }
 
-      setReport({
+      const report = {
         ...res,
         label: `${selectedApp} / ${selectedDs}`,
+      };
+      setReport(report);
+      saveHistory({
+        kind: 'single',
+        title: report.label,
+        app: selectedApp,
+        datasets: [selectedDs],
+        rows: parsedData.length,
+        analyses,
+        aiStatus: res.ai_status || null,
+        groupBy: groupBy || null,
+        report,
+        payloads: parsedData,
       });
     } catch (err) {
       setError(err.message || "Erreur lors de l'exécution de l'analyse.");

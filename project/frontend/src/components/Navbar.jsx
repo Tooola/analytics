@@ -11,7 +11,8 @@ import {
   Sun,
   Moon,
   LogOut,
-  UserRound
+  UserRound,
+  Clock
 } from 'lucide-react';
 import { api, getApiBase, setApiBase } from '../api/client';
 import { useTheme } from '../context/ThemeContext';
@@ -52,6 +53,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
     { id: 'overview', label: 'Vue Globale', icon: Activity },
     { id: 'quick-test', label: 'Test Rapide', icon: Zap, highlight: true },
     { id: 'analytics', label: 'Analyse Avancée', icon: Layers },
+    { id: 'history', label: 'Historique', icon: Clock },
     { id: 'apps', label: 'Applications & Accès', icon: Database },
   ];
 
