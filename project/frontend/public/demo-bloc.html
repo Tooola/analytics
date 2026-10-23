@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>T-ola — Démonstration live des nouveautés (Avant / Maintenant)</title>
+<style>
+  :root {
+    --bg: #0b1020; --card: #131a2e; --card2: #1a2340; --txt: #e7ecf7;
+    --muted: #93a0bf; --accent: #5b8cff; --ok: #34d399; --ko: #f87171;
+    --amber: #fbbf24; --mono: "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt);
+         font: 15px/1.55 "Segoe UI", system-ui, sans-serif; }
+  header { padding: 26px 32px 8px; }
+  h1 { margin: 0 0 6px; font-size: 26px; }
+  .sub { color: var(--muted); }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 12px;
+          background: #1d2b52; color: var(--accent); margin-left: 8px; }
+  main { padding: 12px 32px 60px; max-width: 1280px; margin: 0 auto; }
+  table.recap { width: 100%; border-collapse: collapse; margin: 18px 0 30px; }
+  table.recap th, table.recap td { border: 1px solid #24304f; padding: 10px 12px;
+                                   text-align: left; vertical-align: top; }
+  table.recap th { background: var(--card2); font-size: 13px; letter-spacing: .4px; }
+  table.recap td.before { color: #fca5a5; } table.recap td.after { color: #86efac; }
+  .card { background: var(--card); border: 1px solid #223055; border-radius: 14px;
+          margin: 22px 0; overflow: hidden; }
+  .card > h2 { margin: 0; padding: 14px 18px; background: var(--card2); font-size: 17px; }
+  .card > h2 small { color: var(--muted); font-weight: normal; margin-left: 8px; }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #223055; }
+  .pane { background: var(--card); padding: 14px 16px; min-height: 90px; }
+  .pane h3 { margin: 2px 0 8px; font-size: 13px; letter-spacing: .6px; text-transform: uppercase; }
+  .pane.before h3 { color: var(--ko); } .pane.after h3 { color: var(--ok); }
+  .toolbar { padding: 12px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button { background: var(--accent); border: 0; color: #fff; font-weight: 600;
+           padding: 9px 16px; border-radius: 9px; cursor: pointer; font-size: 14px; }
+  button.ghost { background: #223055; }
+  button:disabled { opacity: .55; cursor: wait; }
+  .note { color: var(--muted); font-size: 13px; }
+  pre { background: #0a0f1d; border: 1px solid #1d2947; border-radius: 9px;
+        padding: 10px 12px; font-family: var(--mono); font-size: 12.5px;
+        max-height: 330px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 0; }
+  .badge { display: inline-block; padding: 1px 9px; border-radius: 99px; font-size: 12px; font-weight: 700; }
+  .badge.ok { background: #064e3b; color: var(--ok); }
+  .badge.ko { background: #4c0519; color: var(--ko); }
+  .badge.warn { background: #451a03; color: var(--amber); }
+  .segrow { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .segrow .name { width: 74px; font-weight: 600; }
+  .segrow .bar { height: 14px; background: var(--accent); border-radius: 4px; }
+  .segrow .pct { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .verdict { font-weight: 700; color: var(--ok); }
+  @media (max-width: 900px) { .panes { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>T-ola — les nouveautés, testées en direct <span class="pill">API live : 127.0.0.1:8000</span></h1>
+  <div class="sub">Chaque bouton envoie de <b>vraies requêtes</b> à votre backend local (deux appels IA réels groq inclus).
+  La colonne « Avant » reproduit le comportement de l'ancienne API (options d'origine ou constantes d'époque) ;
+  la colonne « Maintenant » est la réponse d'aujourd'hui.</div>
+</header>
+<main>
+
+<table class="recap">
+  <tr><th style="width:16%">Bloc</th><th>Avant (ancienne API)</th><th>Maintenant</th></tr>
+  <tr><td><b>Contexte métier</b><br><span class="note">BLOC 1</span></td>
+      <td class="before">Prompt IA vide : <code>business_context: null</code> — groq ne connaît ni votre secteur, ni vos colonnes, ni vos unités.</td>
+      <td class="after">Description de l'app, slug + nom des datasets, colonnes, unités, sémantiques — et une ligne de segments — injectés dans le prompt (via <code>model_copy</code>, moteur IA intact).</td></tr>
+  <tr><td><b>Analyse par segment</b><br><span class="note">BLOC 2 · nouveau</span></td>
+      <td class="before">Seules les colonnes <b>numériques</b> étaient analysées : « quel produit porte le chiffre ? » était impossible à répondre.</td>
+      <td class="after">Champ optionnel <code>group_by</code> : toutes les mesures découpées par segment, parts, classement, plafond 50 + note, persistance avec la run.</td></tr>
+  <tr><td><b>Granularité des jointures</b><br><span class="note">BLOC 3</span></td>
+      <td class="before">Alignement à égalité stricte : un jeu par <b>jour</b> + un jeu par <b>mois</b> = zéro lien, réponse <code>cross_correlations: []</code> sans explication.</td>
+      <td class="after">Défaut <code>auto</code> : le jour rejoint le mois (normalisation) — et <code>join_alignment</code> explique <b>toujours</b> l'alignement (jamais de silence).</td></tr>
+  <tr><td><b>Statut IA + pagination</b><br><span class="note">BLOC 4</span></td>
+      <td class="before"><code>ai_interpretation: null</code> ambigu : fournisseur en panne ou IA non demandée ? Historique sans curseur.</td>
+      <td class="after"><code>ai_status</code> explicite (<code>null</code> / <code>ok</code> / <code>error</code>) + <code>?skip=</code> sur l'historique. Un échec IA n'écroule plus la run.</td></tr>
+</table>
+
+<!-- ═══════════ BLOC 1 ═══════════ -->
+<section class="card">
+  <h2>BLOC 1 — L'IA parle enfin votre langue <small>contexte métier injecté dans le prompt</small></h2>
+  <div class="panes">
+    <div class="pane before"><h3>Avant</h3>
+      <pre>business_context : null
+
+→ Le prompt groq ne contenait AUCUN mot
+  du locataire : « Application : … » vide,
+  aucun nom de dataset, aucune unité.</pre>
+    </div>
+    <div class="pane after"><h3>Maintenant</h3>
+      <pre id="b1-after">business_context (vraie valeur capturée en test) :
+
+Application « App IA Segments ».
+- « Ventes » (ventes). Colonnes : mois; montant; produit
+Analyse par segment « produit » (classé par montant) : Riz 50.0% · Blé 33.3% · Maïs 16.7% — 3 segment(s) au total.</pre>
+      <div class="note">↓ Même injection, en conditions réelles, avec l'app « Structure Céréales SM » :</div>
+      <button data-demo="b1">Lancer une analyse IA sur l'app céréales</button>
+      <div id="b1-out"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ BLOC 2 ═══════════ -->
+<section class="card">
+  <h2>BLOC 2 — L'analyse par segment <small>mêmes 5 lignes, avec et sans group_by</small></h2>
+  <div class="toolbar">
+    <button data-demo="b2">Lancer la comparaison</button>
+    <span class="note">Requêtes <code>/analyze/quick</code> réelles sur Riz / Blé / Maïs (100+200+300 / 400 / 200).</span>
+  </div>
+  <div class="panes">
+    <div class="pane before"><h3>Avant — sans group_by</h3><div id="b2-before"><span class="note">En attente…</span></div></div>
+    <div class="pane after"><h3>Maintenant — group_by: "produit"</h3><div id="b2-after"><span class="note">En attente…</span></div></div>
+  </div>
+</section>
+
+<!-- ═══════════ BLOC 3 ═══════════ -->
+<section class="card">
+  <h2>BLOC 3 — Le jour rencontre le mois <small>mêmes données, jointure stricte vs auto</small></h2>
+  <div class="toolbar">
+    <button data-demo="b3">Lancer la comparaison</button>
+    <span class="note">Ventes en <b>clés-jour</b> (30 lignes, <code>2026-01-05</code>…) + électricité en <b>clés-mois</b> (<code>2026-01</code>…) via <code>/analyze/multi</code>.</span>
+  </div>
+  <div class="panes">
+    <div class="pane before"><h3>Avant — join_granularity: "exact"</h3><div id="b3-before"><span class="note">En attente…</span></div></div>
+    <div class="pane after"><h3>Maintenant — "auto" (défaut)</h3><div id="b3-after"><span class="note">En attente…</span></div></div>
+  </div>
+</section>
+
+<!-- ═══════════ BLOC 4 ═══════════ -->
+<section class="card">
+  <h2>BLOC 4 — Le statut IA honnête + la pagination <small>plus de null silencieux</small></h2>
+  <div class="toolbar">
+    <button data-demo="b4ai">Analyse AVEC IA (vrai groq)</button>
+    <button class="ghost" data-demo="b4skip">Pagination ?skip= (live)</button>
+    <span class="note">Le bouton IA appelle groq réellement — ~5 s.</span>
+  </div>
+  <div class="panes">
+    <div class="pane before"><h3>Avant</h3>
+      <pre>"ai_interpretation": null
+
+→ Panne du fournisseur ? IA non demandée ?
+  Impossible de savoir. Et sans ?skip=,
+  impossible de naviguer dans l'historique.</pre>
+    </div>
+    <div class="pane after"><h3>Maintenant</h3><div id="b4-after"><span class="note">En attente…</span></div><div id="b4-skip"></div></div>
+  </div>
+</section>
+
+<p class="note" style="text-align:center">Page de démonstration locale — <code>project/frontend/public/demo-bloc.html</code> — supprimable à tout moment.</p>
+</main>
+
+<script>
+const API = "http://127.0.0.1:8000";
+const KEY = "anal_YdgfvNKWI3JsYUFb4kjY79wVqP3xAOVWn69973yM";
+const APP = "structure-finance-demo";
+
+async function api(path, { method = "GET", body, key } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (key) headers["X-API-Key"] = key;
+  const res = await fetch(API + path, { method, headers,
+    body: body ? JSON.stringify(body) : undefined });
+  let data = null;
+  try { data = await res.json(); } catch { data = null; }
+  return { status: res.status, data };
+}
+const j = o => JSON.stringify(o, null, 2);
+const el = id => document.getElementById(id);
+const busy = (btn, on) => { btn.disabled = on; if (on) btn.dataset.old = btn.textContent, btn.textContent = "Analyse en cours…"; else btn.textContent = btn.dataset.old; };
+
+// ── BLOC 2 : 5 lignes céréales ──────────────────────────────────────────
+const CER = [
+  { produit: "Riz",  mois: "2026-01", montant: 100 },
+  { produit: "Riz",  mois: "2026-02", montant: 200 },
+  { produit: "Riz",  mois: "2026-03", montant: 300 },
+  { produit: "Ble",  mois: "2026-01", montant: 400 },
+  { produit: "Mais", mois: "2026-02", montant: 200 },
+];
+
+// ── BLOC 3 : 30 lignes jour + 6 lignes mois ─────────────────────────────
+const JOUR = [], MOISV = [];
+for (let mi = 0; mi < 6; mi++) {
+  for (const jj of [5, 10, 15, 20, 25])
+    JOUR.push({ mois: `2026-${String(mi + 1).padStart(2, "0")}-${String(jj).padStart(2, "0")}`, montant: 100 + 10 * mi });
+  MOISV.push({ mois: `2026-${String(mi + 1).padStart(2, "0")}`, montant: 100 + 10 * mi });
+}
+
+function segmentsHtml(g) {
+  if (!g || !g.segments || !g.segments.length)
+    return `<span class="badge warn">aucun segment</span> <span class="note">${g && g.note ? g.note : ""}</span>`;
+  const max = g.segments[0].metrics[g.ranked_by].share || 1;
+  return g.segments.map(s => {
+    const m = s.metrics[g.ranked_by];
+    const pct = m && m.share != null ? (m.share * 100).toFixed(1) + "%" : "—";
+    const w = m && m.share != null ? Math.max(6, (m.share / max) * 190) : 6;
+    return `<div class="segrow"><span class="name">#${s.rank} ${s.segment}</span>
+      <span class="bar" style="width:${w}px"></span><span class="pct">${pct}
+      · moy ${m ? m.mean : "—"} · somme ${m ? m.sum : "—"} · ${s.row_count} ligne(s)</span></div>`;
+  }).join("") + (g.note ? `<div class="note">📌 ${g.note}</div>` : "");
+}
+
+const demos = {
+  async b1(btn) {
+    busy(btn, true);
+    const { status, data } = await api("/api/v1/analyze", {
+      method: "POST", key: KEY,
+      body: {
+        application: "structure-finance-demo", dataset: "ventes-terrain",
+        analysis: ["summary", "trend"], group_by: "mois", include_ai: true,
+        data: [ {mois:"2026-01",montant:12000},{mois:"2026-02",montant:15500},
+                {mois:"2026-03",montant:14800},{mois:"2026-04",montant:17200},
+                {mois:"2026-05",montant:16900},{mois:"2026-06",montant:19500} ],
+      } });
+    const ai = data && data.ai_interpretation ? JSON.parse(data.ai_interpretation) : null;
+    el("b1-out").innerHTML =
+      `<div style="margin-top:8px"><span class="badge ${data.ai_status === "ok" ? "ok" : "ko"}">ai_status: ${data.ai_status}</span>
+       <span class="note"> · provider ${ai ? ai.provider : "?"} · fiabilité ${ai && ai.confidence != null ? Math.round(ai.confidence * 100) + "%" : "?"}</span></div>
+       <pre>${ai ? "SYNTHÈSE :\n" + ai.summary + "\n\nCONSTATS :\n- " + (ai.key_findings || []).join("\n- ") : j(data)}</pre>`;
+    busy(btn, false);
+  },
+
+  async b2(btn) {
+    busy(btn, true);
+    const [av, ap] = await Promise.all([
+      api("/api/v1/analyze/quick", { method: "POST", body: { data: CER, analysis: ["summary"] } }),
+      api("/api/v1/analyze/quick", { method: "POST", body: { data: CER, analysis: ["summary"], group_by: "produit" } }),
+    ]);
+    const rk = Object.keys(av.data.results);
+    el("b2-before").innerHTML =
+      `<span class="badge ko">clés de results : ${rk.join(", ")}</span>
+       <pre>${j(av.data.results.summary)}\n… mais AUCUNE vue par segment : la question\n« quel produit porte le chiffre ? » n'a pas de réponse.</pre>`;
+    const g = ap.data.results.grouped;
+    el("b2-after").innerHTML =
+      `<span class="badge ok">+ results.grouped</span>
+       <div style="margin-top:8px">${segmentsHtml(g)}</div>
+       <div class="note">ranked_by = « ${g.ranked_by} » · ${g.segment_count} segment(s) · parts qui somment ≈ 1</div>`;
+    busy(btn, false);
+  },
+
+  async b3(btn) {
+    busy(btn, true);
+    const mk = gran => ({
+      application: APP, datasets: ["ventes-terrain", "electricite"],
+      analysis: ["summary"], join_key: "mois", join_granularity: gran,
+      payloads: { "ventes-terrain": JOUR, electricite: MOISV },
+    });
+    const [av, ap] = await Promise.all([
+      api("/api/v1/analyze/multi", { method: "POST", key: KEY, body: mk("exact") }),
+      api("/api/v1/analyze/multi", { method: "POST", key: KEY, body: mk("auto") }),
+    ]);
+    const al = ap.data.join_alignment;
+    const link = ap.data.cross_correlations[0];
+    const phrase = (ap.data.synthesis.summary.match(/Alignement des clés[^.]*\./) || [])[0] || "";
+    el("b3-before").innerHTML =
+      `<span class="badge ko">cross_correlations : ${JSON.stringify(av.data.cross_correlations)}</span>
+       <pre>2 clés de types différents :\n  ventes      → ${JOUR.length} clés jour  (ex. 2026-01-05)\n  électricité → ${MOISV.length} clés mois (ex. 2026-01)\nÉgalité stricte → 0 ligne alignée → aucun lien.\n(Avant BLOC 3 : aucune explication possible.)</pre>
+       <div class="note">Nouveauté annexe : join_alignment explique déjà l'échec → « ${al ? av.data.join_alignment.note : ""} »</div>`;
+    el("b3-after").innerHTML =
+      `<span class="badge ok">1 lien · coefficient ${link.coefficient} · ${link.strength}</span>
+       <pre>${link.dataset1}.${link.column1} ↔ ${link.dataset2}.${link.column2}\ngranularity : ${al.granularity} (demandé : ${al.requested})\n${al.note}\n\n« ${phrase} »</pre>`;
+    busy(btn, false);
+  },
+
+  async b4ai(btn) {
+    busy(btn, true);
+    const { data } = await api("/api/v1/analyze/quick",
+      { method: "POST", body: { data: CER, analysis: ["summary"], include_ai: true } });
+    const ai = data.ai_interpretation ? JSON.parse(data.ai_interpretation) : null;
+    el("b4-after").innerHTML =
+      `<span class="badge ${data.ai_status === "ok" ? "ok" : "ko"}">ai_status : ${data.ai_status}</span>
+       <span class="note"> (avant : null ambigu)</span>
+       <pre>${ai ? ai.summary.slice(0, 400) : "—"}</pre>`;
+    busy(btn, false);
+  },
+
+  async b4skip(btn) {
+    busy(btn, true);
+    const [p0, p1, bad] = await Promise.all([
+      api("/api/v1/analysis?limit=2&skip=0", { key: KEY }),
+      api("/api/v1/analysis?limit=2&skip=2", { key: KEY }),
+      api("/api/v1/analysis?skip=-1", { key: KEY }),
+    ]);
+    const ids = p => (p.data || []).map(r => r.id.slice(0, 8)).join(", ");
+    el("b4-skip").innerHTML =
+      `<span class="badge ok">pagination vivante</span>
+       <pre>skip=0 → [${ids(p0)}]\nskip=2 → [${ids(p1)}]   (pages distinctes ✓)\nskip=-1 → HTTP ${bad.status} : ${(bad.data.detail && bad.data.detail[0] && bad.data.detail[0].msg) || "validation"}\n\nL'historique se parcourt maintenant en pages.  (avant : ?skip= ignoré)</pre>`;
+    busy(btn, false);
+  },
+};
+
+document.querySelectorAll("button[data-demo]").forEach(b =>
+  b.addEventListener("click", () => demos[b.dataset.demo](b)));
+</script>
+</body>
+</html>
