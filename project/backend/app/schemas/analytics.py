@@ -55,6 +55,15 @@ class AnalysisRequest(BaseModel):
         max_length=MAX_DATA_ROWS,
         description=f"Data rows to analyse (max {MAX_DATA_ROWS} rows per request).",
     )
+    group_by: str | None = Field(
+        default=None,
+        max_length=255,
+        description=(
+            "Categorical column to cut every numeric measure by (product, "
+            "region…). Omitted = today's behaviour; an absent column soft-"
+            "fails (results.grouped carries an explanatory note)."
+        ),
+    )
     include_ai: bool = False
 
     @field_validator("application", "dataset")
@@ -121,6 +130,44 @@ class ForecastResult(BaseModel):
     slope: float
 
 
+# ─── Segment analysis (group_by) ────────────────────────────
+
+class GroupedMetric(BaseModel):
+    """One numeric measure inside one segment (summary vocabulary + sum/share)."""
+
+    count: int
+    mean: float
+    median: float
+    min: float
+    max: float
+    std: float
+    sum: float
+    # segment sum / total sum over the segmented rows (None when total = 0).
+    share: float | None = None
+
+
+class GroupedSegment(BaseModel):
+    segment: str
+    rank: int
+    row_count: int
+    metrics: dict[str, GroupedMetric] = {}
+
+
+class GroupedResult(BaseModel):
+    """Numeric measures cut by one categorical column (request's group_by).
+
+    ``ranked_by`` = first declared numeric column; segments come sorted by its
+    descending total. Soft contract: absent column / no usable value →
+    ``segments: []`` with an explanatory French ``note`` — never a hard error.
+    """
+
+    group_by: str
+    ranked_by: str | None = None
+    segment_count: int = 0
+    segments: list[GroupedSegment] = []
+    note: str | None = None
+
+
 class AnalysisResult(BaseModel):
     summary: list[SummaryResult] | None = None
     trend: list[TrendResult] | None = None
@@ -128,6 +175,8 @@ class AnalysisResult(BaseModel):
     correlation: list[CorrelationResult] | None = None
     distribution: list[DistributionResult] | None = None
     forecast: list[ForecastResult] | None = None
+    # Present only when the request set group_by (additive — null otherwise).
+    grouped: GroupedResult | None = None
 
 
 
@@ -234,6 +283,15 @@ class MultiAnalysisRequest(BaseModel):
             "aligns with a month-grain one; 'exact' keeps raw strings "
             "strictly equal; 'day'/'month' force the normalization. "
             "Non-date keys always keep raw equality."
+        ),
+    )
+    group_by: str | None = Field(
+        default=None,
+        max_length=255,
+        description=(
+            "Categorical column to cut numeric measures by, per dataset. "
+            "Applied to the datasets that declare the column; the others get "
+            "an empty `grouped` block with an explanatory note (soft-fail)."
         ),
     )
     include_ai: bool = False

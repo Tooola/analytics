@@ -33,6 +33,7 @@ from app.services.ai.business_context import build_business_context
 from app.services.ai.engine import AIEngine
 from app.services.analytics.cross_correlation import cross_correlate_ex
 from app.services.analytics.engine import AnalyticsEngine
+from app.services.analytics.grouped import build_grouped, grouped_context_line
 from app.services.analytics.synthesis import build_synthesis
 from app.services.insights.engine import InsightEngine
 
@@ -50,6 +51,7 @@ class QuickAnalyzeRequest(BaseModel):
     """
     data: list[dict[str, Any]]
     analysis: list[str] = ["summary", "trend", "anomaly"]
+    group_by: str | None = None  # categorical column to cut measures by
     include_ai: bool = False
     label: str = "quick-test"  # optional label shown in results
 
@@ -114,6 +116,19 @@ def quick_analyze(
         analysis_types=body.analysis,
     )
 
+    # Segment analysis (opt-in group_by): attached to results — the
+    # InsightEngine only reads known types, so it ignores the extra key.
+    # Soft-fail contract: a crash here never sinks the statistics.
+    if body.group_by:
+        try:
+            results["grouped"] = build_grouped(
+                body.data, field_defs, body.group_by
+            )
+        except Exception as exc:
+            logger.warning(
+                "Segment analysis failed (group_by=%s): %s", body.group_by, exc
+            )
+
     insight_engine = InsightEngine()
     insight_dicts = insight_engine.generate(results, dataset_name=body.label)
 
@@ -129,13 +144,15 @@ def quick_analyze(
                 insights=insight_dicts,
             )
             # Sandbox: no tenant app exists — say so in the business context.
+            business_context = (
+                f"Banc d'essai rapide — libellé « {body.label} ». "
+                "Aucune application enregistrée : contexte métier non déclaré."
+            )
+            segments_line = grouped_context_line(results.get("grouped"))
+            if segments_line:
+                business_context += " " + segments_line
             context = context.model_copy(
-                update={
-                    "business_context": (
-                        f"Banc d'essai rapide — libellé « {body.label} ». "
-                        "Aucune application enregistrée : contexte métier non déclaré."
-                    )
-                }
+                update={"business_context": business_context}
             )
             ai_result = ai_engine.interpret(context)
             ai_text = ai_result.model_dump_json()
@@ -231,6 +248,19 @@ def analyze(
             validation=validation,
         )
 
+    # Segment analysis (opt-in group_by): after validation, attached to
+    # results — insights ignore the extra key, persistence carries it.
+    # Soft-fail contract: a segment cut never sinks the run.
+    if body.group_by:
+        try:
+            results["grouped"] = build_grouped(
+                body.data, field_defs, body.group_by
+            )
+        except Exception as exc:
+            logger.warning(
+                "Segment analysis failed (group_by=%s): %s", body.group_by, exc
+            )
+
     # Insights + AI + persistence. Any crash here marks the run "failed"
     # instead of leaving it stuck in "running" forever (PLAN.md S8).
     ai_text = None
@@ -252,12 +282,14 @@ def analyze(
                 )
                 # Tenant's own words (descriptions, units, semantics): each app
                 # gets ITS context, rebuilt per request — engine.py untouched.
+                business_context = build_business_context(
+                    app.name, app.description, [_dataset_context_dict(dataset)]
+                )
+                segments_line = grouped_context_line(results.get("grouped"))
+                if segments_line:
+                    business_context += " " + segments_line
                 context = context.model_copy(
-                    update={
-                        "business_context": build_business_context(
-                            app.name, app.description, [_dataset_context_dict(dataset)]
-                        )
-                    }
+                    update={"business_context": business_context}
                 )
                 ai_result = ai_engine.interpret(context)
                 ai_text = ai_result.model_dump_json()
@@ -479,6 +511,21 @@ def analyze_multi(
             failed.add(slug)
             continue
 
+        # Segment analysis (opt-in group_by): same column per dataset that
+        # declares it — the others simply stay ungrouped. Soft-fail.
+        if body.group_by:
+            try:
+                res["grouped"] = build_grouped(
+                    payload, fields_by_slug[slug], body.group_by
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Segment analysis failed for %s (group_by=%s): %s",
+                    slug,
+                    body.group_by,
+                    exc,
+                )
+
         # Insights + persistence. A crash here marks THIS run failed
         # instead of leaking it as "running" (PLAN.md S8 contract).
         try:
@@ -527,18 +574,23 @@ def analyze_multi(
                     analysis_results=_merge_results_for_ai(results),
                     insights=_insights_for_ai(insights, synthesis),
                 )
+                business_context = build_business_context(
+                    app.name,
+                    app.description,
+                    [
+                        _dataset_context_dict(datasets[s])
+                        for s in body.datasets
+                        if s in datasets
+                    ],
+                )
+                for s in body.datasets:
+                    segments_line = grouped_context_line(
+                        (results.get(s) or {}).get("grouped")
+                    )
+                    if segments_line:
+                        business_context += f" [{s}] {segments_line}"
                 context = context.model_copy(
-                    update={
-                        "business_context": build_business_context(
-                            app.name,
-                            app.description,
-                            [
-                                _dataset_context_dict(datasets[s])
-                                for s in body.datasets
-                                if s in datasets
-                            ],
-                        )
-                    }
+                    update={"business_context": business_context}
                 )
                 ai_result = ai_engine.interpret(context)
                 ai_text = ai_result.model_dump_json()

@@ -187,6 +187,17 @@ Run analysis on data.
 `"error"` = requested but the provider returned nothing (statistical results
 are still delivered). Same field on `/analyze/multi` and `/analyze/quick`.
 
+`group_by` (optional): categorical column to cut every numeric measure by
+(product, region…). Adds a `results.grouped` block — `segments[]` sorted by
+the ranking metric (first declared numeric column), each with `rank`,
+`row_count` and per-metric `count` / `mean` / `median` / `min` / `max` /
+`std` / `sum` / `share` (segment share of the total). Absent column or no
+numeric measure → `segments: []` + French `note` (the run still completes);
+more than 50 segments → top 50 + a truncation note. Omitted = `grouped:
+null` (behaviour unchanged). Same field on `/analyze/quick` and
+`/analyze/multi` (applied per dataset that declares the column — the others
+get the empty block with the reason, never silence).
+
 #### `POST /api/v1/analyze/multi`
 
 Consolidated analysis: **several datasets of one application in ONE pass** —
@@ -237,6 +248,10 @@ per client bucket (default 10/min).
   normalized to month — a day-grain dataset meets a month-grain one. Non-date
   keys always keep raw string equality. The outcome is always reported in
   `join_alignment` (never silent).
+- `group_by`: categorical column cutting the numeric measures of each
+  dataset that declares it (adds `results[slug].grouped`, see
+  `POST /analyze`); datasets without the column get an empty block with a
+  French note — never silence.
 
 **Response:**
 ```json

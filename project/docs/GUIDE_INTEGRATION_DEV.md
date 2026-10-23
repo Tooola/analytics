@@ -351,6 +351,70 @@ curl -X POST http://localhost:8000/api/v1/analyze \
 > 🔒 **Privacy-first** : l'IA ne reçoit **jamais vos lignes brutes**, uniquement des agrégats
 > anonymisés (moyennes, pentes, nombres d'anomalies, insights).
 
+### 📊 Analyser par segment — `group_by` (optionnel)
+
+Vos lignes portent une colonne catégorielle (`produit`, `région`, `canal`…) ?
+Ajoutez `"group_by": "produit"` : **toutes vos mesures numériques sont découpées par
+segment** — la première question d'une structure (« quel produit porte le chiffre ? »)
+trouve sa réponse.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/analyze \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $ANALYTICS_API_KEY" \
+  -d '{
+    "application": "ma-structure",
+    "dataset": "ventes-produits",
+    "analysis": ["summary"],
+    "group_by": "produit",
+    "data": [
+      {"produit": "Riz",  "mois": "2026-01", "montant": 100},
+      {"produit": "Riz",  "mois": "2026-02", "montant": 200},
+      {"produit": "Riz",  "mois": "2026-03", "montant": 300},
+      {"produit": "Blé",  "mois": "2026-01", "montant": 400},
+      {"produit": "Maïs", "mois": "2026-02", "montant": 200}
+    ]
+  }'
+```
+
+Bloc **ajouté** à `results` (additif — sans `group_by`, `results.grouped` reste `null`) :
+
+```json
+"grouped": {
+  "group_by": "produit",
+  "ranked_by": "montant",
+  "segment_count": 3,
+  "segments": [
+    {"segment": "Riz", "rank": 1, "row_count": 3,
+     "metrics": {"montant": {"count": 3, "mean": 200.0, "median": 200.0,
+                             "min": 100.0, "max": 300.0, "std": 100.0,
+                             "sum": 600.0, "share": 0.5}}},
+    {"segment": "Blé", "rank": 2, "row_count": 1,
+     "metrics": {"montant": {"count": 1, "mean": 400.0, "median": 400.0,
+                             "min": 400.0, "max": 400.0, "std": 0.0,
+                             "sum": 400.0, "share": 0.3333}}},
+    {"segment": "Maïs", "rank": 3, "row_count": 1, "metrics": {"…": "…"}}
+  ],
+  "note": null
+}
+```
+
+Les règles (toujours lisibles, **jamais de silence**) :
+
+| Règle | Comportement |
+|---|---|
+| Classement | `ranked_by` = **première colonne numérique déclarée** ; segments triés par somme décroissante |
+| `share` | part du segment dans le total — les parts somment ≈ 1 par mesure (`null` si total = 0) |
+| Colonne absente ou aucune mesure numérique | `segments: []` + `note` explicative — **la run continue**, `success: true` |
+| Cardinalité élevée (> 50 segments) | top 50 + `note` « 50 premiers segments affichés sur N… » |
+| La dimension n'est jamais sa propre mesure | en segmentant sur un champ numérique (`zone_id`), celui-ci n'apparaît pas dans `metrics` |
+| Persistance | `grouped` est stocké avec la run — `GET /analysis/{id}` le renvoie intact |
+| IA | une ligne compacte « Analyse par segment … Riz 50 % · … » rejoint le contexte métier de l'interprétation |
+
+Aussi disponible sur `/analyze/quick` (test immédiat) et `/analyze/multi` : appliqué à
+chaque dataset **déclarant** la colonne, les autres reçoivent un `grouped` vide dont la
+`note` dit « colonne absente ».
+
 ### ⚠️ Le cas « échec de validation » : `200` + `success: false`
 
 Si vos données **ne respectent pas le schéma** déclaré, l'HTTP reste `200` mais :
@@ -416,7 +480,7 @@ curl -X POST http://localhost:8000/api/v1/analyze/multi \
   }'
 ```
 
-### Les 7 règles de l'endpoint
+### Les 8 règles de l'endpoint
 
 | # | Règle | Sinon |
 |---|---|---|
@@ -427,6 +491,7 @@ curl -X POST http://localhost:8000/api/v1/analyze/multi \
 | 5 | `join_granularity` (défaut `auto`) : si **toutes** les clés sont des dates → normalisation en **mois** (un jeu par jour rejoint un jeu par mois) ; clés non-dates (`region`…) → égalité stricte. `exact`/`day`/`month` forcent | Le détail est toujours rendu dans `join_alignment` — **jamais de silence** |
 | 6 | Liens croisés : **≥ 5 lignes alignées** sur la clé, colonnes **numériques**, \|r\| ≥ 0.4 et p < 0.05 | `cross_correlations: []` + **`join_alignment.note`** dit pourquoi (grain, format…) |
 | 7 | Si **un seul** dataset échoue la validation → `success: false`, la couche consolidée est **retenue** | cf. §5 |
+| 8 | `group_by` (optionnel, cf. §5) : découpe les mesures numériques par segment dans **chaque** dataset déclarant la colonne | Dataset sans la colonne : `grouped` vide + `note` « colonne absente » — la run continue |
 
 **Exemple réel de `422` (payload manquant) :**
 
@@ -748,6 +813,7 @@ def analyser(application: str, dataset: str, lignes: list[dict]) -> dict:
 | `200 success:false` + `validation.errors` | Ligne sans colonne `required` / mauvais type | Corriger d'après `field` + `row` |
 | `429 Rate limit exceeded` | Trop d'appels en 1 min | Retry après la fenêtre (§10) |
 | `cross_correlations: []` | (a) pas de `join_key` · (b) < 5 lignes alignées · (c) colonnes non numériques · (d) **grain/format de clé différent** (jour vs mois…) | Lire **`join_alignment`** : `aligned_keys: 0` → c'est (d), la `note` dit pourquoi. Sinon vérifier (a)(b)(c) — la `synthesis.summary` le signale |
+| Pas de bloc `grouped` | `group_by` absent du corps de requête (ou > 255 car. → `422`) | Ajouter `"group_by": "produit"` — les segments découpent toutes les mesures numériques (§5) |
 | `ai_interpretation: null` | `include_ai: false`, **ou** provider IA en panne | Mettre `true` ; vérifier `GET /health` → `ai_provider` |
 | Réponse JSON illisible / `Expecting property name` sous PowerShell | PowerShell mange les guillemets du `-d '{…}'` | Écrire le corps dans un fichier : `-d "@payload.json"` |
 | Dashboard : sélecteur de datasets vide | App sans dataset déclaré | Déclarer via `POST /datasets` (§4) |
