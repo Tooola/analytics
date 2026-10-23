@@ -70,8 +70,20 @@ async function request(endpoint, options = {}) {
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      // Session expired / revoked → force back to the login page.
-      if (response.status === 401 && endpoint !== '/api/v1/auth/login' && getAuthToken()) {
+      // A401 on a request that carried the tenant API key (X-API-Key) means
+      // that KEY is invalid/revoked — NOT the operator session. Only a401
+      // on a JWT-only route means the dashboard session died; conflating
+      // the two logged operators out whenever a stored tenant key went stale.
+      const sentTenantKey = Boolean(
+        options.headers &&
+          (options.headers['X-API-Key'] || options.headers['x-api-key']),
+      );
+      if (
+        response.status === 401 &&
+        !sentTenantKey &&
+        endpoint !== '/api/v1/auth/login' &&
+        getAuthToken()
+      ) {
         window.dispatchEvent(new CustomEvent('oak:unauthorized'));
       }
       const errorMsg = data?.detail || data?.error || `HTTP ${response.status} ${response.statusText}`;
