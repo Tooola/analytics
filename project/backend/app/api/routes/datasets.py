@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_application_by_api_key, get_pagination, require_dashboard_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.ratelimit import limiter
 from app.models import Application, User
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 
 
 @router.post("", response_model=DatasetRead, status_code=status.HTTP_201_CREATED)
-@limiter.limit("30/minute")
+@limiter.limit(lambda: f"{settings.datasets_create_per_minute}/minute")
 def create_dataset(
     body: DatasetCreate,
     request: Request,

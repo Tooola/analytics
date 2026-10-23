@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_application_by_api_key, require_dashboard_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.ratelimit import limiter
 from app.models import Application, User
@@ -28,7 +29,7 @@ router = APIRouter(prefix="/applications", tags=["applications"])
 
 
 @router.post("", response_model=ApplicationWithKey, status_code=status.HTTP_201_CREATED)
-@limiter.limit("15/minute")
+@limiter.limit(lambda: f"{settings.applications_create_per_minute}/minute")
 def create_application(
     body: ApplicationCreate,
     request: Request,

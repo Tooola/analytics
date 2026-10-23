@@ -19,6 +19,10 @@ os.environ["DASHBOARD_ADMIN_PASSWORD"] = "test-dashboard-password"
 os.environ["DASHBOARD_LOGIN_PER_MINUTE"] = "1000"
 # Consolidated /analyze/multi route tests fire many calls in one minute
 os.environ["ANALYZE_MULTI_PER_MINUTE"] = "1000"
+# Registration fixtures (apps + datasets) across the whole suite — same
+# minute, same limiter bucket. POST /analyze stays 20/min: a test asserts 429.
+os.environ["APPLICATIONS_CREATE_PER_MINUTE"] = "1000"
+os.environ["DATASETS_CREATE_PER_MINUTE"] = "1000"
 # Route tests must never reach a real provider (local .env may set groq)
 os.environ["AI_PROVIDER"] = "mock"
 

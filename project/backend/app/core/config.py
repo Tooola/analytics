@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     # raise it via ANALYZE_MULTI_PER_MINUTE.
     analyze_multi_per_minute: int = 10
 
+    # Registration throttles — tests raise both so fixtures never trip the
+    # limiter (many apps/datasets are registered within one minute). The
+    # suite keeps POST /analyze hard-coded: a security test asserts 429.
+    applications_create_per_minute: int = 15
+    datasets_create_per_minute: int = 30
+
     # Legacy dashboard leftovers — kept only so existing .env files keep
     # loading (Settings uses extra="forbid"); nothing reads them anymore.
     dashboard_port: int = 8501
