@@ -6,8 +6,6 @@ import {
   Database, 
   Settings, 
   Server, 
-  CheckCircle2, 
-  AlertCircle,
   Sun,
   Moon,
   LogOut,
@@ -49,6 +47,31 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
     checkStatus();
   };
 
+  // Live status: green = healthy, amber = API reachable but degraded,
+  // red = servers unreachable. Derived from the last /health probe.
+  const healthState = loading
+    ? 'loading'
+    : !health
+    ? 'offline'
+    : health.status === 'healthy' && health.ai_provider
+    ? 'online'
+    : 'degraded';
+  const DOT_STYLES = {
+    loading: { bg: 'bg-slate-400', ping: null },
+    online: { bg: 'bg-emerald-500', ping: 'bg-emerald-400' },
+    degraded: { bg: 'bg-amber-400', ping: 'bg-amber-300' },
+    offline: { bg: 'bg-rose-500', ping: 'bg-rose-400' },
+  };
+  const statusLabel =
+    healthState === 'loading'
+      ? "Vérification de l'état des services…"
+      : healthState === 'online'
+      ? `En ligne — IA : ${health.ai_provider} (cliquer pour revérifier)`
+      : healthState === 'degraded'
+      ? "API joignable mais dégradée (base de données ou IA) — cliquer pour revérifier"
+      : 'Serveurs injoignables — cliquer pour revérifier';
+  const dot = DOT_STYLES[healthState];
+
   const navItems = [
     { id: 'overview', label: 'Vue Globale', icon: Activity },
     { id: 'quick-test', label: 'Test Rapide', icon: Zap, highlight: true },
@@ -62,20 +85,17 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Platform Name */}
-          <div className="flex items-center space-x-3 cursor-pointer shrink-0" onClick={() => setActiveTab('overview')}>
+          <div className="flex items-center space-x-3 cursor-pointer shrink-0" onClick={() => setActiveTab('overview')} title="Open Analytics AI — v1.0.0">
             <div className="h-9 w-9 rounded-xl bg-indigo-50 dark:bg-indigo-600/20 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm">
               <Activity className="h-5 w-5" />
             </div>
             <div className="whitespace-nowrap">
               <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">Open Analytics AI</span>
-              <span className="ml-2 text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                v1.0.0
-              </span>
             </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex flex-nowrap space-x-1">
+          <nav className="hidden md:flex flex-nowrap space-x-0.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -83,7 +103,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                     isActive
                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 shadow-sm'
                       : item.highlight
@@ -112,31 +132,30 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
             {/* API Endpoint Config button */}
             <button
               onClick={() => setIsConfigOpen(!isConfigOpen)}
-              className="flex items-center space-x-2 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 transition-colors"
+              className="flex items-center space-x-1.5 px-2 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 transition-colors"
               title="Configurer l'URL du Backend"
             >
-              <Server className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
-              <span className="font-mono text-[11px] max-w-[120px] truncate">{getApiBase().replace(/^https?:\/\//, '')}</span>
+              <span className="font-mono text-[11px] max-w-[96px] truncate">{getApiBase().replace(/^https?:\/\//, '')}</span>
               <Settings className="h-3 w-3 text-slate-400" />
             </button>
 
-            {/* Live Health Badge */}
-            {loading ? (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse mr-1.5" />
-                Vérification...
+            {/* Live status dot — green: healthy, amber: API degraded, red: down */}
+            <button
+              onClick={() => {
+                setLoading(true);
+                checkStatus();
+              }}
+              title={statusLabel}
+              aria-label={statusLabel}
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+            >
+              <span className="relative flex h-2.5 w-2.5">
+                {dot.ping && (
+                  <span className={`absolute inline-flex h-full w-full rounded-full ${dot.ping} animate-ping opacity-75`} />
+                )}
+                <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${dot.bg}`} />
               </span>
-            ) : health ? (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1 text-emerald-600 dark:text-emerald-400" />
-                <span>En ligne ({health.ai_provider})</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50">
-                <AlertCircle className="h-3.5 w-3.5 mr-1 text-rose-600 dark:text-rose-400" />
-                <span>Hors ligne</span>
-              </span>
-            )}
+            </button>
 
             {/* Connected operator — avatar circle (end of the bar) */}
             {user && (
