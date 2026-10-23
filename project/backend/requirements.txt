@@ -19,3 +19,9 @@ slowapi==0.1.10
 limits==5.8.0
 requests==2.34.2
 PyJWT==2.15.1
+# ─── Shared hosting (cPanel / Passenger) — WSGI bridge & server ──────────────
+# Deployment-time only: wsgi.py bridges ASGI→WSGI for Passenger; gunicorn is
+# the unix process manager for hosts where you control the start command.
+# Neither is imported on the Railway/Docker path (uvicorn runs there).
+a2wsgi==1.10.10
+gunicorn==26.2.0

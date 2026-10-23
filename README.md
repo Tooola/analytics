@@ -40,4 +40,5 @@ pytest
 | [api.md](project/docs/api.md) | Référence des endpoints |
 | [architecture.md](project/docs/architecture.md) | Architecture technique |
 | [Railway & kit collègues](project/docs/RAILWAY_ET_KIT_COLLEGUES.md) | Déploiement + fiche à donner aux collègues |
+| [cPanel](project/docs/DEPLOY_CPANEL.md) | Déployer sur hébergement cPanel (Python App / Passenger) |
 | [PLAN.md](PLAN.md) | Plan d'implémentation (jours 1-7) |
