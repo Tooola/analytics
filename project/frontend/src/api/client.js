@@ -152,7 +152,7 @@ export const api = {
     }),
 
   // Formal Analysis
-  analyze: ({ application, dataset, analysis, data, include_ai = true, apiKey }) =>
+  analyze: ({ application, dataset, analysis, data, include_ai = true, group_by, apiKey }) =>
     request('/api/v1/analyze', {
       method: 'POST',
       headers: {
@@ -164,11 +164,12 @@ export const api = {
         analysis,
         data,
         include_ai,
+        ...(group_by ? { group_by } : {}),
       }),
     }),
 
   // Consolidated multi-dataset analysis (one pass, cross links + synthesis)
-  analyzeMulti: ({ application, datasets, analysis, payloads, join_key, include_ai = true, apiKey }) =>
+  analyzeMulti: ({ application, datasets, analysis, payloads, join_key, include_ai = true, group_by, apiKey }) =>
     request('/api/v1/analyze/multi', {
       method: 'POST',
       headers: {
@@ -181,6 +182,7 @@ export const api = {
         payloads,
         ...(join_key ? { join_key } : {}),
         include_ai,
+        ...(group_by ? { group_by } : {}),
       }),
     }),
 };

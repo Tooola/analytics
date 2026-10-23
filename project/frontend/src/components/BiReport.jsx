@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Clock,
   Layers,
-  ArrowRight
+  ArrowRight,
+  PieChart
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -35,6 +36,7 @@ export default function BiReport({ report, rawData }) {
   const summary = results.summary || [];
   const trends = results.trend || [];
   const anomalies = results.anomaly || [];
+  const grouped = results.grouped || null;
   const insights = report.insights || [];
 
   // Parse AI Interpretation
@@ -146,8 +148,19 @@ export default function BiReport({ report, rawData }) {
         </div>
         <div className="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm transition-colors">
           <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Générateur d'Avis</span>
-          <div className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mt-2 truncate">
+          <div className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mt-2 truncate flex items-center gap-2">
             {ai?.provider || 'Moteur Statistique'}
+            {report.ai_status && (
+              <span
+                className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
+                  report.ai_status === 'ok'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                }`}
+              >
+                ia_status: {report.ai_status}
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Recommandations stratégiques</p>
         </div>
@@ -255,6 +268,52 @@ export default function BiReport({ report, rawData }) {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Segments (group_by) — BLOC 2 rendering */}
+          {grouped && (grouped.segments || []).length > 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm transition-colors">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1 flex items-center">
+                <PieChart className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
+                Découpe par segment — {grouped.group_by}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
+                Classé par {grouped.ranked_by} total · {grouped.segment_count} segment(s)
+                {grouped.note ? ` · ${grouped.note}` : ''}
+              </p>
+              <div className="space-y-3">
+                {grouped.segments.map((seg) => {
+                  const m = (grouped.ranked_by && seg.metrics[grouped.ranked_by]) || null;
+                  const pct = m && m.share != null ? Math.round(m.share * 1000) / 10 : null;
+                  return (
+                    <div key={seg.segment} className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-slate-400 dark:text-slate-500 w-6">#{seg.rank}</span>
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 w-40 truncate" title={seg.segment}>
+                        {seg.segment}
+                      </span>
+                      <div className="flex-1 h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden min-w-[60px]">
+                        <div
+                          className="h-full bg-indigo-500 dark:bg-indigo-400 rounded-full transition-all"
+                          style={{ width: `${pct ?? 0}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-slate-600 dark:text-slate-300 w-16 text-right">
+                        {pct != null ? `${pct}%` : '—'}
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 w-52 text-right hidden md:block">
+                        moy. {m ? m.mean : '—'} · somme {m ? m.sum : '—'} · {seg.row_count} ligne(s)
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {grouped && (grouped.segments || []).length === 0 && grouped.note && (
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30 text-xs text-amber-800 dark:text-amber-200 flex items-start space-x-3">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <span>Segmentation «&nbsp;{grouped.group_by}&nbsp;» non applicable : {grouped.note}</span>
             </div>
           )}
 
