@@ -28,6 +28,7 @@ from app.schemas.analytics import (
     MultiAnalysisRequest,
     MultiAnalysisResponse,
 )
+from app.services.ai.business_context import build_business_context
 from app.services.ai.engine import AIEngine
 from app.services.analytics.cross_correlation import cross_correlate
 from app.services.analytics.engine import AnalyticsEngine
@@ -125,6 +126,15 @@ def quick_analyze(
                 row_count=len(body.data),
                 analysis_results=results,
                 insights=insight_dicts,
+            )
+            # Sandbox: no tenant app exists — say so in the business context.
+            context = context.model_copy(
+                update={
+                    "business_context": (
+                        f"Banc d'essai rapide — libellé « {body.label} ». "
+                        "Aucune application enregistrée : contexte métier non déclaré."
+                    )
+                }
             )
             ai_result = ai_engine.interpret(context)
             ai_text = ai_result.model_dump_json()
@@ -237,6 +247,15 @@ def analyze(
                 analysis_results=results,
                 insights=insight_dicts,
             )
+            # Tenant's own words (descriptions, units, semantics): each app
+            # gets ITS context, rebuilt per request — engine.py untouched.
+            context = context.model_copy(
+                update={
+                    "business_context": build_business_context(
+                        app.name, app.description, [_dataset_context_dict(dataset)]
+                    )
+                }
+            )
             ai_result = ai_engine.interpret(context)
             ai_text = ai_result.model_dump_json()
 
@@ -268,6 +287,28 @@ def analyze(
         insights=insight_reads,
         ai_interpretation=ai_text,
     )
+
+
+# ─── Shared helpers ──────────────────────────────────────────────────────────
+
+
+def _dataset_context_dict(dataset) -> dict[str, Any]:
+    """ORM Dataset → plain dict for build_business_context (units, semantics)."""
+    return {
+        "name": dataset.name,
+        "slug": dataset.slug,
+        "description": dataset.description,
+        "fields": [
+            {
+                "name": f.name,
+                "technical_type": f.technical_type.value,
+                "semantic_type": f.semantic_type,
+                "unit": f.unit,
+                "description": f.description,
+            }
+            for f in dataset.fields
+        ],
+    }
 
 
 # ─── Consolidated multi-dataset analysis ─────────────────────────────────────
@@ -449,6 +490,19 @@ def analyze_multi(
                     row_count=sum(row_counts.values()),
                     analysis_results=_merge_results_for_ai(results),
                     insights=_insights_for_ai(insights, synthesis),
+                )
+                context = context.model_copy(
+                    update={
+                        "business_context": build_business_context(
+                            app.name,
+                            app.description,
+                            [
+                                _dataset_context_dict(datasets[s])
+                                for s in body.datasets
+                                if s in datasets
+                            ],
+                        )
+                    }
                 )
                 ai_result = ai_engine.interpret(context)
                 ai_text = ai_result.model_dump_json()

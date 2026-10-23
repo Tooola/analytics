@@ -164,6 +164,12 @@ curl -X POST http://localhost:8000/api/v1/applications \
 > **PowerShell** : les guillemets du JSON inline sont mangés par PowerShell → écrivez le corps
 > dans un fichier (`payload.json`) et utilisez `-d "@payload.json"`. (Voir §12.)
 
+> 💡 **Décrivez votre application (`description`).** Ce texte devient le *contexte métier*
+> transmis à l'IA à chaque analyse : elle oriente alors constats et recommandations vers
+> VOTRE domaine (agricole, financier, logistique…) au lieu d'un vocabulaire générique.
+> Modifiable à tout moment via `PUT /api/v1/applications/me`. Texte libre, facultatif —
+> mais c'est **le levier n°1** pour des recommandations vraiment contextualisées.
+
 **Gestion de la clé ensuite :**
 
 | Action | Endpoint | Retour |
@@ -222,6 +228,11 @@ curl -X POST http://localhost:8000/api/v1/datasets \
 
 **Champs optionnels d'une colonne :** `description`, `unit` (`"€"`, `"kg"`), `semantic_type`
 (`"date"`, `"quantity"`, `"category"`).
+
+> 💡 **Renseignez-les.** `unit` / `semantic_type` / `description` sont injectés dans le
+> *contexte métier* de l'IA : elle peut alors écrire « en euros », « par kilogramme » ou
+> reconnaître une date de pertinence — et pas rester générique. Le `slug` du dataset est
+> transmis tel quel : l'IA relie ainsi ses résultats (tagués par slug) à vos intitulés.
 
 **Autres endpoints dataset :**
 
