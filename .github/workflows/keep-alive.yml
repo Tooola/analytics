@@ -1,0 +1,53 @@
+name: Keep-Alive Render
+
+# ─── Anti cold start ───────────────────────────────────────────────────────
+# The Render FREE tier puts a web service to sleep after ~15 min without
+# traffic; the next request then waits 30-60 s for a cold start. Pinging
+# /api/v1/health (a lightweight status + DB probe) every 10 min keeps the
+# instance warm: the idle timer never expires.
+#
+# One-time setup (Settings → Secrets and variables → Actions → Variables):
+#   RENDER_BACKEND_URL = https://open-analytics-ai-backend.onrender.com
+#
+# Notes:
+# - Scheduled workflows need activity in the repo within the last 60 days
+#   (any commit/push counts — this repo is active, so no risk).
+# - GitHub cron is best-effort: runs may lag a few minutes under load,
+#   still far inside the 15-min idle window.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # every 10 min (UTC)
+  workflow_dispatch: {}       # manual run — use it to test the ping
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping backend health
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check configuration
+        if: ${{ vars.RENDER_BACKEND_URL == '' }}
+        run: |
+          echo "::error::Variable d'actions RENDER_BACKEND_URL absente."
+          echo "Ajouter dans Settings → Secrets and variables → Actions → Variables :"
+          echo "  RENDER_BACKEND_URL = https://open-analytics-ai-backend.onrender.com"
+          exit 1
+
+      - name: Wake the service (health probe)
+        run: |
+          url="${{ vars.RENDER_BACKEND_URL }}/api/v1/health"
+          echo "Ping → $url"
+          code=$(curl -sS -o /tmp/health.json -w '%{http_code}' \
+            --max-time 90 --retry 2 --retry-delay 15 "$url" || true)
+          echo "HTTP $code"
+          cat /tmp/health.json || true
+          # 200 = chaud et sain · 5xx = réveillé mais en déploiement/erreur ·
+          # 000 = réveil en cours ou injoignable. Dans tous les cas la requête
+          # a été émise : c'est elle qui réinitialise le timer d'inactivité.
+          if [ "$code" != "200" ]; then
+            echo "::warning::Réponse $code — le service a été réveillé mais n'a pas renvoyé 200 (déploiement en cours ?)."
+          fi
