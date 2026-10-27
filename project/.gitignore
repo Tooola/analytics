@@ -52,8 +52,11 @@ Thumbs.db
 # COMMANDES.md est désormais versionné (référencé par README.md).
 
 # ─── Bolt Scaffold (remove after cleanup) ───────────────
+# Motifs ancrés sur la racine de project/ uniquement : les manifestes du
+# frontend (frontend/package.json + package-lock.json) doivent rester
+# versionnés — Render a besoin du lockfile pour `npm ci`.
 node_modules/
-package.json
-package-lock.json
-index.js
+/package.json
+/package-lock.json
+/index.js
 .bolt/
