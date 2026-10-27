@@ -14,4 +14,10 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    // `vite preview` (Web Service Render) bloque les Host inconnus :
+    // autoriser le domaine Render du dashboard (+ tout sous-domaine
+    // onrender.com pour les futurs redéploiements/renommages).
+    allowedHosts: ['analytics-1-ygzl.onrender.com', '.onrender.com'],
+  },
 })
