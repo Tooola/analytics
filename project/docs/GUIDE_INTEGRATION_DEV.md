@@ -823,6 +823,98 @@ def analyser(application: str, dataset: str, lignes: list[dict]) -> dict:
 
 ## A️⃣ Annexe — scripts complets
 
+### 🔷 Annexe Node — Next.js (App Router) sur Vercel/Netlify
+
+Le pattern idéal : un **route handler** côté serveur qui récupère vos lignes depuis
+votre base et les envoie à T-ola — la clé `anal_…` ne quitte jamais le serveur.
+
+**Variables d'environnement** — `.env.local` en dev, *Settings → Environment
+Variables* sur Vercel (**sans préfixe `NEXT_PUBLIC_`**, sinon elles sont publiques) :
+
+```env
+ANALYTICS_API_URL=http://localhost:8000            # en prod : https://open-analytics-ai-backend.onrender.com
+ANALYTICS_API_KEY=anal_…
+ANALYTICS_APP_SLUG=mon-projet                      # slug de l'application créée (§3)
+```
+
+**Client minimal** — `lib/analytics.js` (importé uniquement par des routes serveur) :
+
+```js
+const BASE = process.env.ANALYTICS_API_URL || "http://localhost:8000";
+const KEY  = process.env.ANALYTICS_API_KEY;
+const APP  = process.env.ANALYTICS_APP_SLUG;
+
+/** Analyse 1 dataset — renvoie { ok, data } ou { ok:false, erreurs }. */
+export async function analyser(dataset, data, opts = {}) {
+  const { analysis = ["summary", "trend", "anomaly"], groupBy, includeAI = true } = opts;
+  const res = await fetch(`${BASE}/api/v1/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-API-Key": KEY },
+    body: JSON.stringify({
+      application: APP, dataset, analysis, include_ai: includeAI,
+      ...(groupBy ? { group_by: groupBy } : {}),
+      data,
+    }),
+    cache: "no-store",
+  });
+  if (res.status === 429) {                    // quota 20/min → simple retry
+    await new Promise((r) => setTimeout(r, 60_000));
+    return analyser(dataset, data, opts);
+  }
+  const out = await res.json();
+  if (!res.ok) throw new Error(`API ${res.status} : ${JSON.stringify(out.detail)}`);
+  if (!out.success) return { ok: false, erreurs: out.validation.errors };  // 200 + success:false
+  return {
+    ok: true,
+    data: out,
+    ia: out.ai_interpretation ? JSON.parse(out.ai_interpretation) : null,
+  };
+}
+```
+
+**Route handler** — `app/api/rapports/analyse/route.js` (vos requêtes base + appel) :
+
+```js
+import { NextResponse } from "next/server";
+import { analyser } from "@/lib/analytics";
+
+export const maxDuration = 30;   // laisse le temps à l'IA (défaut Vercel = 10 s)
+
+export async function POST(req) {
+  try {
+    const { periode } = await req.json();
+    // ─── VOS données, depuis VOTRE base ───
+    const rows = await getMesVentes(periode);   // ex. requête Prisma/SQL
+    const out = await analyser("ventes-terrain", rows, { groupBy: "produit" });
+    if (!out.ok) {
+      return NextResponse.json({ erreur: "schema", details: out.erreurs }, { status: 422 });
+    }
+    return NextResponse.json(out.data);         // results + insights + ai_interpretation
+  } catch (e) {
+    return NextResponse.json({ erreur: e.message }, { status: 502 });
+  }
+}
+```
+
+**Côté page** (le navigateur ne parle qu'à VOTRE route, jamais à T-ola) :
+
+```js
+const r = await fetch("/api/rapports/analyse", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ periode: "2026-T1" }),
+});
+const rapport = await r.json();
+// rapport.results.summary / .trend / .anomaly / .grouped
+// rapport.insights[] · rapport.ai_interpretation (chaîne JSON à parser)
+```
+
+> ⚠️ Points Vercel : (a) l'appel part du **serveur** → aucun réglage CORS ;
+> (b) `ANALYTICS_API_KEY` jamais avec le préfixe `NEXT_PUBLIC_` ; (c) en prod,
+> `ANALYTICS_API_URL` pointe vers l'URL Render — gardez le keep-alive activé
+> (`.github/workflows/keep-alive.yml`) pour éviter les cold starts ; (d) quotas :
+> 20 analyses/min par clé (§10).
+
 ### Python : parcours complet (création → analyse → historique)
 
 ```python
