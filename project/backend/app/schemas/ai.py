@@ -23,6 +23,7 @@ class AnalyticalContext(BaseModel):
     anomalies: list[dict[str, Any]] = Field(default_factory=list)
     insights: list[dict[str, Any]] = Field(default_factory=list)
     business_context: str | None = None
+    drivers: list[str] = Field(default_factory=list)
 
 
 class AIInterpretation(BaseModel):

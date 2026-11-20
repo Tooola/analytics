@@ -73,11 +73,27 @@ class AnomalyService(BaseAnalyticsService):
                     "detected_by": detected_methods,
                 })
 
+        reason = None
+        recommendation = None
+        if confirmed_anomalies:
+            first_val = confirmed_anomalies[0]["value"]
+            reason = (
+                "Niveau exceptionnellement élevé par rapport à la moyenne habituelle de la période."
+                if first_val > mean
+                else "Décrochage inhabituel nettement inférieur au niveau moyen de référence."
+            )
+            recommendation = (
+                "Contrôler les enregistrements sources à cette date pour confirmer la réalité de cette variation "
+                "et vérifier s'il s'agit d'un événement opérationnel exceptionnel ou d'une anomalie de saisie."
+            )
+
         return {
             "column": col,
             "anomalies": confirmed_anomalies,
             "count": len(confirmed_anomalies),
             "method": "ensemble (iqr + mad + isolation_forest)",
+            "reason": reason,
+            "recommendation": recommendation,
         }
 
     @staticmethod

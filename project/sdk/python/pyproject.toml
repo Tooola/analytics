@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "open-analytics-ai"
+version = "0.1.0"
+description = "Official Python client for Open Analytics AI - decision intelligence & causal analytics"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Open Analytics AI Team"}
+]
+keywords = ["analytics", "ai", "business-intelligence", "causality", "insights"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+]
+
+[project.urls]
+Homepage = "https://github.com/open-analytics-ai/open-analytics"

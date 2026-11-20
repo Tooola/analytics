@@ -90,8 +90,7 @@ def _summary_text(
         parts.append(
             f"Lien le plus fort : « {first['column1']} » "
             f"({label(first['dataset1'])}) et "
-            f"« {first['column2']} » ({label(first['dataset2'])}) {sens} "
-            f"(r = {first['coefficient']})."
+            f"« {first['column2']} » ({label(first['dataset2'])}) {sens}."
         )
         others = len(top_links) - 1
         if others:

@@ -1,6 +1,38 @@
 # Developer Integration Guide
 
-> **Open Analytics AI** — guide d'intégration sécurisée pour les développeurs.
+> **Open Analytics AI** — guide d'intégration sécurisée pour les développeurs tiers.
+
+---
+
+## 🚀 Intégration Rapide via les SDKs Officiels (npm & pip)
+
+Pour simplifier au maximum l'adoption, nous fournissons deux mini-SDKs ultra-légers (zéro dépendance externe). **Une seule ligne suffit pour envoyer vos données et recevoir l'analyse décisionnelle.**
+
+### 🐍 En Python (`pip install open-analytics-ai`)
+
+```python
+from analytics_ai import AnalyticsClient
+
+client = AnalyticsClient(api_key="anal_xxxx", base_url="http://localhost:8000")
+
+# 1 seule ligne pour analyser :
+report = client.analyze("farmtinz", "harvest-sales", data)
+
+# Ou comparatif direct de 2 périodes sans fusionner les fichiers :
+comparison = client.compare(period_a=octobre_data, period_b=novembre_data)
+# Donne directement : Ce qui s'est amélioré, Ce qui s'est dégradé, Nouveaux points de vigilance
+```
+
+### ⚡ En TypeScript / Node.js (`npm install open-analytics-ai`)
+
+```typescript
+import { AnalyticsClient } from 'open-analytics-ai';
+
+const client = new AnalyticsClient({ apiKey: 'anal_xxxx', baseUrl: 'http://localhost:8000' });
+
+// 1 seule ligne pour analyser :
+const report = await client.analyze({ application: 'farmtinz', dataset: 'harvest-sales', data });
+```
 
 ---
 
@@ -90,16 +122,27 @@ curl -X POST http://localhost:8000/api/v1/datasets \
   -d '{
     "name": "Récoltes et Ventes",
     "slug": "harvest-sales",
-    "description": "Suivi hebdomadaire des récoltes et revenus",
+    "description": "Suivi hebdomadaire des récoltes et revenus par parcelle",
     "fields": [
-      {"name": "date",          "type": "date",    "required": true},
-      {"name": "culture",       "type": "string",  "required": true},
-      {"name": "quantite_kg",   "type": "integer", "required": true,  "unit": "kg"},
-      {"name": "prix_unitaire", "type": "float",   "required": true,  "unit": "EUR"},
-      {"name": "revenu_total",  "type": "float",   "required": true,  "unit": "EUR"}
+      {"name": "date",          "type": "date",    "required": true,  "description": "Date de la récolte"},
+      {"name": "culture",       "type": "string",  "required": true,  "description": "Type de culture (blé, maïs, soja...)"},
+      {"name": "quantite_kg",   "type": "integer", "required": true,  "unit": "kg",  "description": "Quantité récoltée en kilogrammes"},
+      {"name": "prix_unitaire", "type": "float",   "required": true,  "unit": "EUR", "description": "Prix de vente par kg"},
+      {"name": "revenu_total",  "type": "float",   "required": true,  "unit": "EUR", "description": "Revenu total généré pour cette récolte"}
     ]
   }'
 ```
+
+> 💡 **Conseil** : renseignez toujours `description` sur chaque colonne et sur le dataset. L'IA utilise ces descriptions pour adapter son vocabulaire à votre domaine métier et produire des analyses pertinentes au lieu de génériques. Sans description, elle déduit le contexte depuis les noms de colonnes — mais une description explicite donne toujours de meilleurs résultats.
+
+Champ | Type | Description
+---|---|---
+`name` | string | Nom technique de la colonne (identique à votre JSON de données)
+`type` | string | Type : `string`, `integer`, `float`, `boolean`, `date`, `datetime`
+`unit` | string *(optionnel)* | Unité de mesure : `kg`, `EUR`, `%`, `h`, `°C`…
+`semantic_type` | string *(optionnel)* | Catégorie sémantique : `quantity`, `revenue`, `date`, `category`, `metric`, `identifier`, `status`
+`description` | string *(optionnel mais recommandé)* | **Ce que représente vraiment cette colonne en langage clair** — c'est ce que l'IA lit pour contextualiser son analyse
+`required` | boolean | Si `true`, les lignes sans cette valeur seront rejetées
 
 Cet appel est effectué **une seule fois** par dataset (ou lors d'une migration de schéma).
 
@@ -136,7 +179,7 @@ async def run_harvest_analysis(harvest_data: list[dict]) -> dict:
     payload = {
         "application": "farmtinz",
         "dataset": "harvest-sales",
-        "analysis": ["summary", "trend", "anomaly"],
+        "analysis": ["auto"],  # Mode automatique intelligent : sélectionne les analyses adaptées
         "include_ai": True,
         "data": harvest_data,
     }
@@ -185,7 +228,7 @@ async function runHarvestAnalysis(harvestData) {
     {
       application: 'farmtinz',
       dataset: 'harvest-sales',
-      analysis: ['summary', 'trend', 'anomaly'],
+      analysis: ['auto'], // Mode automatique intelligent
       include_ai: true,
       data: harvestData,
     },
@@ -285,7 +328,7 @@ function HarvestDashboard({ harvestData }) {
 |---|---|---|
 | `application` | string | Slug de votre application |
 | `dataset` | string | Slug du dataset déclaré |
-| `analysis` | array | `["summary"]`, `["trend"]`, `["anomaly"]` ou combinaisons |
+| `analysis` | array | `["auto"]` (recommandé : le moteur choisit les analyses adaptées) ou liste explicite (`["summary"]`, `["trend"]`, etc.) |
 | `include_ai` | boolean | `true` pour activer l'interprétation IA (optionnel) |
 | `data` | array | Lignes de données (max 10 000 lignes par requête) |
 

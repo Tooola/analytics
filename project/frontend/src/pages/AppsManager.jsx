@@ -315,14 +315,34 @@ export default function AppsManager() {
                   <span>Application: </span>
                   <span className="text-indigo-600 dark:text-indigo-400 font-medium">{ds.application_slug || ds.application_id}</span>
                 </div>
+                {ds.description && (
+                  <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 italic">
+                    {ds.description}
+                  </p>
+                )}
                 {ds.fields && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {ds.fields.map((f, fIdx) => (
-                      <span key={fIdx} className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-950 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
-                        {f.name} ({f.technical_type})
+                      <span
+                        key={fIdx}
+                        title={[f.description, f.unit ? `Unité : ${f.unit}` : '', f.semantic_type ? `Type : ${f.semantic_type}` : ''].filter(Boolean).join(' · ') || 'Aucune description'}
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded border cursor-help ${
+                          f.description
+                            ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                            : 'bg-slate-100 dark:bg-slate-950 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800'
+                        }`}
+                      >
+                        {f.name}
+                        {f.unit ? ` (${f.unit})` : ` (${f.technical_type})`}
+                        {!f.description && <span className="ml-1 opacity-50" title="Aucune description — l'IA sera moins précise">⚠</span>}
                       </span>
                     ))}
                   </div>
+                )}
+                {ds.fields && ds.fields.some(f => !f.description) && (
+                  <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400">
+                    ⚠ Certaines colonnes n'ont pas de description — ajoutez-en via l'API pour améliorer la précision des analyses IA.
+                  </p>
                 )}
               </div>
             ))}

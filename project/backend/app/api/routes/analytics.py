@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 import json
 from typing import Any
 
@@ -29,8 +30,11 @@ from app.schemas.analytics import (
     MultiAnalysisRequest,
     MultiAnalysisResponse,
 )
+from app.schemas.comparison import CompareResponse, QuickCompareRequest
 from app.services.ai.business_context import build_business_context
 from app.services.ai.engine import AIEngine
+from app.services.analytics.auto_selector import auto_select_analyses
+from app.services.analytics.comparator import PeriodComparator
 from app.services.analytics.cross_correlation import cross_correlate_ex
 from app.services.analytics.engine import AnalyticsEngine
 from app.services.analytics.grouped import build_grouped, grouped_context_line
@@ -50,7 +54,7 @@ class QuickAnalyzeRequest(BaseModel):
     step and get instant analysis results from raw JSON.
     """
     data: list[dict[str, Any]]
-    analysis: list[str] = ["summary", "trend", "anomaly"]
+    analysis: list[str] = ["auto"]
     group_by: str | None = None  # categorical column to cut measures by
     include_ai: bool = False
     label: str = "quick-test"  # optional label shown in results
@@ -77,12 +81,24 @@ def _infer_fields(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         elif all(isinstance(v, (int, float)) for v in samples):
             t = "float"
         else:
-            # Try to detect date strings
-            str_samples = [str(v) for v in samples]
-            if any(c in str_samples[0] for c in ("-", "/")) and len(str_samples[0]) >= 8:
-                t = "date"
-            else:
-                t = "string"
+            # Try to detect real date strings (YYYY-MM-DD or ISO-8601)
+            first_val = str(samples[0]).strip()
+            is_date = False
+            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d"):
+                try:
+                    datetime.strptime(first_val, fmt)
+                    is_date = True
+                    break
+                except ValueError:
+                    pass
+            if not is_date:
+                try:
+                    datetime.fromisoformat(first_val)
+                    is_date = True
+                except ValueError:
+                    pass
+
+            t = "date" if is_date else "string"
         fields.append({
             "name": key,
             "technical_type": t,
@@ -109,11 +125,15 @@ def quick_analyze(
         raise HTTPException(status_code=422, detail="Max 10 000 rows per request")
 
     field_defs = _infer_fields(body.data)
+    analysis_types = body.analysis
+    if "auto" in analysis_types:
+        analysis_types = auto_select_analyses(body.data, field_defs)
+
     analytics_engine = AnalyticsEngine()
     _, results = analytics_engine.analyze(
         data=body.data,
         fields=field_defs,
-        analysis_types=body.analysis,
+        analysis_types=analysis_types,
     )
 
     # Segment analysis (opt-in group_by): attached to results — the
@@ -143,10 +163,13 @@ def quick_analyze(
                 analysis_results=results,
                 insights=insight_dicts,
             )
-            # Sandbox: no tenant app exists — say so in the business context.
+            # Quick test: pas d'app enregistrée — on donne les noms de colonnes
+            # inférés pour que l'IA puisse déduire le domaine automatiquement.
+            inferred_cols = ", ".join(f["name"] for f in field_defs) if field_defs else "non spécifiées"
             business_context = (
-                f"Banc d'essai rapide — libellé « {body.label} ». "
-                "Aucune application enregistrée : contexte métier non déclaré."
+                f"Banc d'essai rapide (sans application enregistrée). "
+                f"Colonnes détectées automatiquement : {inferred_cols}. "
+                f"Libellé du test : « {body.label} »."
             )
             segments_line = grouped_context_line(results.get("grouped"))
             if segments_line:
@@ -169,6 +192,57 @@ def quick_analyze(
         "ai_interpretation": ai_text,
         "ai_status": _ai_status(body.include_ai, ai_text),
     }
+
+
+@router.post("/analyze/quick/compare", response_model=CompareResponse)
+@limiter.limit("30/minute")
+def quick_compare(
+    body: QuickCompareRequest,
+    request: Request,
+) -> CompareResponse:
+    """Compare two periods (Period A vs Period B) without dataset registration.
+
+    Categorizes metrics into:
+    - What improved (Améliorations)
+    - What degraded (Dégradations)
+    - New points of attention (Vigilance)
+    Provides an executive comparative narrative without mathematical/correlation jargon.
+    """
+    if not body.period_a.data or not body.period_b.data:
+        raise HTTPException(status_code=422, detail="Both period_a and period_b data must not be empty")
+
+    comparator = PeriodComparator()
+    report = comparator.compare(
+        period_a_label=body.period_a.label,
+        period_a_data=body.period_a.data,
+        period_b_label=body.period_b.label,
+        period_b_data=body.period_b.data,
+        label=body.label,
+    )
+
+    ai_text = None
+    if body.include_ai:
+        try:
+            ai_engine = AIEngine()
+            context = ai_engine.build_comparison_context(
+                label=body.label,
+                period_a_label=body.period_a.label,
+                period_b_label=body.period_b.label,
+                period_a_rows=len(body.period_a.data),
+                period_b_rows=len(body.period_b.data),
+                improved=report.improved,
+                degraded=report.degraded,
+                vigilance_points=report.vigilance_points,
+                executive_summary=report.executive_summary,
+            )
+            ai_result = ai_engine.interpret(context)
+            ai_text = ai_result.model_dump_json()
+        except Exception as exc:
+            logger.warning("Comparison AI interpretation failed: %s", exc)
+
+    report.ai_interpretation = ai_text
+    report.ai_status = _ai_status(body.include_ai, ai_text)
+    return report
 
 
 
@@ -223,6 +297,8 @@ def analyze(
 
     analytics_engine = AnalyticsEngine()
     analysis_type_strs = [a.value for a in body.analysis]
+    if "auto" in analysis_type_strs:
+        analysis_type_strs = auto_select_analyses(body.data, field_defs)
     validation, results = analytics_engine.analyze(
         data=body.data,
         fields=field_defs,
@@ -491,17 +567,22 @@ def analyze_multi(
 
     for slug in body.datasets:
         payload = body.payloads[slug]
+        slug_analysis_types = (
+            auto_select_analyses(payload, fields_by_slug[slug])
+            if "auto" in analysis_type_strs
+            else analysis_type_strs
+        )
         validation, res = analytics_engine.analyze(
             data=payload,
             fields=fields_by_slug[slug],
-            analysis_types=analysis_type_strs,
+            analysis_types=slug_analysis_types,
         )
         validations[slug] = validation
 
         run = run_repo.create_run(
             application_id=app.id,
             dataset_id=datasets[slug].id,
-            analysis_types=analysis_type_strs,
+            analysis_types=slug_analysis_types,
             row_count=len(payload),
         )
         analysis_ids[slug] = run.id

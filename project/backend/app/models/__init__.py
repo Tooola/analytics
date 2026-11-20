@@ -44,12 +44,14 @@ class DatasetFieldType(str, enum.Enum):
 
 
 class AnalysisType(str, enum.Enum):
+    auto = "auto"
     summary = "summary"
     trend = "trend"
     anomaly = "anomaly"
     correlation = "correlation"
     distribution = "distribution"
     forecast = "forecast"
+    causality = "causality"
     # 'segmentation' is deliberately absent: it is not implemented, and
     # declaring it here made the API accept a type the engine silently
     # dropped (PLAN.md S3). Re-add when K-means actually ships.

@@ -1,0 +1,25 @@
+{
+  "name": "open-analytics-ai",
+  "version": "0.1.0",
+  "description": "Official TypeScript & JavaScript client for Open Analytics AI - decision intelligence & causal analytics",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"SDK tests ready\""
+  },
+  "keywords": [
+    "analytics",
+    "ai",
+    "business-intelligence",
+    "causality",
+    "insights",
+    "sdk"
+  ],
+  "author": "Open Analytics AI Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

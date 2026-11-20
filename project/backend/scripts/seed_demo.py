@@ -27,14 +27,18 @@ d'Analyse » du dashboard pour pré-remplir données + clé à la sélection.
 from __future__ import annotations
 
 import json
+import os
 import random
 import re
+import sys
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-BASE_URL = "http://127.0.0.1:8000"
+# Configurable target URL (local dev, cPanel, or remote production)
+DEFAULT_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
+BASE_URL = sys.argv[1].rstrip("/") if len(sys.argv) > 1 and sys.argv[1].startswith("http") else DEFAULT_URL.rstrip("/")
 OUT_FILE = Path(__file__).resolve().parents[2] / "frontend" / "public" / "demo-samples.json"
 M12 = [f"2025-{m:02d}" for m in range(1, 13)]
 
@@ -472,9 +476,43 @@ def f(name, ttype, semantic=None, unit=None, desc=None):
             "unit": unit, "description": desc, "required": True}
 
 
+def gen_farmtinz() -> list[dict]:
+    return [
+        {"date": "2026-09-01", "culture": "Maïs", "rendement_kg": 4500, "pluviometrie_mm": 42.5, "temperature_c": 24.1},
+        {"date": "2026-09-02", "culture": "Blé",  "rendement_kg": 3200, "pluviometrie_mm": 18.0, "temperature_c": 22.8},
+        {"date": "2026-09-03", "culture": "Soja",  "rendement_kg": 5100, "pluviometrie_mm": 55.2, "temperature_c": 25.0},
+        {"date": "2026-09-04", "culture": "Maïs", "rendement_kg": 4650, "pluviometrie_mm": 38.0, "temperature_c": 23.5},
+        {"date": "2026-09-05", "culture": "Tournesol", "rendement_kg": 2800, "pluviometrie_mm": 12.4, "temperature_c": 26.2},
+        {"date": "2026-09-06", "culture": "Blé",  "rendement_kg": 3400, "pluviometrie_mm": 22.1, "temperature_c": 23.1},
+        {"date": "2026-09-07", "culture": "Soja",  "rendement_kg": 13500, "pluviometrie_mm": 90.0, "temperature_c": 27.5},
+        {"date": "2026-09-08", "culture": "Maïs", "rendement_kg": 4800, "pluviometrie_mm": 44.0, "temperature_c": 24.0},
+    ]
+
+
 def build_apps() -> list[dict]:
     ventes, appro, _ = gen_mousso()
     return [
+        {
+            "name": "Farmtinz Production",
+            "description": "Exploitation agricole moderne Farmtinz : suivi des rendements par culture, pluviométrie et températures.",
+            "joinKey": "date",
+            "datasets": [
+                {
+                    "name": "Récoltes et Rendements",
+                    "slug": "recoltes-rendements",
+                    "description": "Rendements journaliers de récolte par culture avec données météorologiques.",
+                    "groupBy": "culture",
+                    "fields": [
+                        f("date", "string", "période", "AAAA-MM-JJ", "Date d'observation"),
+                        f("culture", "string", "catégorie", None, "Type de culture"),
+                        f("rendement_kg", "integer", "mesure", "kg", "Rendement total récolté"),
+                        f("pluviometrie_mm", "float", "mesure", "mm", "Hauteur des précipitations"),
+                        f("temperature_c", "float", "mesure", "°C", "Température moyenne constatée"),
+                    ],
+                    "rows": gen_farmtinz(),
+                }
+            ]
+        },
         {
             "name": "Coop Sahel Vert Cereales",
             "description": (

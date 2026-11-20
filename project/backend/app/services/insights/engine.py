@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.core.logging import get_logger
+from app.utils.humanize import humanize_column
 
 logger = get_logger(__name__)
 
@@ -42,6 +43,9 @@ class InsightEngine:
         if "forecast" in analysis_results:
             insights.extend(self._from_forecast(analysis_results["forecast"]))
 
+        if "causality" in analysis_results:
+            insights.extend(self._from_causality(analysis_results["causality"]))
+
         logger.info("Generated %d insights for dataset '%s'", len(insights), dataset_name)
         return insights
 
@@ -49,6 +53,7 @@ class InsightEngine:
         insights: list[dict[str, Any]] = []
         for s in summaries:
             col = s.get("column", "indicateur")
+            label = humanize_column(col)
             mean = s.get("mean")
             median = s.get("median")
             mn = s.get("min")
@@ -75,16 +80,16 @@ class InsightEngine:
                         )
 
             desc = (
-                f"Sur {count:,} enregistrements analysés, la valeur moyenne de **{col}** est de **{mean:,.2f}** "
+                f"Sur {count:,} enregistrements analysés, la valeur moyenne de **{label}** est de **{mean:,.2f}** "
                 f"(médiane : {median:,.2f}, min : {mn}, max : {mx}).{skew_note}"
             )
 
             insights.append({
                 "type": "trend",
                 "severity": "low",
-                "title": f"Vue d'ensemble — {col}",
+                "title": f"Vue d'ensemble — {label}",
                 "description": desc,
-                "metric": col,
+                "metric": label,
                 "confidence": 1.0,
             })
         return insights
@@ -93,6 +98,7 @@ class InsightEngine:
         insights: list[dict[str, Any]] = []
         for t in trends:
             col = t.get("column", "indicateur")
+            label = humanize_column(col)
             change = t.get("change_pct")
             direction = t.get("direction", "stable")
             is_sig = t.get("is_significant", True)
@@ -112,16 +118,16 @@ class InsightEngine:
             period_str = f" sur {periods} périodes" if periods else ""
 
             if direction == "up":
-                title = f"Progression de +{abs_change:.1f}% sur {col}"
-                desc = f"L'indicateur {col} progresse de +{abs_change:.1f}%{period_str}. Trajectoire positive confirmée sur la période."
+                title = f"Progression de +{abs_change:.1f}% sur {label}"
+                desc = f"{label} progresse de +{abs_change:.1f}%{period_str}. Trajectoire positive confirmée sur la période."
                 itype = "opportunity"
             elif direction == "down":
-                title = f"Recul de -{abs_change:.1f}% sur {col}"
-                desc = f"L'indicateur {col} diminue de -{abs_change:.1f}%{period_str}. Vigilance opérationnelle conseillée pour anticiper un impact."
+                title = f"Recul de -{abs_change:.1f}% sur {label}"
+                desc = f"{label} diminue de -{abs_change:.1f}%{period_str}. Vigilance opérationnelle conseillée pour anticiper un impact."
                 itype = "risk"
             else:
-                title = f"Stabilité sur {col}"
-                desc = f"L'indicateur {col} demeure constant{period_str} (variation de {abs_change:.1f}%). Aucune rupture d'activité."
+                title = f"Stabilité sur {label}"
+                desc = f"{label} demeure constant{period_str} (variation de {abs_change:.1f}%). Aucune rupture d'activité."
                 itype = "trend"
                 severity = "low"
 
@@ -131,7 +137,7 @@ class InsightEngine:
                 "severity": severity,
                 "title": title,
                 "description": desc,
-                "metric": col,
+                "metric": label,
                 "value": change,
                 "unit": "%",
                 "confidence": confidence,
@@ -142,6 +148,7 @@ class InsightEngine:
         insights: list[dict[str, Any]] = []
         for a in anomalies:
             col = a.get("column", "indicateur")
+            label = humanize_column(col)
             raw_count = a.get("count", 0)
             if raw_count == 0:
                 continue
@@ -158,19 +165,22 @@ class InsightEngine:
                 continue
 
             severity = "high" if count > 3 else "medium"
-            plural = "s" if count > 1 else ""
 
-            examples = [f"{item.get('value'):,.2f}" for item in valid_items[:3] if item.get("value") is not None]
-            val_txt = f" (ex. {', '.join(examples)})" if examples else ""
+            reason = a.get("reason")
+            rec = a.get("recommendation")
+            if reason and rec:
+                desc = f"Comportement atypique constaté sur {label} : {reason} Action conseillée : {rec}"
+            else:
+                desc = f"Comportement atypique constaté sur {label}. À auditer pour vérifier toute anomalie ponctuelle ou erreur de saisie."
 
-            desc = f"{count} saisie{plural} atypique{plural} détectée{plural} sur {col}{val_txt}. À vérifier pour écarter toute erreur de saisie ou événement exceptionnel."
+            title = f"Point d'attention sur {label}"
 
             insights.append({
                 "type": "anomaly",
                 "severity": severity,
-                "title": f"Alerte : {count} valeur{plural} inhabituelle{plural} sur {col}",
+                "title": title,
                 "description": desc,
-                "metric": col,
+                "metric": label,
                 "value": float(count),
                 "unit": "count",
                 "confidence": 0.85,
@@ -182,6 +192,8 @@ class InsightEngine:
         for c in correlations:
             col1 = c.get("column1", "")
             col2 = c.get("column2", "")
+            label1 = humanize_column(col1)
+            label2 = humanize_column(col2)
             coeff = c.get("coefficient", 0.0)
 
             abs_r = abs(coeff)
@@ -201,18 +213,18 @@ class InsightEngine:
 
             if coeff > 0:
                 itype = "opportunity"
-                title = f"🔗 Synergie positive entre {col1} et {col2} (r={coeff:.2f})"
+                title = f"Lien positif entre {label1} et {label2}"
                 desc = (
-                    f"Une **corrélation {strength_label} positive** (r = {coeff:.2f}) est observée entre "
-                    f"**{col1}** et **{col2}** : lorsque l'un progresse, l'autre augmente également."
+                    f"Une relation positive est observée entre "
+                    f"**{label1}** et **{label2}** : lorsque l'un progresse, l'autre augmente également."
                 )
             else:
                 itype = "risk"
-                title = f"🔗 Relation inverse entre {col1} et {col2} (r={coeff:.2f})"
+                title = f"Relation inverse entre {label1} et {label2}"
                 desc = (
-                    f"Une **corrélation {strength_label} négative** (r = {coeff:.2f}) est observée entre "
-                    f"**{col1}** et **{col2}**. "
-                    f"Lorsque {col1} augmente, {col2} tend à diminuer. "
+                    f"Une relation inverse est observée entre "
+                    f"**{label1}** et **{label2}** : "
+                    f"lorsque {label1} augmente, {label2} tend à diminuer."
                 )
 
             insights.append({
@@ -220,9 +232,37 @@ class InsightEngine:
                 "severity": {"strong": "high", "moderate": "medium"}.get(strength, "low"),
                 "title": title,
                 "description": desc,
-                "metric": f"{col1}_vs_{col2}",
+                "metric": f"{label1} vs {label2}",
                 "value": float(coeff),
                 "confidence": 0.90,
+            })
+        return insights
+
+    def _from_causality(self, causality_drivers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        insights: list[dict[str, Any]] = []
+        for d in causality_drivers:
+            target = d.get("target", "")
+            driver = d.get("driver", "")
+            rel = d.get("relationship_type", "synchronous")
+            explanation = d.get("explanation", "")
+
+            if rel == "synchronous":
+                title = f"Effet moteur : {driver} tire {target}"
+                itype = "opportunity"
+            elif rel == "opposite":
+                title = f"Impact divergent entre {target} et {driver}"
+                itype = "risk"
+            else:
+                title = f"Contributeur clé : {driver}"
+                itype = "trend"
+
+            insights.append({
+                "type": itype,
+                "severity": "medium",
+                "title": title,
+                "description": explanation,
+                "metric": target,
+                "confidence": 0.95,
             })
         return insights
 
@@ -230,30 +270,31 @@ class InsightEngine:
         insights: list[dict[str, Any]] = []
         for d in distributions:
             col = d.get("column", "indicateur")
+            label = humanize_column(col)
             skew = d.get("skewness", 0.0)
             if abs(skew) > 1.0:
                 if skew > 0:
                     direction_text = "concentrée sur les petites valeurs avec une longue queue vers les valeurs élevées"
                     impact = (
                         f"Quelques enregistrements à valeurs très élevées tirent la moyenne vers le haut. "
-                        f"Privilégier la médiane comme indicateur de référence pour {col}."
+                        f"Privilégier la médiane comme indicateur de référence pour {label}."
                     )
                 else:
                     direction_text = "concentrée sur les valeurs élevées avec une queue vers les faibles valeurs"
                     impact = (
-                        f"La distribution de {col} est dominée par des valeurs hautes. "
+                        f"La distribution de {label} est dominée par des valeurs hautes. "
                         "Des valeurs basses atypiques peuvent indiquer des anomalies ou des cas spéciaux."
                     )
 
                 insights.append({
                     "type": "recommendation",
                     "severity": "low",
-                    "title": f"Distribution asymétrique sur {col}",
+                    "title": f"Répartition asymétrique sur {label}",
                     "description": (
-                        f"Les valeurs de {col} sont {direction_text}. "
+                        f"Les valeurs de {label} sont {direction_text}. "
                         f"{impact}"
                     ),
-                    "metric": col,
+                    "metric": label,
                     "value": float(skew),
                     "confidence": 0.85,
                 })
@@ -263,6 +304,7 @@ class InsightEngine:
         insights: list[dict[str, Any]] = []
         for f in forecasts:
             col = f.get("column", "indicateur")
+            label = humanize_column(col)
             direction = f.get("trend_direction", "stable")
             horizon = f.get("horizon", 3)
             preds = f.get("predictions", [])
@@ -284,9 +326,9 @@ class InsightEngine:
             insights.append({
                 "type": "forecast",
                 "severity": "medium",
-                "title": f"Projection de {col} : tendance {dir_label}",
+                "title": f"Projection {dir_label} pour {label}",
                 "description": desc,
-                "metric": col,
+                "metric": label,
                 "value": float(last_pred),
                 "confidence": 0.80,
             })

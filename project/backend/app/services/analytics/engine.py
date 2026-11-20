@@ -17,6 +17,7 @@ from app.core.logging import get_logger
 from app.schemas.analytics import DataValidationResult
 from app.services.analytics.anomaly import AnomalyService
 from app.services.analytics.base import BaseAnalyticsService
+from app.services.analytics.causality import CausalityService
 from app.services.analytics.correlation import CorrelationService
 from app.services.analytics.distribution import DistributionService
 from app.services.analytics.forecast import ForecastService
@@ -43,6 +44,7 @@ class AnalyticsEngine:
             CorrelationService(),
             DistributionService(),
             ForecastService(),
+            CausalityService(),
         ):
             self.register(svc)
 

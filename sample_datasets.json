@@ -1,0 +1,66 @@
+{
+  "description": "Jeux de données de test prêts à être analysés (Quick Test, API ou SDK)",
+  "samples": {
+    "farmtinz_harvest": {
+      "title": "Farmtinz Production - Récoltes Agricoles (avec anomalie)",
+      "application": "farmtinz-production",
+      "dataset": "recoltes-rendements",
+      "data": [
+        { "date": "2026-09-01", "culture": "Maïs", "rendement_kg": 4500, "pluviometrie_mm": 42.5, "temperature_c": 24.1 },
+        { "date": "2026-09-02", "culture": "Blé",  "rendement_kg": 3200, "pluviometrie_mm": 18.0, "temperature_c": 22.8 },
+        { "date": "2026-09-03", "culture": "Soja",  "rendement_kg": 5100, "pluviometrie_mm": 55.2, "temperature_c": 25.0 },
+        { "date": "2026-09-04", "culture": "Maïs", "rendement_kg": 4650, "pluviometrie_mm": 38.0, "temperature_c": 23.5 },
+        { "date": "2026-09-05", "culture": "Tournesol", "rendement_kg": 2800, "pluviometrie_mm": 12.4, "temperature_c": 26.2 },
+        { "date": "2026-09-06", "culture": "Blé",  "rendement_kg": 3400, "pluviometrie_mm": 22.1, "temperature_c": 23.1 },
+        { "date": "2026-09-07", "culture": "Soja",  "rendement_kg": 13500, "pluviometrie_mm": 90.0, "temperature_c": 27.5 },
+        { "date": "2026-09-08", "culture": "Maïs", "rendement_kg": 4800, "pluviometrie_mm": 44.0, "temperature_c": 24.0 }
+      ]
+    },
+    "groupe_mousso_multi_dataset": {
+      "title": "Groupe Mousso Distribution (Analyse Multi-Jeux : Ventes + Approvisionnement)",
+      "application": "groupe-mousso-distribution",
+      "join_key": "mois",
+      "datasets": {
+        "ventes-boutiques": [
+          { "mois": "2025-01", "boutique": "Bamako", "ca_fcfa": 14200000, "nb_tickets": 1180, "panier_moyen_fcfa": 12033 },
+          { "mois": "2025-02", "boutique": "Bamako", "ca_fcfa": 13800000, "nb_tickets": 1150, "panier_moyen_fcfa": 12000 },
+          { "mois": "2025-03", "boutique": "Bamako", "ca_fcfa": 14500000, "nb_tickets": 1210, "panier_moyen_fcfa": 11983 },
+          { "mois": "2025-04", "boutique": "Bamako", "ca_fcfa": 12900000, "nb_tickets": 1050, "panier_moyen_fcfa": 12285 },
+          { "mois": "2025-05", "boutique": "Bamako", "ca_fcfa": 13100000, "nb_tickets": 1080, "panier_moyen_fcfa": 12129 },
+          { "mois": "2025-06", "boutique": "Bamako", "ca_fcfa": 12500000, "nb_tickets": 1020, "panier_moyen_fcfa": 12254 }
+        ],
+        "approvisionnement": [
+          { "mois": "2025-01", "depenses_approvisionnement_fcfa": 8500000, "delai_appro_jours": 4.2, "taux_disponibilite_pct": 94.5 },
+          { "mois": "2025-02", "depenses_approvisionnement_fcfa": 8200000, "delai_appro_jours": 4.5, "taux_disponibilite_pct": 93.8 },
+          { "mois": "2025-03", "depenses_approvisionnement_fcfa": 8900000, "delai_appro_jours": 4.1, "taux_disponibilite_pct": 95.0 },
+          { "mois": "2025-04", "depenses_approvisionnement_fcfa": 9400000, "delai_appro_jours": 5.8, "taux_disponibilite_pct": 91.2 },
+          { "mois": "2025-05", "depenses_approvisionnement_fcfa": 9800000, "delai_appro_jours": 6.3, "taux_disponibilite_pct": 89.5 },
+          { "mois": "2025-06", "depenses_approvisionnement_fcfa": 10200000, "delai_appro_jours": 6.9, "taux_disponibilite_pct": 88.0 }
+        ]
+      }
+    },
+    "comparison_m_vs_m_minus_1": {
+      "title": "Comparatif Temporel (Mois M-1 vs Mois M)",
+      "period_a": {
+        "label": "Mois M-1 (Octobre)",
+        "data": [
+          { "date": "2026-10-01", "ventes_unites": 120, "chiffre_affaires_eur": 12000, "depenses_marketing_eur": 1500, "visiteurs": 3200, "taux_retours_pct": 3.2 },
+          { "date": "2026-10-02", "ventes_unites": 135, "chiffre_affaires_eur": 13500, "depenses_marketing_eur": 1550, "visiteurs": 3400, "taux_retours_pct": 3.1 },
+          { "date": "2026-10-03", "ventes_unites": 140, "chiffre_affaires_eur": 14000, "depenses_marketing_eur": 1520, "visiteurs": 3350, "taux_retours_pct": 3.4 },
+          { "date": "2026-10-04", "ventes_unites": 130, "chiffre_affaires_eur": 13000, "depenses_marketing_eur": 1480, "visiteurs": 3300, "taux_retours_pct": 3.0 },
+          { "date": "2026-10-05", "ventes_unites": 145, "chiffre_affaires_eur": 14500, "depenses_marketing_eur": 1600, "visiteurs": 3600, "taux_retours_pct": 3.3 }
+        ]
+      },
+      "period_b": {
+        "label": "Mois M (Novembre)",
+        "data": [
+          { "date": "2026-11-01", "ventes_unites": 165, "chiffre_affaires_eur": 17200, "depenses_marketing_eur": 1850, "visiteurs": 4100, "taux_retours_pct": 2.8 },
+          { "date": "2026-11-02", "ventes_unites": 170, "chiffre_affaires_eur": 17800, "depenses_marketing_eur": 1900, "visiteurs": 4300, "taux_retours_pct": 2.7 },
+          { "date": "2026-11-03", "ventes_unites": 180, "chiffre_affaires_eur": 18900, "depenses_marketing_eur": 1880, "visiteurs": 4500, "taux_retours_pct": 2.9 },
+          { "date": "2026-11-04", "ventes_unites": 175, "chiffre_affaires_eur": 18200, "depenses_marketing_eur": 1920, "visiteurs": 4400, "taux_retours_pct": 2.6 },
+          { "date": "2026-11-05", "ventes_unites": 190, "chiffre_affaires_eur": 19800, "depenses_marketing_eur": 1950, "visiteurs": 4700, "taux_retours_pct": 2.5 }
+        ]
+      }
+    }
+  }
+}

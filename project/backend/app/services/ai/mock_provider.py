@@ -51,9 +51,9 @@ class MockAIProvider(AIProvider):
         # Summarize anomalies
         anomaly_count = sum(a.get("count", 0) for a in context.anomalies)
         if anomaly_count:
-            findings.append(f"{anomaly_count} anomalie(s) ou valeur(s) atypique(s) nécessitant une vérification des opérations.")
-            recommendations.append("Contrôler les enregistrements isolés pour écarter tout risque de double facturation ou anomalie technique.")
-            action_plan.append("Moyen Terme (> 1 mois) : Mettre en place des alertes automatisées de seuil et former les équipes de saisie.")
+            findings.append("Anomalies et comportements atypiques constatés sur certains indicateurs clés nécessitant une vérification opérationnelle.")
+            recommendations.append("Contrôler les enregistrements isolés pour confirmer la réalité des variations et écarter toute erreur de saisie.")
+            action_plan.append("Moyen Terme (> 1 mois) : Mettre en place des alertes automatisées de seuil et former les équipes opérationnelles.")
 
         if not findings:
             findings.append(f"Les indicateurs clés de l'application '{context.application}' restent stables dans la plage nominale.")

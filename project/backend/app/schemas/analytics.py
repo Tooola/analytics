@@ -101,6 +101,8 @@ class AnomalyResult(BaseModel):
     anomalies: list[dict[str, Any]] = []
     count: int = 0
     method: str = "zscore"
+    reason: str | None = None
+    recommendation: str | None = None
 
 
 class CorrelationResult(BaseModel):
@@ -168,6 +170,13 @@ class GroupedResult(BaseModel):
     note: str | None = None
 
 
+class CausalityDriver(BaseModel):
+    target: str
+    driver: str
+    relationship_type: str  # "synchronous", "opposite", "segment_contribution"
+    explanation: str
+
+
 class AnalysisResult(BaseModel):
     summary: list[SummaryResult] | None = None
     trend: list[TrendResult] | None = None
@@ -177,6 +186,7 @@ class AnalysisResult(BaseModel):
     forecast: list[ForecastResult] | None = None
     # Present only when the request set group_by (additive — null otherwise).
     grouped: GroupedResult | None = None
+    causality: list[CausalityDriver] | None = None
 
 
 

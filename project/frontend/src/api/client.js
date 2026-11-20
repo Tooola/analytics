@@ -127,6 +127,18 @@ export const api = {
       }),
     }),
 
+  // Quick Period Comparison (Period A vs Period B)
+  quickCompare: ({ period_a, period_b, label, include_ai = true }) =>
+    request('/api/v1/analyze/quick/compare', {
+      method: 'POST',
+      body: JSON.stringify({
+        period_a,
+        period_b,
+        label,
+        include_ai,
+      }),
+    }),
+
   // Applications
   getApplications: () => request('/api/v1/applications/admin/all'),
   createApplication: ({ name, description }) =>

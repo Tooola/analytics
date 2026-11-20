@@ -81,6 +81,12 @@ class AIEngine:
         No raw data rows are included — only aggregated statistics,
         trends, anomalies, and generated insights.
         """
+        causality_list = analysis_results.get("causality", [])
+        driver_strings = [
+            c["explanation"] for c in causality_list
+            if isinstance(c, dict) and "explanation" in c
+        ]
+
         return AnalyticalContext(
             application=application,
             dataset=dataset,
@@ -89,6 +95,77 @@ class AIEngine:
             trends=analysis_results.get("trend", []),
             anomalies=analysis_results.get("anomaly", []),
             insights=insights,
+            drivers=driver_strings,
+        )
+
+    def build_comparison_context(
+        self,
+        label: str,
+        period_a_label: str,
+        period_b_label: str,
+        period_a_rows: int,
+        period_b_rows: int,
+        improved: list[Any],
+        degraded: list[Any],
+        vigilance_points: list[Any],
+        executive_summary: str,
+    ) -> AnalyticalContext:
+        """Build AnalyticalContext specifically formatted for temporal comparison."""
+        insights: list[dict[str, Any]] = []
+        drivers: list[str] = []
+
+        for m in improved:
+            desc = getattr(m, "explanation", str(m))
+            lbl = getattr(m, "label", getattr(m, "metric", "Indicateur"))
+            insights.append({
+                "type": "opportunity",
+                "severity": "medium",
+                "title": f"Amélioration : {lbl}",
+                "description": desc,
+            })
+            drivers.append(desc)
+
+        for m in degraded:
+            desc = getattr(m, "explanation", str(m))
+            lbl = getattr(m, "label", getattr(m, "metric", "Indicateur"))
+            chg = abs(getattr(m, "change_pct", 0) or 0)
+            insights.append({
+                "type": "risk",
+                "severity": "high" if chg > 15 else "medium",
+                "title": f"Dégradation : {lbl}",
+                "description": desc,
+            })
+            drivers.append(desc)
+
+        for v in vigilance_points:
+            desc = getattr(v, "description", str(v))
+            lbl = getattr(v, "label", getattr(v, "metric", "Indicateur"))
+            sev = getattr(v, "severity", "medium")
+            insights.append({
+                "type": "anomaly",
+                "severity": sev,
+                "title": f"Point de vigilance : {lbl}",
+                "description": desc,
+            })
+
+        business_context = (
+            f"Bilan comparatif temporel entre « {period_a_label} » (période de référence) "
+            f"et « {period_b_label} » (période récente). "
+            f"Objectif : Décrire clairement pour la direction ce qui s'est amélioré, "
+            f"ce qui s'est dégradé, et les actions correctives prioritaires à mener. "
+            f"{executive_summary}"
+        )
+
+        return AnalyticalContext(
+            application=label,
+            dataset=f"{period_a_label} vs {period_b_label}",
+            row_count=period_a_rows + period_b_rows,
+            summary=[],
+            trends=[],
+            anomalies=[],
+            insights=insights,
+            business_context=business_context,
+            drivers=drivers,
         )
 
     def interpret(self, context: AnalyticalContext) -> AIInterpretation:

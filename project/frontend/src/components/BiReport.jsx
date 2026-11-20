@@ -11,7 +11,8 @@ import {
   Clock,
   Layers,
   ArrowRight,
-  PieChart
+  PieChart,
+  Lightbulb
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -26,6 +27,56 @@ import {
 } from 'recharts';
 import { useTheme } from '../context/ThemeContext';
 
+// Transforme un nom de colonne technique en libellé lisible
+function humanizeCol(name) {
+  if (!name) return name;
+  const unitMap = {
+    '_kg': ' (kg)', '_mm': ' (mm)', '_c': ' (°C)', '_pct': ' (%)',
+    '_percent': ' (%)', '_eur': ' (€)', '_euro': ' (€)', '_usd': ' ($)',
+    '_h': ' (h)', '_ha': ' (ha)', '_m': ' (m)', '_km': ' (km)',
+  };
+  let label = name;
+  let unit = '';
+  for (const [suffix, display] of Object.entries(unitMap)) {
+    if (name.toLowerCase().endsWith(suffix)) {
+      label = name.slice(0, -suffix.length);
+      unit = display;
+      break;
+    }
+  }
+  return label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim() + unit;
+}
+
+// Trouve l'identifiant d'une ligne pour l'afficher à la place de "Ligne #N"
+function rowAlias(row, idx) {
+  if (!row) return `Observation ${idx + 1}`;
+  const idKeys = ['date', 'mois', 'month', 'semaine', 'week', 'periode', 'period',
+                  'id', 'nom', 'name', 'region', 'label', 'reference', 'ref', 'code'];
+  for (const k of idKeys) {
+    if (row[k] !== undefined && row[k] !== null && String(row[k]).length < 50) {
+      return String(row[k]);
+    }
+  }
+  return `Observation ${idx + 1}`;
+}
+
+// Labels lisibles pour les types d'insights
+const INSIGHT_LABELS = {
+  risk: 'Point de vigilance',
+  anomaly: 'Valeur inhabituelle',
+  opportunity: 'Point positif',
+  trend: 'Évolution',
+  forecast: 'Projection',
+  recommendation: 'Recommandation',
+  info: 'Information',
+};
+
+const SEVERITY_LABELS = {
+  high: 'Élevé',
+  medium: 'Modéré',
+  low: 'Faible',
+};
+
 export default function BiReport({ report, rawData }) {
   const [activeView, setActiveView] = useState('insights'); // 'insights' | 'charts' | 'data'
   const { theme } = useTheme();
@@ -36,6 +87,7 @@ export default function BiReport({ report, rawData }) {
   const summary = results.summary || [];
   const trends = results.trend || [];
   const anomalies = results.anomaly || [];
+  const causality = results.causality || [];
   const grouped = results.grouped || null;
   const insights = report.insights || [];
 
@@ -80,7 +132,7 @@ export default function BiReport({ report, rawData }) {
         <div>
           <div className="flex items-center space-x-2 text-xs font-mono text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
             <Layers className="h-3.5 w-3.5" />
-            <span>Synthèse Analytique & Décisionnelle</span>
+            <span>Synthèse Analytique &amp; Décisionnelle</span>
             <span className="text-slate-400 dark:text-slate-600">•</span>
             <span className="text-slate-500 dark:text-slate-400">{report.row_count || rawData?.length || 0} enregistrements</span>
           </div>
@@ -100,7 +152,7 @@ export default function BiReport({ report, rawData }) {
             }`}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span>Synthèse & IA</span>
+            <span>Résultats &amp; Recommandations</span>
           </button>
           <button
             onClick={() => setActiveView('charts')}
@@ -122,7 +174,7 @@ export default function BiReport({ report, rawData }) {
             }`}
           >
             <TableIcon className="h-3.5 w-3.5" />
-            <span>Données ({rawData?.length || 0})</span>
+            <span>Données brutes ({rawData?.length || 0})</span>
           </button>
         </div>
       </div>
@@ -130,43 +182,41 @@ export default function BiReport({ report, rawData }) {
       {/* Top Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm transition-colors">
-          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Indicateurs Suivis</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Données analysées</span>
           <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{numericColumns.length}</div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Variables chiffrées</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">indicateurs mesurés</p>
         </div>
         <div className="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm transition-colors">
-          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Tendances Clés</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Évolutions détectées</span>
           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{trends.length}</div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Évolution directionnelle</p>
         </div>
         <div className="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm transition-colors">
-          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Valeurs Atypiques</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Points de vigilance</span>
           <div className={`text-2xl font-bold mt-1 ${totalAnomalies > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>
-            {totalAnomalies}
+            {totalAnomalies > 0 ? "Signalés" : "Aucun"}
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Écarts significatifs</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Vigilance requise</p>
         </div>
         <div className="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm transition-colors">
-          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Générateur d'Avis</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Analyse par</span>
           <div className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mt-2 truncate flex items-center gap-2">
             {ai?.provider || 'Moteur Statistique'}
             {report.ai_status && (
               <span
-                className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
+                className={`inline-block w-2 h-2 rounded-full shrink-0 ${
                   report.ai_status === 'ok'
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                    : 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                    ? 'bg-emerald-500'
+                    : 'bg-rose-500'
                 }`}
-              >
-                IA : {report.ai_status === 'ok' ? 'ok' : 'erreur'}
-              </span>
+              />
             )}
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Recommandations stratégiques</p>
         </div>
       </div>
 
-      {/* VIEW: SYNTHÈSE & IA */}
+      {/* VIEW: RÉSULTATS & RECOMMANDATIONS */}
       {activeView === 'insights' && (
         <div className="space-y-6">
           {/* Executive AI Block */}
@@ -178,7 +228,7 @@ export default function BiReport({ report, rawData }) {
                     <Sparkles className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Avis Exécutif & Orientation Stratégique</h3>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Avis Exécutif &amp; Orientation Stratégique</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">Restitution adaptée à la gouvernance d'entreprise</p>
                   </div>
                 </div>
@@ -271,15 +321,33 @@ export default function BiReport({ report, rawData }) {
             </div>
           )}
 
+          {/* Facteurs d'explication / Moteurs de causalité */}
+          {causality.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center">
+                <Lightbulb className="h-4 w-4 text-amber-500 mr-2 shrink-0" />
+                Facteurs d'Explication &amp; Moteurs de Variation
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {causality.map((driver, idx) => (
+                  <div key={idx} className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 flex items-start space-x-2.5">
+                    <span className="text-amber-500 font-bold mt-0.5">•</span>
+                    <span className="leading-relaxed">{driver.explanation}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Segments (group_by) — BLOC 2 rendering */}
           {grouped && (grouped.segments || []).length > 0 && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm transition-colors">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1 flex items-center">
                 <PieChart className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
-                Découpe par segment — {grouped.group_by}
+                Répartition par {humanizeCol(grouped.group_by)}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
-                Classé par {grouped.ranked_by} total · {grouped.segment_count} segment{(grouped.segment_count || 0) === 1 ? '' : 's'}
+                Classé par {humanizeCol(grouped.ranked_by)} · {grouped.segment_count} segment{(grouped.segment_count || 0) === 1 ? '' : 's'}
                 {grouped.note ? ` · ${grouped.note}` : ''}
               </p>
               <div className="space-y-3">
@@ -302,7 +370,7 @@ export default function BiReport({ report, rawData }) {
                         {pct != null ? `${pct}%` : '—'}
                       </span>
                       <span className="text-[11px] text-slate-500 dark:text-slate-400 w-52 text-right hidden md:block">
-                        moy. {m ? m.mean : '—'} · somme {m ? m.sum : '—'} · {seg.row_count} ligne(s)
+                        {humanizeCol(grouped.ranked_by)} : moy. {m ? m.mean : '—'} · total {m ? m.sum : '—'} · {seg.row_count} entrées
                       </span>
                     </div>
                   );
@@ -313,46 +381,9 @@ export default function BiReport({ report, rawData }) {
           {grouped && (grouped.segments || []).length === 0 && grouped.note && (
             <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30 text-xs text-amber-800 dark:text-amber-200 flex items-start space-x-3">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <span>Segmentation «&nbsp;{grouped.group_by}&nbsp;» non applicable : {grouped.note}</span>
+              <span>Segmentation «&nbsp;{humanizeCol(grouped.group_by)}&nbsp;» non applicable : {grouped.note}</span>
             </div>
           )}
-
-          {/* Quick Signaux et Alertes (Concise cards) */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm transition-colors">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center">
-              <BarChart3 className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
-              Signaux et Alertes Clés ({insights.length})
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {insights.map((ins, idx) => {
-                const isRisk = ins.type === 'risk' || ins.severity === 'high';
-                const isWarning = ins.type === 'anomaly' || ins.severity === 'medium';
-                // Remove emojis from title
-                const cleanTitle = (ins.title || '').replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
-
-                return (
-                  <div 
-                    key={idx} 
-                    className={`p-4 rounded-xl border transition-all ${
-                      isRisk 
-                        ? 'bg-rose-50/60 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-200'
-                        : isWarning 
-                        ? 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-200'
-                        : 'bg-slate-50 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-bold text-xs text-slate-900 dark:text-white">{cleanTitle}</span>
-                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-white/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500">
-                        {ins.type || 'info'}
-                      </span>
-                    </div>
-                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{ins.description}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
       )}
 
@@ -368,98 +399,67 @@ export default function BiReport({ report, rawData }) {
               {numericColumns.map((col, idx) => {
                 const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
                 const colColor = colors[idx % colors.length];
+                const colAnom = anomalies.find(a => a.column === col && (a.count || 0) > 0);
 
                 return (
-                  <div key={col} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-colors">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white capitalize">{col}</h4>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">Évolution chronologique des valeurs</p>
+                  <div key={col} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-colors flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white capitalize">{humanizeCol(col)}</h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">Évolution chronologique des valeurs</p>
+                        </div>
                       </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        Série #{idx + 1}
-                      </span>
+
+                      <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData} margin={{ top: 10, right: 15, left: -10, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                            <XAxis dataKey="_index" stroke={axisStroke} tick={{ fontSize: 10 }} />
+                            <YAxis stroke={axisStroke} tick={{ fontSize: 10 }} />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: tooltipBg, 
+                                borderColor: tooltipBorder, 
+                                borderRadius: '8px', 
+                                fontSize: '11px',
+                                color: tooltipText 
+                              }}
+                              formatter={(val, name) => [val, humanizeCol(name)]}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey={col}
+                              stroke={colColor}
+                              strokeWidth={2.5}
+                              dot={{ r: 2.5 }}
+                              activeDot={{ r: 5 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
 
-                    <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 10, right: 15, left: -10, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                          <XAxis dataKey="_index" stroke={axisStroke} tick={{ fontSize: 10 }} />
-                          <YAxis stroke={axisStroke} tick={{ fontSize: 10 }} />
-                          <Tooltip 
-                            contentStyle={{ 
-                              backgroundColor: tooltipBg, 
-                              borderColor: tooltipBorder, 
-                              borderRadius: '8px', 
-                              fontSize: '11px',
-                              color: tooltipText 
-                            }} 
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey={col}
-                            stroke={colColor}
-                            strokeWidth={2.5}
-                            dot={{ r: 2.5 }}
-                            activeDot={{ r: 5 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
+                    {/* Option C: Note contextuelle d'anomalie directement sous le graphique concerné */}
+                    {colAnom && (
+                      <div className="mt-4 p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 text-xs flex items-start space-x-2.5 text-amber-900 dark:text-amber-200">
+                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                        <div className="leading-relaxed">
+                          <span className="font-semibold block text-[11px] uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                            Point d'attention sur cette variable :
+                          </span>
+                          <span>{colAnom.reason || "Pic exceptionnel ou décrochage inhabituel constaté par rapport à la normale observée."}</span>
+                          {colAnom.recommendation && (
+                            <span className="block mt-1 text-[11px] text-slate-600 dark:text-slate-400">
+                              Action conseillée : {colAnom.recommendation}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
-            </div>
-          )}
-
-          {/* Anomaly Points Table */}
-          {anomalies.length > 0 && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm transition-colors">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center">
-                <AlertTriangle className="h-4 w-4 text-amber-500 mr-2" />
-                Tableau des Valeurs Atypiques Confirmées
-              </h3>
-              <div className="space-y-4">
-                {anomalies.map((anom, idx) => (
-                  <div key={idx} className="bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
-                    <div className="flex items-center justify-between text-xs mb-3">
-                      <span className="font-bold text-slate-900 dark:text-white uppercase tracking-wider">{anom.column}</span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40 text-[11px] font-semibold">
-                        {anom.count} point(s) hors norme
-                      </span>
-                    </div>
-                    {anom.anomalies && anom.anomalies.length > 0 ? (
-                      <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                            <tr>
-                              <th className="py-2.5 px-3">Enregistrement</th>
-                              <th className="py-2.5 px-3">Valeur Constatée</th>
-                              <th className="py-2.5 px-3">Niveau de Certitude</th>
-                              <th className="py-2.5 px-3">Méthode de Détection</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
-                            {anom.anomalies.map((item, itemIdx) => (
-                              <tr key={itemIdx} className="text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/30">
-                                <td className="py-2.5 px-3 font-mono">Ligne #{item.row}</td>
-                                <td className="py-2.5 px-3 font-mono font-bold text-amber-600 dark:text-amber-400">{item.value}</td>
-                                <td className="py-2.5 px-3">{Math.round((item.confidence_score || 0.8) * 100)}%</td>
-                                <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">
-                                  {Array.isArray(item.detected_by) ? item.detected_by.join(', ') : item.method || 'ensemble'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-slate-500">Aucun point aberrant majeur sur cette variable.</p>
-                    )}
-                  </div>
-                ))}
-              </div>
             </div>
           )}
         </div>
@@ -479,7 +479,7 @@ export default function BiReport({ report, rawData }) {
                   <tr>
                     <th className="py-2.5 px-3 font-mono text-slate-400">#</th>
                     {Object.keys(rawData[0]).map((col) => (
-                      <th key={col} className="py-2.5 px-3 font-semibold">{col}</th>
+                      <th key={col} className="py-2.5 px-3 font-semibold">{humanizeCol(col)}</th>
                     ))}
                   </tr>
                 </thead>
