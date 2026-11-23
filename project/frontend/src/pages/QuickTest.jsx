@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { saveHistory } from '../api/history';
+import { useLanguage } from '../i18n/LanguageContext';
 import BiReport from '../components/BiReport';
 import PeriodComparisonPanel from '../components/PeriodComparisonPanel';
 
@@ -63,7 +64,14 @@ const SAMPLE_COMPARE_B = [
 ];
 
 export default function QuickTest() {
+  const { language: currentLang, t } = useLanguage();
   const [activeTab, setActiveTab] = useState('single'); // 'single' | 'compare'
+
+  // Analysis language (default follows app language, can be toggled)
+  const [analysisLang, setAnalysisLang] = useState(currentLang);
+  React.useEffect(() => {
+    setAnalysisLang(currentLang);
+  }, [currentLang]);
 
   // Single test state
   const [jsonText, setJsonText] = useState(JSON.stringify(SAMPLE_FARMTINZ, null, 2));
@@ -123,6 +131,7 @@ export default function QuickTest() {
         analysis: analyses,
         include_ai: includeAi,
         label: label || 'quick-test',
+        language: analysisLang,
       });
       setReport(result);
       setParsedData(dataToSubmit);
@@ -174,6 +183,7 @@ export default function QuickTest() {
         period_b: { label: periodBLabel || 'Période B', data: dataB },
         label: compareLabel || 'comparatif-temporel',
         include_ai: includeAi,
+        language: analysisLang,
       });
       setCompareReport(result);
       saveHistory({
@@ -209,11 +219,11 @@ export default function QuickTest() {
         <div>
           <div className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 text-xs font-mono uppercase tracking-wider">
             <Zap className="h-4 w-4" />
-            <span>Test Instantané sans Déclaration Préalable</span>
+            <span>{t('quick_test.header_badge', 'Instant Test — No Prior Setup Required')}</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">Banc d'Essai Rapide</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{t('quick_test.header_title', 'Quick Test Bench')}</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Évaluez vos jeux de données ou comparez deux périodes temporelles (Mois M vs M-1, Année N vs N-1) en un seul clic sans fusion manuelle.
+            {t('quick_test.header_subtitle', 'Evaluate your datasets or compare two time periods in one click.')}
           </p>
         </div>
 
@@ -228,7 +238,7 @@ export default function QuickTest() {
             }`}
           >
             <Zap className="h-4 w-4" />
-            <span>Analyse Simple</span>
+            <span>{t('quick_test.analysis_simple_btn', 'Single Analysis')}</span>
           </button>
           <button
             onClick={() => setActiveTab('compare')}
@@ -239,7 +249,7 @@ export default function QuickTest() {
             }`}
           >
             <GitCompare className="h-4 w-4" />
-            <span>Comparatif Temporel (M vs M-1)</span>
+            <span>{t('quick_test.comparison_btn', 'Time Comparison (M vs M-1)')}</span>
           </button>
         </div>
       </div>
@@ -253,7 +263,7 @@ export default function QuickTest() {
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 text-xs">
                 <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300 font-semibold">
                   <FileCode className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Données JSON ({parsedData.length} lignes chargées)</span>
+                  <span>{t('quick_test.json_payload_title', 'JSON Payload')} ({parsedData.length} {t('quick_test.json_lines_loaded', 'lines loaded')})</span>
                 </div>
                 <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                   <button
@@ -265,7 +275,7 @@ export default function QuickTest() {
                     }}
                     className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors"
                   >
-                    Agricole
+                    {t('quick_test.preset_btn_agriculture', 'Agricultural')}
                   </button>
                   <button
                     type="button"
@@ -276,7 +286,7 @@ export default function QuickTest() {
                     }}
                     className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium transition-colors"
                   >
-                    Ventes
+                    {t('quick_test.preset_btn_sales', 'Sales')}
                   </button>
                   <button
                     type="button"
@@ -287,7 +297,7 @@ export default function QuickTest() {
                     }}
                     className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40 font-medium transition-colors"
                   >
-                    Démographie
+                    {t('quick_test.preset_btn_demography', 'Demography')}
                   </button>
                 </div>
               </div>
@@ -313,26 +323,56 @@ export default function QuickTest() {
               <div className="space-y-5">
                 <div className="flex items-center space-x-2 pb-3 border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <SlidersHorizontal className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Options d'Évaluation</span>
+                  <span>{t('quick_test.analysis_options', 'Analysis Options')}</span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Libellé de l'Analyse
+                    {t('quick_test.analysis_label_field', 'Analysis Label')}
                   </label>
                   <input
                     type="text"
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                    placeholder="Ex: Évaluation Mensuelle"
+                    placeholder={t('quick_test.analysis_placeholder', 'Ex: Monthly Evaluation')}
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    {t('quick_test.language_label', "Langue de l'analyse")}
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAnalysisLang('fr')}
+                      className={`py-1.5 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                        analysisLang === 'fr'
+                          ? 'bg-indigo-50 dark:bg-indigo-600/20 border-indigo-400 text-indigo-700 dark:text-indigo-300 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      🇫🇷 Français
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAnalysisLang('en')}
+                      className={`py-1.5 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                        analysisLang === 'en'
+                          ? 'bg-indigo-50 dark:bg-indigo-600/20 border-indigo-400 text-indigo-700 dark:text-indigo-300 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      🇬🇧 English
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      Sélection des Analyses
+                      {t('quick_test.analysis_selection', 'Analysis Selection')}
                     </label>
                     <button
                       type="button"
@@ -344,7 +384,7 @@ export default function QuickTest() {
                       }}
                       className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"
                     >
-                      {isManualAnalysis ? 'Revenir au mode Auto' : 'Personnaliser'}
+                      {isManualAnalysis ? t('quick_test.back_auto', 'Back to Auto') : t('quick_test.customize', 'Customize')}
                     </button>
                   </div>
 
@@ -352,10 +392,10 @@ export default function QuickTest() {
                     <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/40 text-xs">
                       <div className="flex items-center space-x-2 text-indigo-700 dark:text-indigo-300 font-semibold mb-1">
                         <Sparkles className="h-3.5 w-3.5" />
-                        <span>Mode Automatique Intelligent</span>
+                        <span>{t('quick_test.auto_title', 'Intelligent Automatic Mode')}</span>
                       </div>
                       <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                        Le moteur détecte la structure de vos données et applique automatiquement les analyses pertinentes et les moteurs de causalité sans jargon technique.
+                        {t('quick_test.auto_desc', 'The engine detects your data structure and automatically applies relevant analyses.')}
                       </p>
                     </div>
                   ) : (
@@ -394,8 +434,8 @@ export default function QuickTest() {
                       className="h-4 w-4 rounded bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-0"
                     />
                     <div>
-                      <span className="text-xs font-semibold text-slate-900 dark:text-white block">Avis Exécutif IA</span>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Synthèse claire pour décideurs sans termes techniques</span>
+                      <span className="text-xs font-semibold text-slate-900 dark:text-white block">{t('quick_test.ai_executive_title', 'Executive AI Assessment')}</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">{t('quick_test.ai_executive_desc', 'Clear synthesis for decision-makers without technical terms')}</span>
                     </div>
                   </label>
                 </div>
@@ -410,12 +450,12 @@ export default function QuickTest() {
                   {loading ? (
                     <>
                       <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Calcul et génération en cours...</span>
+                      <span>{t('quick_test.running_evaluation', 'Computing & generating...')}</span>
                     </>
                   ) : (
                     <>
                       <Play className="h-4 w-4 fill-current" />
-                      <span>Lancer l'Évaluation</span>
+                      <span>{t('quick_test.run_evaluation', 'Run Evaluation')}</span>
                     </>
                   )}
                 </button>
@@ -440,7 +480,7 @@ export default function QuickTest() {
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 text-xs">
                 <div className="flex items-center space-x-2 text-slate-700 dark:text-slate-300 font-semibold">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                  <span>Période de Référence (Période A)</span>
+                  <span>{t('quick_test.period_a_title', 'Reference Period (Period A)')}</span>
                 </div>
                 <button
                   type="button"
@@ -450,20 +490,20 @@ export default function QuickTest() {
                   }}
                   className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[11px] text-slate-600 dark:text-slate-300"
                 >
-                  Exemple M-1
+                  {t('quick_test.example_m1', 'Example M-1')}
                 </button>
               </div>
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                  Nom de la Période A
+                  {t('quick_test.period_a_name', 'Period A Name')}
                 </label>
                 <input
                   type="text"
                   value={periodALabel}
                   onChange={(e) => setPeriodALabel(e.target.value)}
                   className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                  placeholder="Ex: Mois M-1, Octobre, 2025"
+                  placeholder={t('quick_test.period_a_placeholder', 'Ex: Month M-1, October, 2025')}
                 />
               </div>
 
@@ -481,7 +521,7 @@ export default function QuickTest() {
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 text-xs">
                 <div className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 font-semibold">
                   <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                  <span>Période Récente (Période B)</span>
+                  <span>{t('quick_test.period_b_title', 'Recent Period (Period B)')}</span>
                 </div>
                 <button
                   type="button"
@@ -491,20 +531,20 @@ export default function QuickTest() {
                   }}
                   className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-[11px] text-indigo-600 dark:text-indigo-300"
                 >
-                  Exemple M
+                  {t('quick_test.example_m', 'Example M')}
                 </button>
               </div>
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                  Nom de la Période B
+                  {t('quick_test.period_b_name', 'Period B Name')}
                 </label>
                 <input
                   type="text"
                   value={periodBLabel}
                   onChange={(e) => setPeriodBLabel(e.target.value)}
                   className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                  placeholder="Ex: Mois M, Novembre, 2026"
+                  placeholder={t('quick_test.period_b_placeholder', 'Ex: Month M, November, 2026')}
                 />
               </div>
 
@@ -520,14 +560,38 @@ export default function QuickTest() {
 
           {/* Controls Bar */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
-            <div className="flex items-center space-x-4 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
               <input
                 type="text"
                 value={compareLabel}
                 onChange={(e) => setCompareLabel(e.target.value)}
-                className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 flex-1 sm:w-72"
-                placeholder="Libellé du comparatif"
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 flex-1 sm:w-64"
+                placeholder={t('quick_test.comparison_label', 'Comparison label')}
               />
+              <div className="inline-flex rounded-xl p-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setAnalysisLang('fr')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+                    analysisLang === 'fr'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  🇫🇷 FR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAnalysisLang('en')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
+                    analysisLang === 'en'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  🇬🇧 EN
+                </button>
+              </div>
               <label className="flex items-center space-x-2 cursor-pointer text-xs shrink-0">
                 <input
                   type="checkbox"
@@ -535,7 +599,7 @@ export default function QuickTest() {
                   onChange={(e) => setIncludeAi(e.target.checked)}
                   className="h-4 w-4 rounded bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-0"
                 />
-                <span className="text-slate-700 dark:text-slate-300 font-medium">Synthèse IA Groq</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">{t('quick_test.ai_groq', 'Groq AI Synthesis')}</span>
               </label>
             </div>
 
@@ -547,12 +611,12 @@ export default function QuickTest() {
               {compareLoading ? (
                 <>
                   <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Comparaison en cours...</span>
+                  <span>{t('quick_test.running_comparison', 'Comparison in progress...')}</span>
                 </>
               ) : (
                 <>
                   <GitCompare className="h-4 w-4" />
-                  <span>Lancer le Comparatif Temporel</span>
+                  <span>{t('quick_test.run_comparison', 'Run Time Comparison')}</span>
                 </>
               )}
             </button>

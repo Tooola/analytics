@@ -10,10 +10,12 @@ import {
   Moon,
   LogOut,
   UserRound,
-  Clock
+  Clock,
+  Languages
 } from 'lucide-react';
 import { api, getApiBase, setApiBase } from '../api/client';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
   const [health, setHealth] = useState(null);
@@ -21,6 +23,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [apiUrlInput, setApiUrlInput] = useState(getApiBase());
   const { theme, toggleTheme } = useTheme();
+  const { language, toggleLanguage, t } = useLanguage();
 
   const checkStatus = async () => {
     try {
@@ -64,20 +67,20 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
   };
   const statusLabel =
     healthState === 'loading'
-      ? "Vérification de l'état des services…"
+      ? t('nav.status_checking', "Checking service status…")
       : healthState === 'online'
-      ? `En ligne — IA : ${health.ai_provider} (cliquer pour revérifier)`
+      ? t('nav.status_online', 'Online — AI: {provider} (click to recheck)').replace('{provider}', health.ai_provider)
       : healthState === 'degraded'
-      ? "API joignable mais dégradée (base de données ou IA) — cliquer pour revérifier"
-      : 'Serveurs injoignables — cliquer pour revérifier';
+      ? t('nav.status_degraded', 'API reachable but degraded — click to recheck')
+      : t('nav.status_offline', 'Servers unreachable — click to recheck');
   const dot = DOT_STYLES[healthState];
 
   const navItems = [
-    { id: 'overview', label: 'Vue Globale', icon: Activity },
-    { id: 'quick-test', label: 'Test Rapide', icon: Zap, highlight: true },
-    { id: 'analytics', label: 'Analyse Avancée', icon: Layers },
-    { id: 'history', label: 'Historique', icon: Clock },
-    { id: 'apps', label: 'Applications & Accès', icon: Database },
+    { id: 'overview', label: t('nav.overview', 'Vue Globale'), icon: Activity },
+    { id: 'quick-test', label: t('nav.quick_test', 'Test Rapide'), icon: Zap, highlight: true },
+    { id: 'analytics', label: t('nav.analytics', 'Analyse Avancée'), icon: Layers },
+    { id: 'history', label: t('nav.history', 'Historique'), icon: Clock },
+    { id: 'apps', label: t('nav.apps', 'Applications & Accès'), icon: Database },
   ];
 
   return (
@@ -118,13 +121,23 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
             })}
           </nav>
 
-          {/* Health Status, Theme Toggle & Target Settings */}
+          {/* Health Status, Language, Theme Toggle & Target Settings */}
           <div className="flex items-center space-x-2.5 flex-nowrap">
+            {/* Language Switcher */}
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors"
+              title={language === 'fr' ? 'Switch to English' : 'Passer en Français'}
+            >
+              <Languages className="h-3.5 w-3.5 text-indigo-500" />
+              <span className="uppercase tracking-wider font-mono text-[11px] font-bold">{language}</span>
+            </button>
+
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-              title={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+              title={theme === 'dark' ? t('nav.theme_light', 'Passer en mode clair') : t('nav.theme_dark', 'Passer en mode sombre')}
             >
               {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
             </button>
@@ -161,7 +174,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
             {user && (
               <span
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-600/20 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 shrink-0 select-none"
-                title={`Connecté en tant que ${user.username}`}
+                title={`${t('nav.connected_tooltip', 'Signed in as')} ${user.username}`}
               >
                 <UserRound className="h-4 w-4" />
               </span>
@@ -172,7 +185,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
               <button
                 onClick={onLogout}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-200 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 text-slate-600 dark:text-slate-300 shrink-0 transition-colors"
-                title="Se déconnecter"
+                title={t('nav.logout_tooltip', 'Sign out')}
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -187,8 +200,8 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center space-x-2">
               <Server className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-slate-700 dark:text-slate-300 font-semibold">Cible API Backend :</span>
-              <span className="text-slate-500">Par défaut en local: http://127.0.0.1:8000</span>
+              <span className="text-slate-700 dark:text-slate-300 font-semibold">{t('nav.api_target', 'Backend API Target:')}</span>
+              <span className="text-slate-500">{t('nav.api_default_hint', 'Default local: http://127.0.0.1:8000')}</span>
             </div>
             <form onSubmit={handleSaveUrl} className="flex items-center space-x-2">
               <input
@@ -202,7 +215,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
                 type="submit"
                 className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors"
               >
-                Appliquer
+                {t('nav.apply', 'Apply')}
               </button>
               <button
                 type="button"
@@ -214,7 +227,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
                 }}
                 className="px-3.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors"
               >
-                Reset Local
+                {t('nav.reset_local', 'Reset Local')}
               </button>
             </form>
           </div>

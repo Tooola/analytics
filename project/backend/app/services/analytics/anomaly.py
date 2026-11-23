@@ -18,7 +18,7 @@ except ImportError:
 class AnomalyService(BaseAnalyticsService):
     analysis_type = "anomaly"
 
-    def run(self, df: pd.DataFrame, fields: list[dict[str, Any]]) -> dict[str, Any]:
+    def run(self, df: pd.DataFrame, fields: list[dict[str, Any]], language: str = "fr") -> dict[str, Any]:
         numeric_fields = [
             f for f in fields
             if f["technical_type"] in ("integer", "float")
@@ -33,12 +33,12 @@ class AnomalyService(BaseAnalyticsService):
             if len(series) < 4:
                 continue
 
-            anomalies = self._detect_consensus(series, col)
+            anomalies = self._detect_consensus(series, col, language=language)
             results.append(anomalies)
 
         return {"anomaly": results}
 
-    def _detect_consensus(self, series: pd.Series, col: str) -> dict[str, Any]:
+    def _detect_consensus(self, series: pd.Series, col: str, language: str = "fr") -> dict[str, Any]:
         n = len(series)
         iqr_flags = set(self._detect_iqr(series))
         mad_flags = set(self._detect_mad(series))
@@ -77,15 +77,24 @@ class AnomalyService(BaseAnalyticsService):
         recommendation = None
         if confirmed_anomalies:
             first_val = confirmed_anomalies[0]["value"]
-            reason = (
-                "Niveau exceptionnellement élevé par rapport à la moyenne habituelle de la période."
-                if first_val > mean
-                else "Décrochage inhabituel nettement inférieur au niveau moyen de référence."
-            )
-            recommendation = (
-                "Contrôler les enregistrements sources à cette date pour confirmer la réalité de cette variation "
-                "et vérifier s'il s'agit d'un événement opérationnel exceptionnel ou d'une anomalie de saisie."
-            )
+            if language == "en":
+                reason = (
+                    "Unusually high value compared to the normal average for the period."
+                    if first_val > mean
+                    else "Unusually low value significantly below the normal average."
+                )
+                recommendation = (
+                    "Check the source records for this date to confirm if this is an exceptional operational event or a data entry error."
+                )
+            else:
+                reason = (
+                    "Niveau anormalement élevé par rapport à la moyenne habituelle."
+                    if first_val > mean
+                    else "Baisse inhabituelle nettement sous la moyenne habituelle."
+                )
+                recommendation = (
+                    "Vérifier les données à cette date pour confirmer s'il s'agit d'un événement réel ou d'une erreur de saisie."
+                )
 
         return {
             "column": col,

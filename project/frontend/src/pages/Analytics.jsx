@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { api, getStoredApiKey, setStoredApiKey } from '../api/client';
 import { saveHistory } from '../api/history';
+import { useLanguage } from '../i18n/LanguageContext';
 import BiReport from '../components/BiReport';
 import ConsolidatedPanel from '../components/ConsolidatedPanel';
 
@@ -17,6 +18,12 @@ const SINGLE_DEFAULT = '[\n  {"valeur": 120, "score": 4.5},\n  {"valeur": 140, "
 const MULTI_DEFAULT = '{\n  "ventes-terrain": [\n    {"mois": "2026-01", "montant": 12000},\n    {"mois": "2026-02", "montant": 15500},\n    {"mois": "2026-03", "montant": 14800},\n    {"mois": "2026-04", "montant": 17200},\n    {"mois": "2026-05", "montant": 16900},\n    {"mois": "2026-06", "montant": 19500}\n  ],\n  "electricite": [\n    {"mois": "2026-01", "montant": 420},\n    {"mois": "2026-02", "montant": 460},\n    {"mois": "2026-03", "montant": 440},\n    {"mois": "2026-04", "montant": 470},\n    {"mois": "2026-05", "montant": 455},\n    {"mois": "2026-06", "montant": 480}\n  ]\n}';
 
 export default function Analytics() {
+  const { language: currentLang, t } = useLanguage();
+  const [analysisLang, setAnalysisLang] = useState(currentLang);
+  useEffect(() => {
+    setAnalysisLang(currentLang);
+  }, [currentLang]);
+
   const [apps, setApps] = useState([]);
   const [datasets, setDatasets] = useState([]);
   const [selectedApp, setSelectedApp] = useState('');
@@ -222,6 +229,7 @@ export default function Analytics() {
           join_key: joinKey.trim(),
           include_ai: includeAi,
           group_by: groupBy || undefined,
+          language: analysisLang,
           apiKey,
         });
         if (!res.success) {
@@ -282,6 +290,7 @@ export default function Analytics() {
         data: parsedData,
         include_ai: includeAi,
         group_by: groupBy || undefined,
+        language: analysisLang,
         apiKey: apiKey,
       });
 
@@ -319,11 +328,11 @@ export default function Analytics() {
       <div>
         <div className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 text-xs font-mono uppercase tracking-wider">
           <Layers className="h-4 w-4" />
-          <span>Pipeline Formel Sécurisé</span>
+          <span>{t('analytics.header_badge', 'Formal Secure Pipeline')}</span>
         </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">Exécution d'Analyse avec Schéma & Clé API</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{t('analytics.header_title', 'Analytics Execution with Schema & API Key')}</h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Appel sécurisé validant les données entrantes par rapport aux types déclarés dans la base de données.
+          {t('analytics.header_subtitle', 'Secure call validating incoming data against declared types in the database.')}
         </p>
       </div>
 
@@ -337,12 +346,12 @@ export default function Analytics() {
             onChange={toggleMultiMode}
             className="h-4 w-4 rounded accent-indigo-600"
           />
-          <span>Analyse multi-datasets — plusieurs jeux en un passage (liens croisés + verdict consolidé)</span>
+          <span>{t('analytics.mode_toggle', 'Multi-dataset analysis — several datasets in one pass (cross-links + consolidated verdict)')}</span>
         </label>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
-            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Application</label>
+            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">{t('analytics.select_app', 'Application')}</label>
             <select
               value={selectedApp}
               onChange={(e) => {
@@ -353,7 +362,7 @@ export default function Analytics() {
               }}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium"
             >
-              <option value="">Sélectionnez une application...</option>
+              <option value="">{t('analytics.select_app_placeholder', 'Select an application...')}</option>
               {apps.map((a) => (
                 <option key={a.id} value={a.slug}>{a.name} ({a.slug})</option>
               ))}
@@ -364,11 +373,11 @@ export default function Analytics() {
             {multiMode ? (
               <>
                 <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">
-                  Datasets ({selectedDsList.length} / 10)
+                  {t('analytics.datasets_count', 'Datasets ({count} / 10)').replace('{count}', selectedDsList.length)}
                 </label>
                 <div className="max-h-28 overflow-y-auto px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5">
                   {filteredDatasets.length === 0 && (
-                    <span className="text-slate-400 italic">Aucun dataset déclaré pour cette application.</span>
+                    <span className="text-slate-400 italic">{t('analytics.no_dataset_placeholder', 'No dataset declared for this application.')}</span>
                   )}
                   {filteredDatasets.map((d) => (
                     <label key={d.id} className="flex items-center space-x-2 text-slate-700 dark:text-slate-300 cursor-pointer">
@@ -385,13 +394,13 @@ export default function Analytics() {
               </>
             ) : (
               <>
-                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Dataset Déclaré</label>
+                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">{t('analytics.select_dataset', 'Dataset')}</label>
                 <select
                   value={selectedDs}
                   onChange={(e) => setSelectedDs(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium"
                 >
-                  <option value="">Sélectionnez un dataset...</option>
+                  <option value="">{t('analytics.select_dataset_placeholder', 'Select a dataset...')}</option>
                   {filteredDatasets.map((d) => (
                     <option key={d.id} value={d.slug}>{d.name} ({d.slug})</option>
                   ))}
@@ -401,61 +410,20 @@ export default function Analytics() {
           </div>
 
           <div>
-            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Clé API (Header X-API-Key)</label>
+            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">{t('analytics.api_key_label', 'API Key (X-API-Key)')}</label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="anal_..."
+              placeholder={t('analytics.api_key_placeholder', 'anal_...')}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono"
             />
           </div>
         </div>
 
-        {/* One row: align the datasets (multi) then cut them by category */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs items-end">
-          {multiMode && (
-            <div>
-              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Aligner les jeux sur</label>
-              <select
-                value={joinKey}
-                onChange={(e) => setJoinKey(e.target.value)}
-                disabled={joinOptions.length === 0}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium disabled:opacity-50"
-              >
-                <option value="">{joinOptions.length === 0 ? 'Aucune colonne commune...' : '— aucun —'}</option>
-                {joinOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div>
-            <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">Découper en segments par</label>
-            <select
-              value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value)}
-              disabled={groupByOptions.length === 0}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-medium disabled:opacity-50"
-            >
-              <option value="">{groupByOptions.length === 0 ? 'Aucune colonne catégorielle...' : '— aucun segment —'}</option>
-              {groupByOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-          <p className={`${multiMode ? 'md:col-span-1' : 'md:col-span-2'} text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed pb-1`}>
-            {multiMode && <>Rapproche les jeux ligne à ligne pour calculer les liens entre eux (sans colonne commune, chaque jeu reste analysé seul). </>}
-            Découpe les mesures par catégorie : parts, moyennes et classement des segments.
-            {demoApp
-              ? <> Exemple de démo «&nbsp;{demoApp.name}&nbsp;» pré-rempli (données + clé API) — modifiable librement.</>
-              : <> Sans segment, le rapport reste strictement identique à l'ancienne API.</>}
-          </p>
-        </div>
-
         <div>
           <label className="block text-xs text-slate-700 dark:text-slate-300 font-semibold mb-1.5 uppercase tracking-wider">
-            {multiMode ? 'Données JSON (objet par dataset)' : 'Données JSON'}
+            {multiMode ? t('analytics.data_json_multi', 'JSON Data (object per dataset)') : t('analytics.data_json_single', 'JSON Data')}
           </label>
           <textarea
             value={dataText}
@@ -465,7 +433,7 @@ export default function Analytics() {
           />
           {multiMode && (
             <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-              Le JSON doit contenir un tableau de lignes <b>par dataset sélectionné</b> (même forme que l'exemple).
+              {t('analytics.json_per_dataset', 'JSON must contain a row array per selected dataset (same format as the example).')}
             </p>
           )}
         </div>
@@ -477,18 +445,48 @@ export default function Analytics() {
           </div>
         )}
 
-        <div className="flex justify-end pt-2">
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              {t('analytics.language_label', 'Report Language:')}
+            </span>
+            <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-800 p-0.5 bg-slate-50 dark:bg-slate-950">
+              <button
+                type="button"
+                onClick={() => setAnalysisLang('fr')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  analysisLang === 'fr'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                🇫🇷 FR
+              </button>
+              <button
+                type="button"
+                onClick={() => setAnalysisLang('en')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  analysisLang === 'en'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                🇬🇧 EN
+              </button>
+            </div>
+          </div>
+
           <button
             onClick={handleRun}
             disabled={loading}
             className="py-2.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors flex items-center space-x-2 shadow-md shadow-indigo-600/20"
           >
             {loading ? (
-              <span>Calcul en cours...</span>
+              <span>{t('analytics.computing', 'Computing...')}</span>
             ) : (
               <>
                 <Play className="h-3.5 w-3.5 fill-current" />
-                <span>{multiMode ? "Exécuter l'Analyse Consolidée" : "Exécuter l'Analyse"}</span>
+                <span>{multiMode ? t('analytics.run_consolidated', 'Execute Consolidated Analysis') : t('analytics.run_btn', 'Execute Analysis')}</span>
               </>
             )}
           </button>

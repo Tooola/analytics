@@ -116,7 +116,7 @@ export const api = {
   me: () => request('/api/v1/auth/me'),
 
   // Quick Analyze (No registration needed)
-  quickAnalyze: ({ data, analysis = ['summary', 'trend', 'anomaly'], include_ai = true, label = 'quick-test' }) =>
+  quickAnalyze: ({ data, analysis = ['summary', 'trend', 'anomaly'], include_ai = true, label = 'quick-test', language = 'fr' }) =>
     request('/api/v1/analyze/quick', {
       method: 'POST',
       body: JSON.stringify({
@@ -124,11 +124,12 @@ export const api = {
         analysis,
         include_ai,
         label,
+        language,
       }),
     }),
 
   // Quick Period Comparison (Period A vs Period B)
-  quickCompare: ({ period_a, period_b, label, include_ai = true }) =>
+  quickCompare: ({ period_a, period_b, label, include_ai = true, language = 'fr' }) =>
     request('/api/v1/analyze/quick/compare', {
       method: 'POST',
       body: JSON.stringify({
@@ -136,6 +137,7 @@ export const api = {
         period_b,
         label,
         include_ai,
+        language,
       }),
     }),
 
@@ -164,7 +166,7 @@ export const api = {
     }),
 
   // Formal Analysis
-  analyze: ({ application, dataset, analysis, data, include_ai = true, group_by, apiKey }) =>
+  analyze: ({ application, dataset, analysis, data, include_ai = true, group_by, language = 'fr', apiKey }) =>
     request('/api/v1/analyze', {
       method: 'POST',
       headers: {
@@ -176,12 +178,13 @@ export const api = {
         analysis,
         data,
         include_ai,
+        language,
         ...(group_by ? { group_by } : {}),
       }),
     }),
 
   // Consolidated multi-dataset analysis (one pass, cross links + synthesis)
-  analyzeMulti: ({ application, datasets, analysis, payloads, join_key, include_ai = true, group_by, apiKey }) =>
+  analyzeMulti: ({ application, datasets, analysis, payloads, join_key, include_ai = true, group_by, language = 'fr', apiKey }) =>
     request('/api/v1/analyze/multi', {
       method: 'POST',
       headers: {
@@ -192,6 +195,7 @@ export const api = {
         datasets,
         analysis,
         payloads,
+        language,
         ...(join_key ? { join_key } : {}),
         include_ai,
         ...(group_by ? { group_by } : {}),

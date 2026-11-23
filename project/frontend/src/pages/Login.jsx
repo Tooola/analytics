@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Activity, Lock, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { api, setAuthToken } from '../api/client';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Login({ onLogin }) {
+  const { t } = useLanguage();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -12,7 +14,7 @@ export default function Login({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username || !password) {
-      setError('Veuillez renseigner votre identifiant et votre mot de passe.');
+      setError(t('login.err_required', 'Veuillez renseigner votre identifiant et votre mot de passe.'));
       return;
     }
     setError('');
@@ -25,11 +27,11 @@ export default function Login({ onLogin }) {
       if (err.isNetworkError) {
         setError(err.message);
       } else if (err.status === 401) {
-        setError('Identifiants invalides. Réessayez.');
+        setError(t('login.err_unauthorized', 'Identifiants invalides. Réessayez.'));
       } else if (err.status === 429) {
-        setError('Trop de tentatives — patientez une minute avant de réessayer.');
+        setError(t('login.err_rate_limit', 'Trop de tentatives — patientez une minute avant de réessayer.'));
       } else {
-        setError(`Erreur de connexion : ${err.message}`);
+        setError(t('login.err_generic', 'Erreur de connexion : {msg}').replace('{msg}', err.message));
       }
     } finally {
       setLoading(false);
@@ -48,7 +50,7 @@ export default function Login({ onLogin }) {
             Open Analytics AI
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Espace décisionnel — accès réservé aux opérateurs
+            {t('login.subtitle', 'Espace décisionnel — accès réservé aux opérateurs')}
           </p>
         </div>
 
@@ -60,7 +62,7 @@ export default function Login({ onLogin }) {
                 htmlFor="username"
                 className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
               >
-                Identifiant
+                {t('login.username', 'Identifiant')}
               </label>
               <input
                 id="username"
@@ -79,7 +81,7 @@ export default function Login({ onLogin }) {
                 htmlFor="password"
                 className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5"
               >
-                Mot de passe
+                {t('login.password', 'Mot de passe')}
               </label>
               <div className="relative">
                 <input
@@ -95,7 +97,7 @@ export default function Login({ onLogin }) {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                  title={showPassword ? 'Masquer' : 'Afficher'}
+                  title={showPassword ? t('login.hide_pwd', 'Masquer') : t('login.show_pwd', 'Afficher')}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -103,27 +105,31 @@ export default function Login({ onLogin }) {
             </div>
 
             {error && (
-              <div className="flex items-start space-x-2 text-xs text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl px-3 py-2.5">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-px" />
-                <span>{error}</span>
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300 flex items-start space-x-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+                <span className="leading-relaxed">{error}</span>
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-sm transition-colors"
+              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-colors flex items-center justify-center space-x-2"
             >
-              <Lock className="h-4 w-4" />
-              <span>{loading ? 'Connexion en cours…' : 'Se connecter'}</span>
-              {!loading && <LogIn className="h-4 w-4" />}
+              {loading ? (
+                <>
+                  <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>{t('login.submitting', 'Connexion...')}</span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-3.5 w-3.5" />
+                  <span>{t('login.submit', 'Se connecter')}</span>
+                </>
+              )}
             </button>
           </form>
         </div>
-
-        <p className="text-center text-[11px] text-slate-400 dark:text-slate-500 mt-5 font-mono">
-          Open Analytics AI • v1.0.0
-        </p>
       </div>
     </div>
   );

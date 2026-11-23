@@ -109,18 +109,22 @@ class AIEngine:
         degraded: list[Any],
         vigilance_points: list[Any],
         executive_summary: str,
+        language: str = "fr",
     ) -> AnalyticalContext:
         """Build AnalyticalContext specifically formatted for temporal comparison."""
         insights: list[dict[str, Any]] = []
         drivers: list[str] = []
 
+        is_en = language.lower() == "en"
+
         for m in improved:
             desc = getattr(m, "explanation", str(m))
             lbl = getattr(m, "label", getattr(m, "metric", "Indicateur"))
+            title = f"Improvement: {lbl}" if is_en else f"Amélioration : {lbl}"
             insights.append({
                 "type": "opportunity",
                 "severity": "medium",
-                "title": f"Amélioration : {lbl}",
+                "title": title,
                 "description": desc,
             })
             drivers.append(desc)
@@ -129,10 +133,11 @@ class AIEngine:
             desc = getattr(m, "explanation", str(m))
             lbl = getattr(m, "label", getattr(m, "metric", "Indicateur"))
             chg = abs(getattr(m, "change_pct", 0) or 0)
+            title = f"Deterioration: {lbl}" if is_en else f"Dégradation : {lbl}"
             insights.append({
                 "type": "risk",
                 "severity": "high" if chg > 15 else "medium",
-                "title": f"Dégradation : {lbl}",
+                "title": title,
                 "description": desc,
             })
             drivers.append(desc)
@@ -141,20 +146,29 @@ class AIEngine:
             desc = getattr(v, "description", str(v))
             lbl = getattr(v, "label", getattr(v, "metric", "Indicateur"))
             sev = getattr(v, "severity", "medium")
+            title = f"Watchpoint: {lbl}" if is_en else f"Point de vigilance : {lbl}"
             insights.append({
                 "type": "anomaly",
                 "severity": sev,
-                "title": f"Point de vigilance : {lbl}",
+                "title": title,
                 "description": desc,
             })
 
-        business_context = (
-            f"Bilan comparatif temporel entre « {period_a_label} » (période de référence) "
-            f"et « {period_b_label} » (période récente). "
-            f"Objectif : Décrire clairement pour la direction ce qui s'est amélioré, "
-            f"ce qui s'est dégradé, et les actions correctives prioritaires à mener. "
-            f"{executive_summary}"
-        )
+        if is_en:
+            business_context = (
+                f"Comparative temporal review between '{period_a_label}' (reference period) "
+                f"and '{period_b_label}' (recent period). "
+                f"Goal: Clearly summarize what improved, what degraded, and priority corrective actions. "
+                f"{executive_summary}"
+            )
+        else:
+            business_context = (
+                f"Bilan comparatif temporel entre « {period_a_label} » (période de référence) "
+                f"et « {period_b_label} » (période récente). "
+                f"Objectif : Décrire clairement pour la direction ce qui s'est amélioré, "
+                f"ce qui s'est dégradé, et les actions correctives prioritaires à mener. "
+                f"{executive_summary}"
+            )
 
         return AnalyticalContext(
             application=label,
@@ -166,6 +180,7 @@ class AIEngine:
             insights=insights,
             business_context=business_context,
             drivers=drivers,
+            language=language,
         )
 
     def interpret(self, context: AnalyticalContext) -> AIInterpretation:

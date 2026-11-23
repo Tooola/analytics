@@ -65,6 +65,10 @@ class AnalysisRequest(BaseModel):
         ),
     )
     include_ai: bool = False
+    language: Literal["fr", "en"] = Field(
+        default="fr",
+        description="Language for analysis synthesis and AI interpretation ('fr' or 'en'). Defaults to 'fr'.",
+    )
 
     @field_validator("application", "dataset")
     @classmethod
@@ -305,6 +309,10 @@ class MultiAnalysisRequest(BaseModel):
         ),
     )
     include_ai: bool = False
+    language: Literal["fr", "en"] = Field(
+        default="fr",
+        description="Language for analysis synthesis and AI interpretation ('fr' or 'en'). Defaults to 'fr'.",
+    )
 
     @field_validator("application")
     @classmethod

@@ -66,13 +66,16 @@ class PeriodComparator:
         period_b_label: str,
         period_b_data: list[dict[str, Any]],
         label: str = "comparatif-temporel",
+        language: str = "fr",
     ) -> CompareResponse:
         logger.info(
-            "Comparing '%s' (%d rows) vs '%s' (%d rows)",
+            "Comparing '%s' (%d rows) vs '%s' (%d rows) [lang=%s]",
             period_a_label, len(period_a_data),
             period_b_label, len(period_b_data),
+            language,
         )
 
+        is_en = language == "en"
         series_a = _extract_numeric_series(period_a_data)
         series_b = _extract_numeric_series(period_b_data)
 
@@ -103,7 +106,11 @@ class PeriodComparator:
             if abs(change_pct) < 3.0:
                 direction = "stable"
                 status = "stable"
-                explanation = f"Stabilité confirmée sur {label_col} (variation minime de {change_pct:+.1f}%)."
+                explanation = (
+                    f"Confirmed stability on {label_col} ({change_pct:+.1f}% change)."
+                    if is_en
+                    else f"Stabilité confirmée sur {label_col} ({change_pct:+.1f}% de variation)."
+                )
                 stable.append(MetricEvolution(
                     metric=col,
                     label=label_col,
@@ -116,7 +123,11 @@ class PeriodComparator:
                 direction = "up"
                 if inverted:
                     status = "degraded"
-                    explanation = f"Hausse défavorable de {change_pct:+.1f}% sur {label_col} par rapport à {period_a_label}."
+                    explanation = (
+                        f"Increase to monitor compared to {period_a_label}."
+                        if is_en
+                        else f"Hausse à surveiller par rapport à {period_a_label}."
+                    )
                     degraded.append(MetricEvolution(
                         metric=col,
                         label=label_col,
@@ -127,7 +138,11 @@ class PeriodComparator:
                     ))
                 else:
                     status = "improved"
-                    explanation = f"Progression positive de {change_pct:+.1f}% sur {label_col} par rapport à {period_a_label}."
+                    explanation = (
+                        f"Progression compared to {period_a_label}."
+                        if is_en
+                        else f"Belle progression par rapport à {period_a_label}."
+                    )
                     improved.append(MetricEvolution(
                         metric=col,
                         label=label_col,
@@ -140,7 +155,11 @@ class PeriodComparator:
                 direction = "down"
                 if inverted:
                     status = "improved"
-                    explanation = f"Diminution favorable de {abs(change_pct):.1f}% sur {label_col} par rapport à {period_a_label}."
+                    explanation = (
+                        f"Favorable decrease compared to {period_a_label}."
+                        if is_en
+                        else f"Baisse favorable par rapport à {period_a_label}."
+                    )
                     improved.append(MetricEvolution(
                         metric=col,
                         label=label_col,
@@ -151,7 +170,11 @@ class PeriodComparator:
                     ))
                 else:
                     status = "degraded"
-                    explanation = f"Recul de {abs(change_pct):.1f}% sur {label_col} par rapport à {period_a_label}."
+                    explanation = (
+                        f"Decline compared to {period_a_label}."
+                        if is_en
+                        else f"Repli constaté par rapport à {period_a_label}."
+                    )
                     degraded.append(MetricEvolution(
                         metric=col,
                         label=label_col,
@@ -167,8 +190,8 @@ class PeriodComparator:
             fields = [{"name": c, "technical_type": "float"} for c in common_cols]
             df_a = pd.DataFrame(period_a_data)
             df_b = pd.DataFrame(period_b_data)
-            anom_res_a = self.anomaly_service.run(df_a, fields).get("anomaly", [])
-            anom_res_b = self.anomaly_service.run(df_b, fields).get("anomaly", [])
+            anom_res_a = self.anomaly_service.run(df_a, fields, language=language).get("anomaly", [])
+            anom_res_b = self.anomaly_service.run(df_b, fields, language=language).get("anomaly", [])
 
             anom_map_a = {item["column"]: item.get("count", 0) for item in anom_res_a if isinstance(item, dict)}
             for item_b in anom_res_b:
@@ -179,32 +202,49 @@ class PeriodComparator:
                 count_a = anom_map_a.get(col_b, 0)
                 if count_b > 0 and count_b > count_a:
                     label_col = humanize_column(col_b)
+                    desc = (
+                        f"Unusual value detected on {label_col} in {period_b_label}, not observed in reference period."
+                        if is_en
+                        else f"Comportement inhabituel sur {label_col} en {period_b_label}, non observé en période de référence."
+                    )
                     vigilance_points.append(VigilancePoint(
                         metric=col_b,
                         label=label_col,
                         severity="high" if count_b > 2 else "medium",
-                        description=(
-                            f"Variation inhabituelle constatée sur {label_col} en {period_b_label}, "
-                            f"non observée sur la période de référence. À auditer pour vérifier la stabilité opérationnelle."
-                        )
+                        description=desc,
                     ))
         except Exception as exc:
             logger.warning("Anomaly check during comparison failed: %s", exc)
 
         # Build natural executive summary
-        summary_parts = [
-            f"Bilan d'évolution entre « {period_a_label} » et « {period_b_label} »."
-        ]
-        if improved:
-            col_names = ", ".join(m.label for m in improved[:3])
-            summary_parts.append(f"{len(improved)} indicateur(s) en nette amélioration ({col_names}).")
-        if degraded:
-            col_names = ", ".join(m.label for m in degraded[:3])
-            summary_parts.append(f"{len(degraded)} indicateur(s) en repli ({col_names}).")
-        if vigilance_points:
-            summary_parts.append(f"{len(vigilance_points)} nouveau(x) point(s) de vigilance opérationnelle.")
-        elif not degraded:
-            summary_parts.append("Dynamique d'ensemble favorable sans détérioration constatée.")
+        if is_en:
+            summary_parts = [
+                f"Evolution summary between '{period_a_label}' and '{period_b_label}'."
+            ]
+            if improved:
+                col_names = ", ".join(m.label for m in improved[:3])
+                summary_parts.append(f"{len(improved)} indicator(s) improved ({col_names}).")
+            if degraded:
+                col_names = ", ".join(m.label for m in degraded[:3])
+                summary_parts.append(f"{len(degraded)} indicator(s) declined ({col_names}).")
+            if vigilance_points:
+                summary_parts.append(f"{len(vigilance_points)} watchpoint(s) to verify.")
+            elif not degraded:
+                summary_parts.append("Positive overall dynamic with no decline observed.")
+        else:
+            summary_parts = [
+                f"Bilan d'évolution entre « {period_a_label} » et « {period_b_label} »."
+            ]
+            if improved:
+                col_names = ", ".join(m.label for m in improved[:3])
+                summary_parts.append(f"{len(improved)} indicateur(s) en progression ({col_names}).")
+            if degraded:
+                col_names = ", ".join(m.label for m in degraded[:3])
+                summary_parts.append(f"{len(degraded)} indicateur(s) en repli ({col_names}).")
+            if vigilance_points:
+                summary_parts.append(f"{len(vigilance_points)} point(s) de vigilance à vérifier.")
+            elif not degraded:
+                summary_parts.append("Dynamique d'ensemble positive sans recul constaté.")
 
         return CompareResponse(
             success=True,

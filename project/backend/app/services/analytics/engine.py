@@ -66,6 +66,7 @@ class AnalyticsEngine:
         data: list[dict[str, Any]],
         fields: list[dict[str, Any]],
         analysis_types: list[str],
+        language: str = "fr",
     ) -> tuple[DataValidationResult, dict[str, Any]]:
         """Validate data, then run requested analyses.
 
@@ -87,7 +88,12 @@ class AnalyticsEngine:
                 continue
             logger.info("Running analysis: %s", atype)
             try:
-                partial = svc.run(df, field_dicts)
+                import inspect
+                sig = inspect.signature(svc.run)
+                if "language" in sig.parameters:
+                    partial = svc.run(df, field_dicts, language=language)
+                else:
+                    partial = svc.run(df, field_dicts)
             except Exception:
                 # One crashing section must not kill the whole run
                 # (PLAN.md S8): the remaining services still return results.

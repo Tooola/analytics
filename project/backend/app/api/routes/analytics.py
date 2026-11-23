@@ -57,6 +57,7 @@ class QuickAnalyzeRequest(BaseModel):
     analysis: list[str] = ["auto"]
     group_by: str | None = None  # categorical column to cut measures by
     include_ai: bool = False
+    language: str = "fr"  # "fr" | "en"
     label: str = "quick-test"  # optional label shown in results
 
 
@@ -134,6 +135,7 @@ def quick_analyze(
         data=body.data,
         fields=field_defs,
         analysis_types=analysis_types,
+        language=body.language,
     )
 
     # Segment analysis (opt-in group_by): attached to results — the
@@ -175,7 +177,7 @@ def quick_analyze(
             if segments_line:
                 business_context += " " + segments_line
             context = context.model_copy(
-                update={"business_context": business_context}
+                update={"business_context": business_context, "language": body.language}
             )
             ai_result = ai_engine.interpret(context)
             ai_text = ai_result.model_dump_json()
@@ -218,6 +220,7 @@ def quick_compare(
         period_b_label=body.period_b.label,
         period_b_data=body.period_b.data,
         label=body.label,
+        language=body.language,
     )
 
     ai_text = None
@@ -234,6 +237,7 @@ def quick_compare(
                 degraded=report.degraded,
                 vigilance_points=report.vigilance_points,
                 executive_summary=report.executive_summary,
+                language=body.language,
             )
             ai_result = ai_engine.interpret(context)
             ai_text = ai_result.model_dump_json()
@@ -303,6 +307,7 @@ def analyze(
         data=body.data,
         fields=field_defs,
         analysis_types=analysis_type_strs,
+        language=body.language,
     )
 
     # Create the analysis run record
@@ -365,7 +370,7 @@ def analyze(
                 if segments_line:
                     business_context += " " + segments_line
                 context = context.model_copy(
-                    update={"business_context": business_context}
+                    update={"business_context": business_context, "language": body.language}
                 )
                 ai_result = ai_engine.interpret(context)
                 ai_text = ai_result.model_dump_json()
@@ -576,6 +581,7 @@ def analyze_multi(
             data=payload,
             fields=fields_by_slug[slug],
             analysis_types=slug_analysis_types,
+            language=body.language,
         )
         validations[slug] = validation
 
@@ -646,6 +652,7 @@ def analyze_multi(
             dataset_names={
                 s: datasets[s].name for s in body.datasets if s in datasets
             },
+            language=body.language,
         )
 
         if body.include_ai:
@@ -674,7 +681,7 @@ def analyze_multi(
                     if segments_line:
                         business_context += f" [{s}] {segments_line}"
                 context = context.model_copy(
-                    update={"business_context": business_context}
+                    update={"business_context": business_context, "language": body.language}
                 )
                 ai_result = ai_engine.interpret(context)
                 ai_text = ai_result.model_dump_json()

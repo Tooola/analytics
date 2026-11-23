@@ -24,6 +24,7 @@ class AnalyticalContext(BaseModel):
     insights: list[dict[str, Any]] = Field(default_factory=list)
     business_context: str | None = None
     drivers: list[str] = Field(default_factory=list)
+    language: str = "fr"
 
 
 class AIInterpretation(BaseModel):

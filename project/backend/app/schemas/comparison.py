@@ -43,6 +43,7 @@ class QuickCompareRequest(BaseModel):
     period_b: PeriodData
     label: str = "comparatif-temporel"
     include_ai: bool = True
+    language: str = "fr"
 
 
 class CompareResponse(BaseModel):

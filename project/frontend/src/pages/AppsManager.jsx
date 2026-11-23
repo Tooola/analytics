@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { api, setStoredApiKey } from '../api/client';
 import Modal from '../components/Modal';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function AppsManager() {
+  const { language, t } = useLanguage();
   const [apps, setApps] = useState([]);
   const [datasets, setDatasets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +32,7 @@ export default function AppsManager() {
     message: '',
     type: 'info',
     onConfirm: null,
-    confirmText: 'Confirmer',
+    confirmText: t('apps.modal_confirm_default', 'Confirmer'),
   });
 
   const closeModal = () => {
@@ -47,7 +49,7 @@ export default function AppsManager() {
     });
   };
 
-  const showConfirmModal = (title, message, onConfirm, type = 'danger', confirmText = 'Supprimer') => {
+  const showConfirmModal = (title, message, onConfirm, type = 'danger', confirmText = t('apps.modal_delete_default', 'Supprimer')) => {
     setModalConfig({
       isOpen: true,
       title,
@@ -95,9 +97,17 @@ export default function AppsManager() {
       setNewAppName('');
       setNewAppDesc('');
       await loadData();
-      showInfoModal('Succès', `L'application ${result.name} a été enregistrée avec succès.`, 'success');
+      showInfoModal(
+        t('apps.modal_success_title', 'Succès'),
+        t('apps.modal_success_create', "L'application {name} a été enregistrée avec succès.").replace('{name}', result.name),
+        'success'
+      );
     } catch (err) {
-      showInfoModal('Erreur de création', err.message || "Impossible d'enregistrer l'application.", 'danger');
+      showInfoModal(
+        t('apps.modal_err_create_title', 'Erreur de création'),
+        err.message || t('apps.modal_err_create', "Impossible d'enregistrer l'application."),
+        'danger'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -105,40 +115,48 @@ export default function AppsManager() {
 
   const handleDeleteApp = (app) => {
     showConfirmModal(
-      'Confirmation de suppression',
-      `Êtes-vous certain de vouloir supprimer l'application "${app.name}" ? Toutes les clés et datasets associés seront supprimés.`,
+      t('apps.modal_confirm_delete_title', 'Confirmation de suppression'),
+      t('apps.modal_confirm_delete_msg', 'Êtes-vous certain de vouloir supprimer l\'application "{name}" ? Toutes les clés et datasets associés seront supprimés.').replace('{name}', app.name),
       async () => {
         try {
           await api.deleteApplication(app.id);
           await loadData();
-          showInfoModal('Supprimé', `L'application ${app.name} a été supprimée.`, 'info');
+          showInfoModal(
+            t('apps.modal_deleted_title', 'Supprimé'),
+            t('apps.modal_deleted_msg', "L'application {name} a été supprimée.").replace('{name}', app.name),
+            'info'
+          );
         } catch (err) {
-          showInfoModal('Erreur', err.message, 'danger');
+          showInfoModal(t('apps.modal_err_title', 'Erreur'), err.message, 'danger');
         }
       },
       'danger',
-      'Confirmer la suppression'
+      t('apps.modal_confirm_delete_btn', 'Confirmer la suppression')
     );
   };
 
   const handleRegenerateKey = (app) => {
     showConfirmModal(
-      'Renouvellement de clé API',
-      `Voulez-vous générer une nouvelle clé pour "${app.name}" ? L'ancienne clé sera immédiatement révoquée.`,
+      t('apps.modal_regen_title', 'Renouvellement de clé API'),
+      t('apps.modal_regen_msg', 'Voulez-vous générer une nouvelle clé pour "{name}" ? L\'ancienne clé sera immédiatement révoquée.').replace('{name}', app.name),
       async () => {
         try {
           const res = await api.regenerateApiKey(app.id);
           if (res.api_key) {
             setCreatedKey({ name: app.name, key: res.api_key });
             setStoredApiKey(res.api_key);
-            showInfoModal('Clé Régénérée', `Une nouvelle clé d'accès a été générée pour ${app.name}.`, 'success');
+            showInfoModal(
+              t('apps.modal_regen_success_title', 'Clé Régénérée'),
+              t('apps.modal_regen_success_msg', "Une nouvelle clé d'accès a été générée pour {name}.").replace('{name}', app.name),
+              'success'
+            );
           }
         } catch (err) {
-          showInfoModal('Erreur', err.message, 'danger');
+          showInfoModal(t('apps.modal_err_title', 'Erreur'), err.message, 'danger');
         }
       },
       'info',
-      'Générer la nouvelle clé'
+      t('apps.modal_regen_btn', 'Générer la nouvelle clé')
     );
   };
 
@@ -165,11 +183,13 @@ export default function AppsManager() {
       <div>
         <div className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 text-xs font-mono uppercase tracking-wider">
           <Database className="h-4 w-4" />
-          <span>Registre des Applications & Clés d'Accès</span>
+          <span>{t('apps.header_badge', "Registre des Applications & Clés d'Accès")}</span>
         </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">Applications & Datasets Déclarés</h1>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+          {t('apps.header_title', 'Applications & Datasets Déclarés')}
+        </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Chaque application cliente (Farmtinz, CRMtinz, Sharetinz) possède sa clé API isolée.
+          {t('apps.header_subtitle', 'Chaque application cliente (Farmtinz, CRMtinz, Sharetinz) possède sa clé API isolée.')}
         </p>
       </div>
 
@@ -177,16 +197,20 @@ export default function AppsManager() {
       {createdKey && (
         <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between text-xs transition-colors">
           <div>
-            <span className="font-bold text-emerald-800 dark:text-emerald-300 block">Nouvelle Clé API Générée pour {createdKey.name}</span>
+            <span className="font-bold text-emerald-800 dark:text-emerald-300 block">
+              {t('apps.key_banner_title', 'Nouvelle Clé API Générée pour {name}').replace('{name}', createdKey.name)}
+            </span>
             <span className="text-slate-700 dark:text-slate-300 font-mono mt-1 block select-all">{createdKey.key}</span>
-            <span className="text-[11px] text-amber-700 dark:text-amber-400 mt-1 block">Conservez cette clé, elle ne sera plus affichée en clair.</span>
+            <span className="text-[11px] text-amber-700 dark:text-amber-400 mt-1 block">
+              {t('apps.key_banner_warning', 'Conservez cette clé, elle ne sera plus affichée en clair.')}
+            </span>
           </div>
           <button
             onClick={() => handleCopy(createdKey.key)}
             className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium flex items-center space-x-1.5 shrink-0 shadow-sm"
           >
             {copiedKey === createdKey.key ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            <span>Copier la clé</span>
+            <span>{copiedKey === createdKey.key ? t('apps.copied', 'Copié !') : t('apps.copy_key', 'Copier la clé')}</span>
           </button>
         </div>
       )}
@@ -197,16 +221,16 @@ export default function AppsManager() {
         <div className="lg:col-span-2 space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center">
             <Key className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
-            Applications Enregistrées ({apps.length})
+            {t('apps.apps_registered', 'Applications Enregistrées ({count})').replace('{count}', apps.length)}
           </h2>
 
           {loading ? (
             <div className="p-8 text-center text-xs text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-              Chargement des applications...
+              {t('apps.loading_apps', 'Chargement des applications...')}
             </div>
           ) : apps.length === 0 ? (
             <div className="p-8 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
-              Aucune application enregistrée pour le moment.
+              {t('apps.no_apps', 'Aucune application enregistrée pour le moment.')}
             </div>
           ) : (
             <div className="space-y-3">
@@ -222,7 +246,9 @@ export default function AppsManager() {
                     {app.description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{app.description}</p>}
                     <div className="flex items-center space-x-4 mt-2 text-[11px] font-mono text-slate-400 dark:text-slate-500">
                       <span>ID: {app.id ? app.id.slice(0, 8) : ''}...</span>
-                      <span>Créé le: {app.created_at ? new Date(app.created_at).toLocaleDateString() : 'N/A'}</span>
+                      <span>
+                        {t('apps.created_at', 'Créé le : {date}').replace('{date}', app.created_at ? new Date(app.created_at).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR') : 'N/A')}
+                      </span>
                     </div>
                   </div>
 
@@ -230,14 +256,14 @@ export default function AppsManager() {
                     <button
                       onClick={() => handleRegenerateKey(app)}
                       className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs transition-colors"
-                      title="Régénérer une nouvelle clé API"
+                      title={t('apps.regenerate_key', 'Régénérer une nouvelle clé API')}
                     >
                       <RefreshCw className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => handleDeleteApp(app)}
                       className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-xs transition-colors"
-                      title="Supprimer cette application"
+                      title={t('apps.delete_app', 'Supprimer cette application')}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -252,29 +278,33 @@ export default function AppsManager() {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 h-fit shadow-sm transition-colors">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-4 flex items-center">
             <Plus className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
-            Déclarer une Application
+            {t('apps.declare_app_title', 'Déclarer une Application')}
           </h3>
 
           <form onSubmit={handleCreateApp} className="space-y-4 text-xs">
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">Nom de l'application</label>
+              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                {t('apps.app_name_label', "Nom de l'application")}
+              </label>
               <input
                 type="text"
                 value={newAppName}
                 onChange={(e) => setNewAppName(e.target.value)}
-                placeholder="Ex: Farmtinz Production"
+                placeholder={t('apps.app_name_placeholder', 'Ex: Farmtinz Production')}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">Description (optionnelle)</label>
+              <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                {t('apps.app_desc_label', 'Description (optionnelle)')}
+              </label>
               <textarea
                 value={newAppDesc}
                 onChange={(e) => setNewAppDesc(e.target.value)}
                 rows={3}
-                placeholder="Ex: Système de gestion des récoltes et ventes agricoles"
+                placeholder={t('apps.app_desc_placeholder', 'Ex: Système de gestion des récoltes et ventes agricoles')}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none"
               />
             </div>
@@ -284,7 +314,7 @@ export default function AppsManager() {
               disabled={submitting || !newAppName.trim()}
               className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400"
             >
-              {submitting ? 'Création en cours...' : 'Créer & Générer Clé API'}
+              {submitting ? t('apps.btn_creating_app', 'Création en cours...') : t('apps.btn_create_app', 'Créer & Générer Clé API')}
             </button>
           </form>
         </div>
@@ -294,12 +324,12 @@ export default function AppsManager() {
       <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center">
           <Layers className="h-4 w-4 text-indigo-600 dark:text-indigo-400 mr-2" />
-          Jeux de Données Déclarés ({datasets.length})
+          {t('apps.datasets_declared', 'Jeux de Données Déclarés ({count})').replace('{count}', datasets.length)}
         </h2>
 
         {datasets.length === 0 ? (
           <div className="p-6 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
-            Aucun schéma de dataset formel déclaré. (L'endpoint <strong>Test Rapide</strong> permet de tester directement n'importe quel tableau JSON sans déclaration).
+            {t('apps.no_datasets', "Aucun schéma de dataset formel déclaré. (L'endpoint Test Rapide permet de tester directement n'importe quel tableau JSON sans déclaration).")}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -312,7 +342,7 @@ export default function AppsManager() {
                   </span>
                 </div>
                 <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span>Application: </span>
+                  <span>{t('apps.app_label', 'Application : ')}</span>
                   <span className="text-indigo-600 dark:text-indigo-400 font-medium">{ds.application_slug || ds.application_id}</span>
                 </div>
                 {ds.description && (
@@ -325,7 +355,11 @@ export default function AppsManager() {
                     {ds.fields.map((f, fIdx) => (
                       <span
                         key={fIdx}
-                        title={[f.description, f.unit ? `Unité : ${f.unit}` : '', f.semantic_type ? `Type : ${f.semantic_type}` : ''].filter(Boolean).join(' · ') || 'Aucune description'}
+                        title={[
+                          f.description,
+                          f.unit ? t('apps.unit_label', 'Unité : {unit}').replace('{unit}', f.unit) : '',
+                          f.semantic_type ? t('apps.type_label', 'Type : {type}').replace('{type}', f.semantic_type) : ''
+                        ].filter(Boolean).join(' · ') || t('apps.no_desc_column', 'Aucune description')}
                         className={`text-[10px] font-mono px-2 py-0.5 rounded border cursor-help ${
                           f.description
                             ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
@@ -334,14 +368,14 @@ export default function AppsManager() {
                       >
                         {f.name}
                         {f.unit ? ` (${f.unit})` : ` (${f.technical_type})`}
-                        {!f.description && <span className="ml-1 opacity-50" title="Aucune description — l'IA sera moins précise">⚠</span>}
+                        {!f.description && <span className="ml-1 opacity-50" title="⚠">⚠</span>}
                       </span>
                     ))}
                   </div>
                 )}
                 {ds.fields && ds.fields.some(f => !f.description) && (
                   <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400">
-                    ⚠ Certaines colonnes n'ont pas de description — ajoutez-en via l'API pour améliorer la précision des analyses IA.
+                    {t('apps.column_no_desc_warn', "⚠ Certaines colonnes n'ont pas de description — ajoutez-en via l'API pour améliorer la précision des analyses IA.")}
                   </p>
                 )}
               </div>
