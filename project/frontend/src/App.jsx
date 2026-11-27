@@ -41,9 +41,15 @@ function AppContent() {
     };
   }, [authed]);
 
-  const handleLogin = (me) => {
+  const handleLogin = async (me) => {
     setAuthed(true);
     setUser(me);
+    try {
+      const fullMe = await api.me();
+      if (fullMe) setUser(fullMe);
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleLogout = () => {

@@ -22,7 +22,7 @@ export default function Login({ onLogin }) {
     try {
       const data = await api.login({ username, password });
       setAuthToken(data.access_token);
-      onLogin({ id: data.username, username: data.username });
+      onLogin({ id: data.username, username: data.username, role: data.role || 'superadmin' });
     } catch (err) {
       if (err.isNetworkError) {
         setError(err.message);
