@@ -2,20 +2,31 @@ import os
 import sqlite3
 import sys
 
-# Résout le chemin de la base de données relative au dossier du script
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(BASE_DIR, "analytics.db")
+# Try multiple locations to find analytics.db
+candidate_dirs = [
+    os.path.dirname(os.path.abspath(__file__)),
+    os.getcwd(),
+    "/home/jolasun/api.ainalytics.j-ola-sun.com",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "project", "backend"),
+]
 
-# Si non trouvé, cherche dans le dossier courant
-if not os.path.exists(db_path) and os.path.exists("analytics.db"):
-    db_path = "analytics.db"
+db_path = None
+for d in candidate_dirs:
+    p = os.path.join(d, "analytics.db")
+    if os.path.exists(p):
+        db_path = p
+        break
 
-print(f"Connexion à la base SQLite : {db_path}")
+if not db_path:
+    db_path = "/home/jolasun/api.ainalytics.j-ola-sun.com/analytics.db"
+
+print(f"Using database: {db_path}")
 con = sqlite3.connect(db_path)
 cur = con.cursor()
 
+# Ensure users table has all required columns
 columns_to_add = [
-    ("users", "role", "VARCHAR(20) DEFAULT 'admin' NOT NULL"),
+    ("users", "role", "VARCHAR(20) DEFAULT 'superadmin' NOT NULL"),
     ("users", "created_by", "VARCHAR(36)"),
     ("insights", "evidence", "TEXT"),
     ("analysis_runs", "operator_username", "VARCHAR(100)")
@@ -28,13 +39,24 @@ for table, col, col_type in columns_to_add:
     except Exception as e:
         print(f"ℹ Colonne déjà présente ou ignorée ({table}.{col}): {e}")
 
-# Met à jour le premier admin en superadmin
+# Promote ALL existing users to superadmin so the current admin user gets full rights
 try:
-    cur.execute("UPDATE users SET role = 'superadmin' WHERE username = 'admin'")
-    print("✓ Compte 'admin' défini en superadmin")
+    cur.execute("UPDATE users SET role = 'superadmin'")
+    print("✓ Tous les utilisateurs existants ont été promus au rôle 'superadmin' !")
 except Exception as e:
-    print("ℹ Mise à jour rôle admin :", e)
+    print(f"ℹ Mise à jour rôle : {e}")
+
+# Display users
+try:
+    cur.execute("SELECT id, username, role, is_active FROM users")
+    rows = cur.fetchall()
+    print("\n--- Liste des Utilisateurs dans la Base ---")
+    for r in rows:
+        print(f"👤 Username: {r[1]} | Rôle: {r[2]} | Actif: {r[3]}")
+    print("------------------------------------------")
+except Exception as e:
+    print("ℹ Erreur lecture users:", e)
 
 con.commit()
 con.close()
-print("Migration terminée avec succès.")
+print("\nMigration terminée avec succès.")
