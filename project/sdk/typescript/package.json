@@ -3,11 +3,19 @@
   "version": "0.1.0",
   "description": "Official TypeScript & JavaScript client for Open Analytics AI - decision intelligence & causal analytics",
   "main": "dist/index.js",
-  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
-    "test": "echo \"SDK tests ready\""
+    "test": "node -e \"const { AnalyticsClient } = require('./dist/index.js'); console.log('SDK build OK');\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tooola/analytics.git",
+    "directory": "project/sdk/typescript"
   },
   "keywords": [
     "analytics",
