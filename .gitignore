@@ -18,6 +18,7 @@ ENV/
 # ─── Déploiement cPanel (fichiers locaux de build) ──────────
 backend_cpanel/
 backend_cpanel.zip
+frontend_cpanel.zip
 
 # ─── Environment / secrets ──────────────────────────────
 .env
