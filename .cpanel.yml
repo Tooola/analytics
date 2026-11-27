@@ -1,0 +1,10 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/jolasun/api.ainalytics.j-ola-sun.com
+    - /bin/cp -R project/backend/app $DEPLOYPATH/
+    - /bin/cp project/backend/passenger_wsgi.py $DEPLOYPATH/
+    - /bin/cp project/backend/migrate_db.py $DEPLOYPATH/
+    - /bin/cp project/backend/requirements.txt $DEPLOYPATH/
+    - /bin/mkdir -p $DEPLOYPATH/tmp
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
