@@ -15,6 +15,7 @@ export interface QuickAnalyzeParams {
   includeAi?: boolean;
   label?: string;
   groupBy?: string;
+  language?: 'fr' | 'en';
 }
 
 export interface AnalyzeParams {
@@ -24,6 +25,7 @@ export interface AnalyzeParams {
   analysis?: string[];
   includeAi?: boolean;
   groupBy?: string;
+  language?: 'fr' | 'en';
 }
 
 export interface AnalyzeMultiParams {
@@ -34,6 +36,7 @@ export interface AnalyzeMultiParams {
   analysis?: string[];
   includeAi?: boolean;
   groupBy?: string;
+  language?: 'fr' | 'en';
 }
 
 export interface PeriodInput {
@@ -48,6 +51,7 @@ export interface CompareParams {
   periodBLabel?: string;
   label?: string;
   includeAi?: boolean;
+  language?: 'fr' | 'en';
 }
 
 export class AnalyticsError extends Error {
@@ -69,7 +73,7 @@ export class AnalyticsClient {
 
   constructor(options: ClientOptions = {}) {
     this.apiKey = options.apiKey;
-    this.baseUrl = (options.baseUrl || 'http://127.0.0.1:8000').replace(/\/+$/, '');
+    this.baseUrl = (options.baseUrl || 'https://api.ainalytics.j-ola-sun.com').replace(/\/+$/, '');
     this.timeout = options.timeout || 30000;
   }
 
@@ -145,6 +149,7 @@ export class AnalyticsClient {
         include_ai: params.includeAi ?? true,
         label: params.label || 'quick-test',
         ...(params.groupBy ? { group_by: params.groupBy } : {}),
+        ...(params.language ? { language: params.language } : {}),
       },
       false
     );
@@ -167,6 +172,7 @@ export class AnalyticsClient {
         analysis: params.analysis || ['auto'],
         include_ai: params.includeAi ?? true,
         ...(params.groupBy ? { group_by: params.groupBy } : {}),
+        ...(params.language ? { language: params.language } : {}),
       },
       true
     );
@@ -190,6 +196,7 @@ export class AnalyticsClient {
         include_ai: params.includeAi ?? true,
         ...(params.joinKey ? { join_key: params.joinKey } : {}),
         ...(params.groupBy ? { group_by: params.groupBy } : {}),
+        ...(params.language ? { language: params.language } : {}),
       },
       true
     );
@@ -216,6 +223,7 @@ export class AnalyticsClient {
         period_b: normB,
         label: params.label || 'comparatif-temporel',
         include_ai: params.includeAi ?? true,
+        ...(params.language ? { language: params.language } : {}),
       },
       false
     );
