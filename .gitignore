@@ -8,6 +8,7 @@ __pycache__/
 *.so
 *.egg-info/
 dist/
+!project/sdk/typescript/dist/
 build/
 
 # ─── Virtual environments ───────────────────────────────
