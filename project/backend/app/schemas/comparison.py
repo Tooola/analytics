@@ -48,16 +48,45 @@ class QuickCompareRequest(BaseModel):
 
 class CompareResponse(BaseModel):
     """Executive evolution report between two periods."""
-    success: bool
+    success: bool = True
     label: str
     period_a_label: str
     period_b_label: str
     period_a_rows: int
     period_b_rows: int
+    executive_summary: str = ""
     improved: list[MetricEvolution] = Field(default_factory=list)
     degraded: list[MetricEvolution] = Field(default_factory=list)
     stable: list[MetricEvolution] = Field(default_factory=list)
     vigilance_points: list[VigilancePoint] = Field(default_factory=list)
-    executive_summary: str = ""
+    comparative_metrics: list[dict[str, Any]] = Field(default_factory=list)
+    ai_interpretation: str | None = None
+    ai_status: str | None = None
+
+
+class MultiPeriodCompareRequest(BaseModel):
+    """Request to compare 2 to 10 sequential periods (e.g. 3 or 4 months)."""
+    periods: list[PeriodData] = Field(..., min_length=2, max_length=10)
+    label: str = "comparatif-multi-periodes"
+    include_ai: bool = True
+    language: str = "fr"
+
+
+class StepComparison(BaseModel):
+    from_label: str
+    to_label: str
+    improved_count: int
+    degraded_count: int
+    vigilance_count: int
+    report: CompareResponse
+
+
+class MultiPeriodCompareResponse(BaseModel):
+    success: bool = True
+    label: str
+    periods_count: int
+    period_labels: list[str]
+    global_trajectory: str
+    steps: list[StepComparison]
     ai_interpretation: str | None = None
     ai_status: str | None = None

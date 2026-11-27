@@ -7,13 +7,15 @@ import {
   AlertCircle, 
   SlidersHorizontal,
   GitCompare,
-  ArrowRight
+  ArrowRight,
+  Code2
 } from 'lucide-react';
 import { api } from '../api/client';
 import { saveHistory } from '../api/history';
 import { useLanguage } from '../i18n/LanguageContext';
 import BiReport from '../components/BiReport';
 import PeriodComparisonPanel from '../components/PeriodComparisonPanel';
+import ApiSnippetModal from '../components/ApiSnippetModal';
 
 const SAMPLE_FARMTINZ = [
   { "date": "2026-09-01", "culture": "Maïs", "rendement_kg": 4500, "pluviometrie_mm": 42.5, "temperature_c": 24.1 },
@@ -63,9 +65,10 @@ const SAMPLE_COMPARE_B = [
   { "date": "2026-11-05", "ventes_unites": 190, "chiffre_affaires_eur": 19800, "depenses_marketing_eur": 1950, "visiteurs": 4700, "taux_retours_pct": 2.5 }
 ];
 
-export default function QuickTest() {
+export default function QuickTest({ currentUser }) {
   const { language: currentLang, t } = useLanguage();
   const [activeTab, setActiveTab] = useState('single'); // 'single' | 'compare'
+  const [showApiModal, setShowApiModal] = useState(false);
 
   // Analysis language (default follows app language, can be toggled)
   const [analysisLang, setAnalysisLang] = useState(currentLang);
@@ -136,6 +139,7 @@ export default function QuickTest() {
       setReport(result);
       setParsedData(dataToSubmit);
       saveHistory({
+        id: result.id,
         kind: 'quick',
         title: label || 'quick-test',
         app: 'Test rapide',
@@ -145,6 +149,7 @@ export default function QuickTest() {
         aiStatus: result.ai_status || null,
         report: result,
         payloads: dataToSubmit,
+        operator_username: currentUser?.username || 'Admin',
       });
     } catch (err) {
       setError(err.message || "Erreur lors de l'exécution de l'analyse.");
@@ -196,6 +201,7 @@ export default function QuickTest() {
         aiStatus: result.ai_status || null,
         report: result,
         payloads: { period_a: dataA, period_b: dataB },
+        operator_username: currentUser?.username || 'Admin',
       });
     } catch (err) {
       setCompareError(err.message || "Erreur lors de l'exécution du comparatif.");
@@ -227,30 +233,42 @@ export default function QuickTest() {
           </p>
         </div>
 
-        {/* Mode Switcher */}
-        <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs shrink-0 self-start md:self-auto">
+        {/* Actions & Mode Switcher */}
+        <div className="flex items-center gap-3 shrink-0 self-start md:self-auto flex-wrap">
           <button
-            onClick={() => setActiveTab('single')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all ${
-              activeTab === 'single'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
+            type="button"
+            onClick={() => setShowApiModal(true)}
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-all shadow-sm"
+            title="Afficher le code d'intégration API"
           >
-            <Zap className="h-4 w-4" />
-            <span>{t('quick_test.analysis_simple_btn', 'Single Analysis')}</span>
+            <Code2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <span>Code API</span>
           </button>
-          <button
-            onClick={() => setActiveTab('compare')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all ${
-              activeTab === 'compare'
-                ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <GitCompare className="h-4 w-4" />
-            <span>{t('quick_test.comparison_btn', 'Time Comparison (M vs M-1)')}</span>
-          </button>
+
+          <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs">
+            <button
+              onClick={() => setActiveTab('single')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all ${
+                activeTab === 'single'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Zap className="h-4 w-4" />
+              <span>{t('quick_test.analysis_simple_btn', 'Single Analysis')}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('compare')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-medium transition-all ${
+                activeTab === 'compare'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <GitCompare className="h-4 w-4" />
+              <span>{t('quick_test.comparison_btn', 'Time Comparison (M vs M-1)')}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -637,6 +655,20 @@ export default function QuickTest() {
           )}
         </div>
       )}
+
+      {/* Modal Code API (cURL, Python, JS, PHP) */}
+      <ApiSnippetModal
+        isOpen={showApiModal}
+        onClose={() => setShowApiModal(false)}
+        endpoint="/api/v1/analyze/quick"
+        samplePayload={{
+          data: parsedData || SAMPLE_FARMTINZ,
+          analysis: analyses,
+          include_ai: includeAi,
+          label: label || 'Farmtinz Harvest',
+          language: analysisLang,
+        }}
+      />
     </div>
   );
 }

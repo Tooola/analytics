@@ -57,6 +57,7 @@ class AnalysisRunRepository(BaseRepository[AnalysisRun]):
         dataset_id: str,
         analysis_types: list[str],
         row_count: int,
+        operator_username: str | None = None,
     ) -> AnalysisRun:
         run = AnalysisRun(
             application_id=application_id,
@@ -64,6 +65,7 @@ class AnalysisRunRepository(BaseRepository[AnalysisRun]):
             analysis_types=",".join(analysis_types),
             status="running",
             row_count=row_count,
+            operator_username=operator_username,
         )
         self.db.add(run)
         self.db.commit()

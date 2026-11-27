@@ -222,7 +222,22 @@
     "card_status_warn": "À vérifier",
     "card_status_ok": "Normal",
     "card_sub_warn": "Valeurs anormales",
-    "card_sub_ok": "Tout est normal"
+    "card_sub_ok": "Tout est normal",
+    "card_rows": "lignes",
+    "card_indicator_one": "indicateur mesuré",
+    "card_no_indicators": "Aucun indicateur numérique",
+    "card_dir_up": "en hausse",
+    "card_dir_down": "en baisse",
+    "card_dir_stable_sg": "stable",
+    "card_dir_stable_pl": "stables",
+    "card_no_trend": "Aucune tendance nette sur la période",
+    "card_on": "Sur",
+    "card_no_anomaly": "Aucune anomalie sur",
+    "card_ai_synthesis": "Synthèse IA",
+    "card_reco_ready": "recommandations prêtes",
+    "card_ai_ready": "Synthèse IA disponible",
+    "card_ai_error": "IA indisponible — résultats statistiques conservés",
+    "card_ai_na": "Synthèse IA non demandée"
   },
   "consolidated": {
     "title": "Vue Consolidée Multi-Sources",

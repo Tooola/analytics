@@ -4,24 +4,21 @@ import {
   Zap, 
   Layers, 
   Database, 
-  Settings, 
-  Server, 
   Sun,
   Moon,
   LogOut,
   UserRound,
   Clock,
-  Languages
+  Languages,
+  Users
 } from 'lucide-react';
-import { api, getApiBase, setApiBase } from '../api/client';
+import { api } from '../api/client';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [apiUrlInput, setApiUrlInput] = useState(getApiBase());
   const { theme, toggleTheme } = useTheme();
   const { language, toggleLanguage, t } = useLanguage();
 
@@ -42,13 +39,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
     return () => clearInterval(interval);
   }, []);
 
-  const handleSaveUrl = (e) => {
-    e.preventDefault();
-    setApiBase(apiUrlInput);
-    setIsConfigOpen(false);
-    setLoading(true);
-    checkStatus();
-  };
+
 
   // Live status: green = healthy, amber = API reachable but degraded,
   // red = servers unreachable. Derived from the last /health probe.
@@ -81,6 +72,7 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
     { id: 'analytics', label: t('nav.analytics', 'Analyse Avancée'), icon: Layers },
     { id: 'history', label: t('nav.history', 'Historique'), icon: Clock },
     { id: 'apps', label: t('nav.apps', 'Applications & Accès'), icon: Database },
+    ...(user?.role === 'superadmin' ? [{ id: 'users', label: t('nav.users', 'Gestion Admins'), icon: Users }] : []),
   ];
 
   return (
@@ -142,16 +134,6 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
               {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
             </button>
 
-            {/* API Endpoint Config button */}
-            <button
-              onClick={() => setIsConfigOpen(!isConfigOpen)}
-              className="flex items-center space-x-1.5 px-2 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-700 dark:text-slate-300 transition-colors"
-              title="Configurer l'URL du Backend"
-            >
-              <span className="font-mono text-[11px] max-w-[96px] truncate">{getApiBase().replace(/^https?:\/\//, '')}</span>
-              <Settings className="h-3 w-3 text-slate-400" />
-            </button>
-
             {/* Live status dot — green: healthy, amber: API degraded, red: down */}
             <button
               onClick={() => {
@@ -193,46 +175,6 @@ export default function Navbar({ activeTab, setActiveTab, user, onLogout }) {
           </div>
         </div>
       </div>
-
-      {/* Endpoint Configuration Modal */}
-      {isConfigOpen && (
-        <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/95 px-4 py-3 shadow-xl transition-colors">
-          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center space-x-2">
-              <Server className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-slate-700 dark:text-slate-300 font-semibold">{t('nav.api_target', 'Backend API Target:')}</span>
-              <span className="text-slate-500">{t('nav.api_default_hint', 'Default local: http://127.0.0.1:8000')}</span>
-            </div>
-            <form onSubmit={handleSaveUrl} className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={apiUrlInput}
-                onChange={(e) => setApiUrlInput(e.target.value)}
-                placeholder="http://127.0.0.1:8000"
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white font-mono focus:outline-none focus:border-indigo-500 w-72"
-              />
-              <button
-                type="submit"
-                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors"
-              >
-                {t('nav.apply', 'Apply')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setApiUrlInput('http://127.0.0.1:8000');
-                  setApiBase('http://127.0.0.1:8000');
-                  setIsConfigOpen(false);
-                  checkStatus();
-                }}
-                className="px-3.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium transition-colors"
-              >
-                {t('nav.reset_local', 'Reset Local')}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

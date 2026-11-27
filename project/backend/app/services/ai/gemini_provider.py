@@ -46,11 +46,11 @@ insights: {json.dumps(context.insights)}
 </DATA>
 
 Provide your response in strict JSON format with the following keys:
-1. "summary": A concise 2-sentence executive summary of the overall analysis.
+1. "summary": A concise 2-sentence executive summary of the overall analysis and real-world trajectory.
 2. "key_findings": A list of 3-5 specific bullet points detailing key trends, metrics, or anomalies.
-3. "recommendations": A list of 3-4 strategic advice items based on the data.
-4. "action_plan": A list of 3-4 concrete, step-by-step solution proposals (Immediate, Short-Term, Long-Term).
-5. "risk_assessment": A 1-sentence risk level and operational evaluation.
+3. "recommendations": A list of 2-3 concrete operational and physical actions for the team on the ground. STRICTLY FORBIDDEN to recommend data auditing, checking sensors, or making dashboards. Must be real business/field actions.
+4. "action_plan": A list of 2-3 step-by-step operational proposals (Immediate, Short-Term) on processes, resources, stocks, or staffing.
+5. "risk_assessment": A 1-sentence assessment of the REAL OPERATIONAL or FINANCIAL RISK (e.g. crop loss, equipment breakdown, stockout, clinic saturation), NOT data entry issues.
 
 Response must be pure JSON only without markdown formatting.
 """

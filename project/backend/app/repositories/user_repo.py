@@ -20,6 +20,13 @@ class UserRepository(BaseRepository[User]):
         stmt = select(User).where(User.username == username)
         return self.db.scalars(stmt).first()
 
-    def create_user(self, username: str, raw_password: str) -> User:
-        """Create an operator account with a bcrypt-hashed password."""
-        return self.create(username=username, password_hash=hash_password(raw_password))
+    def create_user(
+        self, username: str, raw_password: str, role: str = "admin", created_by: str | None = None
+    ) -> User:
+        """Create an operator account with a bcrypt-hashed password and role."""
+        return self.create(
+            username=username,
+            password_hash=hash_password(raw_password),
+            role=role,
+            created_by=created_by,
+        )

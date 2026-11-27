@@ -82,3 +82,24 @@ def require_dashboard_user(
             detail="Unknown or disabled user",
         )
     return user
+
+
+def optional_dashboard_user(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Optionally resolve the connected dashboard user from Bearer token if present."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        payload = decode_dashboard_token(token)
+        if payload.get("type") != "dashboard":
+            return None
+        user = db.get(User, str(payload.get("sub", "")))
+        if user and user.is_active:
+            return user
+    except Exception:
+        return None
+    return None
+

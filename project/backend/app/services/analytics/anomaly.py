@@ -76,25 +76,14 @@ class AnomalyService(BaseAnalyticsService):
         reason = None
         recommendation = None
         if confirmed_anomalies:
-            first_val = confirmed_anomalies[0]["value"]
-            if language == "en":
-                reason = (
-                    "Unusually high value compared to the normal average for the period."
-                    if first_val > mean
-                    else "Unusually low value significantly below the normal average."
-                )
-                recommendation = (
-                    "Check the source records for this date to confirm if this is an exceptional operational event or a data entry error."
-                )
-            else:
-                reason = (
-                    "Niveau anormalement élevé par rapport à la moyenne habituelle."
-                    if first_val > mean
-                    else "Baisse inhabituelle nettement sous la moyenne habituelle."
-                )
-                recommendation = (
-                    "Vérifier les données à cette date pour confirmer s'il s'agit d'un événement réel ou d'une erreur de saisie."
-                )
+            first_val = float(confirmed_anomalies[0]["value"])
+            from app.services.analytics.anomaly_context import get_anomaly_insight
+            reason, recommendation = get_anomaly_insight(
+                column=col,
+                val=first_val,
+                mean=float(mean),
+                language=language or "fr",
+            )
 
         return {
             "column": col,

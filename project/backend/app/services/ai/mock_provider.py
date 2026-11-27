@@ -69,17 +69,28 @@ class MockAIProvider(AIProvider):
                 recommendations.append(f"La forte hausse des volumes (+{qty_change}%) nécessite un ajustement des niveaux de stock pour éviter toute rupture.")
                 action_plan.append("Court Terme (1-4 semaines) : Réajuster les seuils de réapprovisionnement et sécuriser les contrats logistiques avec les transporteurs.")
 
-        # Summarize anomalies
+        # Summarize anomalies with domain-aware recommendations
         anomaly_count = sum(a.get("count", 0) for a in context.anomalies)
+        flagged_anoms = [a for a in context.anomalies if a.get("count", 0) > 0]
         if anomaly_count:
+            first_anom = flagged_anoms[0] if flagged_anoms else {}
+            anom_rec = first_anom.get("recommendation")
+            anom_col = first_anom.get("column", "indicateurs clés")
+
             if is_en:
-                findings.append("Anomalies and atypical patterns observed on key indicators requiring operational verification.")
-                recommendations.append("Review isolated entries to verify fluctuations and rule out data entry errors.")
-                action_plan.append("Medium Term (> 1 month): Implement automated threshold alerts and train operations teams.")
+                findings.append(f"Notable anomaly and atypical pattern detected on '{anom_col}', requiring targeted operational attention.")
+                if anom_rec:
+                    recommendations.append(anom_rec)
+                else:
+                    recommendations.append(f"Deploy targeted adjustments on the process associated with '{anom_col}' to restore nominal levels.")
+                action_plan.append(f"Immediate Priority (< 7 days): Implement field corrections on '{anom_col}' to absorb the recorded fluctuation.")
             else:
-                findings.append("Anomalies et comportements atypiques constatés sur certains indicateurs clés nécessitant une vérification opérationnelle.")
-                recommendations.append("Contrôler les enregistrements isolés pour confirmer la réalité des variations et écarter toute erreur de saisie.")
-                action_plan.append("Moyen Terme (> 1 mois) : Mettre en place des alertes automatisées de seuil et former les équipes opérationnelles.")
+                findings.append(f"Anomalie et comportement atypique notable constatés sur '{anom_col}', nécessitant un arbitrage opérationnel ciblé.")
+                if anom_rec:
+                    recommendations.append(anom_rec)
+                else:
+                    recommendations.append(f"Déployer des ajustements ciblés sur le processus lié à '{anom_col}' pour rétablir les niveaux nominaux.")
+                action_plan.append(f"Priorité Immédiate (< 7 jours) : Engager les corrections de terrain sur '{anom_col}' pour résorber la fluctuation constatée.")
 
         if not findings:
             if is_en:
@@ -91,30 +102,37 @@ class MockAIProvider(AIProvider):
 
         if not action_plan:
             if is_en:
-                action_plan.append("🔴 IMMEDIATE (< 7 days): Validate source data pipeline integrity with the engineering team.")
-                action_plan.append("🟡 SHORT TERM (1-4 weeks): Establish monthly KPI targets based on observed trends.")
-                action_plan.append("🟢 LONG TERM (> 1 month): Automate weekly executive reporting generation.")
+                action_plan.append("Immediate Priority (< 7 days): Maintain current operational settings and optimize resource allocation.")
+                action_plan.append("Short Term (1-4 weeks): Review medium-term targets based on sustained trends.")
             else:
-                action_plan.append("🔴 IMMÉDIAT (< 7 jours) : Valider l'intégrité des flux de données sources avec l'équipe technique.")
-                action_plan.append("🟡 COURT TERME (1-4 semaines) : Établir des objectifs de KPI mensuels basés sur les tendances observées.")
-                action_plan.append("🟢 LONG TERME (> 1 mois) : Automatiser la génération de rapports décisionnels hebdomadaires.")
+                action_plan.append("Priorité Immédiate (< 7 jours) : Maintenir le dispositif opérationnel en cours et optimiser l'allocation des ressources.")
+                action_plan.append("Court Terme (1-4 semaines) : Réévaluer les objectifs à moyen terme au vu des tendances consolidées.")
 
-        risk_level = ("High" if is_en else "Élevé") if anomaly_count > 3 or (cost_change and rev_change and cost_change > rev_change + 15) else ("Low" if is_en else "Faible")
+        risk_level = ("High" if is_en else "Élevé") if anomaly_count > 3 or (cost_change and rev_change and cost_change > rev_change + 15) else (("Moderate" if is_en else "Modéré") if anomaly_count > 0 else ("Low" if is_en else "Faible"))
 
         app_name = context.application.capitalize()
         dataset_name = context.dataset.replace("-", " ").capitalize()
+        flagged_cols_text = ", ".join(a.get("column", "") for a in flagged_anoms[:2]) if flagged_anoms else ""
         if is_en:
             summary = (
                 f"Executive analysis of {context.row_count} records from dataset '{dataset_name}' ({app_name}): "
-                f"Identified {len(findings)} strategic finding(s) and {len(recommendations)} high-ROI recommendation(s)."
+                f"Identified {len(findings)} strategic finding(s) and {len(recommendations)} actionable recommendation(s)."
             )
-            risk_text = f"Risk level: {risk_level}. Operational stability under control."
+            risk_text = (
+                f"Risk level: {risk_level} — operational strain observed on {flagged_cols_text}, requiring close oversight."
+                if flagged_cols_text
+                else f"Risk level: {risk_level} — stable trajectory across core indicators."
+            )
         else:
             summary = (
                 f"Analyse décisionnelle de {context.row_count} enregistrements du dataset '{dataset_name}' ({app_name}) : "
-                f"Détection de {len(findings)} constat(s) stratégique(s) et formulation de {len(recommendations)} recommandation(s) à haut ROI."
+                f"Détection de {len(findings)} constat(s) stratégique(s) et formulation de {len(recommendations)} recommandation(s) opérationnelle(s)."
             )
-            risk_text = f"Niveau de risque : {risk_level}. Stabilité opérationnelle sous contrôle."
+            risk_text = (
+                f"Niveau de risque : {risk_level} — tension opérationnelle constatée sur {flagged_cols_text}, nécessitant un arbitrage rapide."
+                if flagged_cols_text
+                else f"Niveau de risque : {risk_level} — trajectoire stable sur l'ensemble des indicateurs analysés."
+            )
 
         return AIInterpretation(
             provider=self.name,

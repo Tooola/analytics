@@ -173,6 +173,7 @@ class AnalysisRun(Base):
     row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     result: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON blob
     ai_interpretation: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON blob
+    operator_username: Mapped[str | None] = mapped_column(String(100), nullable=True)  # Admin or API key identity
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -204,9 +205,16 @@ class Insight(Base):
     value: Mapped[float | None] = mapped_column(Float, nullable=True)
     unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
     confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    evidence: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON blob with underlying data/facts
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     analysis_run: Mapped[AnalysisRun] = relationship(back_populates="insights")
+
+
+class UserRole(str, enum.Enum):
+    superadmin = "superadmin"
+    admin = "admin"
+    viewer = "viewer"
 
 
 class User(Base):
@@ -221,5 +229,9 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        SAEnum(UserRole, native_enum=False), default=UserRole.admin, nullable=False
+    )
+    created_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

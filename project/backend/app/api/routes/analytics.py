@@ -10,12 +10,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_application_by_api_key
+from app.api.dependencies import get_application_by_api_key, require_dashboard_user, optional_dashboard_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.logging import get_logger
 from app.core.ratelimit import limiter
-from app.models import Application
+from app.models import Application, User
 from app.repositories.analysis_repo import AnalysisRunRepository
 from app.repositories.application_repo import ApplicationRepository
 from app.repositories.dataset_repo import DatasetRepository
@@ -30,7 +30,13 @@ from app.schemas.analytics import (
     MultiAnalysisRequest,
     MultiAnalysisResponse,
 )
-from app.schemas.comparison import CompareResponse, QuickCompareRequest
+from app.schemas.comparison import (
+    CompareResponse,
+    MultiPeriodCompareRequest,
+    MultiPeriodCompareResponse,
+    QuickCompareRequest,
+    StepComparison,
+)
 from app.services.ai.business_context import build_business_context
 from app.services.ai.engine import AIEngine
 from app.services.analytics.auto_selector import auto_select_analyses
@@ -114,6 +120,8 @@ def _infer_fields(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def quick_analyze(
     body: QuickAnalyzeRequest,
     request: Request,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(optional_dashboard_user),
 ) -> dict[str, Any]:
     """Run analysis on raw JSON data without pre-registered application or dataset.
 
@@ -152,7 +160,7 @@ def quick_analyze(
             )
 
     insight_engine = InsightEngine()
-    insight_dicts = insight_engine.generate(results, dataset_name=body.label)
+    insight_dicts = insight_engine.generate(results, dataset_name=body.label, language=body.language)
 
     ai_text = None
     if body.include_ai:
@@ -184,7 +192,30 @@ def quick_analyze(
         except Exception as exc:
             logger.warning("Quick analyze AI failed: %s", exc)
 
+    # Persist in DB so ALL dashboard admins see this run in their history
+    run_id = None
+    try:
+        from app.services.dashboard_auth import ensure_system_quick_test_entities
+        sys_app_id, sys_ds_id = ensure_system_quick_test_entities(db)
+        run_repo = AnalysisRunRepository(db)
+        op_name = current_user.username if current_user else "Admin"
+        run = run_repo.create_run(
+            application_id=sys_app_id,
+            dataset_id=sys_ds_id,
+            analysis_types=analysis_types,
+            row_count=len(body.data),
+            operator_username=op_name,
+        )
+        run_repo.add_insights(run, insight_dicts)
+        results_with_meta = dict(results)
+        results_with_meta["label"] = body.label
+        run_repo.complete_run(run, results_with_meta, ai_interpretation=ai_text)
+        run_id = run.id
+    except Exception as exc:
+        logger.warning("Could not persist quick test run in DB: %s", exc)
+
     return {
+        "id": run_id,
         "success": True,
         "label": body.label,
         "row_count": len(body.data),
@@ -247,6 +278,65 @@ def quick_compare(
     report.ai_interpretation = ai_text
     report.ai_status = _ai_status(body.include_ai, ai_text)
     return report
+
+
+@router.post("/analyze/quick/compare/multi", response_model=MultiPeriodCompareResponse)
+@limiter.limit("30/minute")
+def quick_compare_multi(
+    body: MultiPeriodCompareRequest,
+    request: Request,
+) -> MultiPeriodCompareResponse:
+    """Compare N sequential periods (2, 3, 4... up to 10 periods).
+
+    For each step (i -> i+1), executes the PeriodComparator and aggregates
+    a global trajectory assessment.
+    """
+    periods = body.periods
+    comparator = PeriodComparator()
+    steps: list[StepComparison] = []
+    total_improved = 0
+    total_degraded = 0
+
+    for i in range(len(periods) - 1):
+        p_a = periods[i]
+        p_b = periods[i + 1]
+        step_report = comparator.compare(
+            period_a_label=p_a.label,
+            period_a_data=p_a.data,
+            period_b_label=p_b.label,
+            period_b_data=p_b.data,
+            label=f"{p_a.label} → {p_b.label}",
+            language=body.language,
+        )
+        total_improved += len(step_report.improved)
+        total_degraded += len(step_report.degraded)
+        steps.append(
+            StepComparison(
+                from_label=p_a.label,
+                to_label=p_b.label,
+                improved_count=len(step_report.improved),
+                degraded_count=len(step_report.degraded),
+                vigilance_count=len(step_report.vigilance_points),
+                report=step_report,
+            )
+        )
+
+    if total_improved > total_degraded * 1.5:
+        trajectory = "Amélioration globale et soutenue sur la séquence observée."
+    elif total_degraded > total_improved * 1.5:
+        trajectory = "Dégradation progressive nécessitant une action corrective prioritaire."
+    else:
+        trajectory = "Dynamique contrastée avec des progressions sectorielles et des vigilances persistantes."
+
+    return MultiPeriodCompareResponse(
+        label=body.label,
+        periods_count=len(periods),
+        period_labels=[p.label for p in periods],
+        global_trajectory=trajectory,
+        steps=steps,
+        ai_interpretation=None,
+        ai_status=_ai_status(body.include_ai, None),
+    )
 
 
 
@@ -317,6 +407,7 @@ def analyze(
         dataset_id=dataset.id,
         analysis_types=analysis_type_strs,
         row_count=len(body.data),
+        operator_username=authed_app.name,
     )
 
     if not validation.valid:
@@ -347,7 +438,7 @@ def analyze(
     ai_text = None
     try:
         insight_engine = InsightEngine()
-        insight_dicts = insight_engine.generate(results, dataset_name=dataset.name)
+        insight_dicts = insight_engine.generate(results, dataset_name=dataset.name, language=body.language)
         run_repo.add_insights(run, insight_dicts)
 
         # AI interpretation (optional)
@@ -590,6 +681,7 @@ def analyze_multi(
             dataset_id=datasets[slug].id,
             analysis_types=slug_analysis_types,
             row_count=len(payload),
+            operator_username=authed_app.name,
         )
         analysis_ids[slug] = run.id
 
@@ -616,7 +708,7 @@ def analyze_multi(
         # Insights + persistence. A crash here marks THIS run failed
         # instead of leaking it as "running" (PLAN.md S8 contract).
         try:
-            insight_dicts = insight_engine.generate(res, dataset_name=datasets[slug].name)
+            insight_dicts = insight_engine.generate(res, dataset_name=datasets[slug].name, language=body.language)
             run_repo.add_insights(run, insight_dicts)
             run_repo.complete_run(run, res)
             results[slug] = res
@@ -763,3 +855,47 @@ def list_analyses(
     run_repo = AnalysisRunRepository(db)
     runs = run_repo.list_by_application(authed_app.id, limit=limit, skip=skip)
     return [AnalysisRunRead.model_validate(r) for r in runs]
+
+
+@router.get("/analysis/admin/all", response_model=list[dict[str, Any]])
+def list_all_analyses_admin(
+    limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_dashboard_user),
+) -> list[dict[str, Any]]:
+    """List all analysis runs across all applications for the dashboard operator."""
+    run_repo = AnalysisRunRepository(db)
+    app_repo = ApplicationRepository(db)
+    dataset_repo = DatasetRepository(db)
+
+    runs = run_repo.list_recent(limit=limit)
+    out = []
+    for r in runs:
+        app = app_repo.get(r.application_id)
+        dataset = dataset_repo.get(r.dataset_id)
+        label = None
+        if r.result:
+            try:
+                parsed_res = json.loads(r.result) if isinstance(r.result, str) else r.result
+                if isinstance(parsed_res, dict):
+                    label = parsed_res.get("label")
+            except Exception:
+                pass
+        out.append({
+            "id": r.id,
+            "label": label,
+            "application_name": app.name if app else "Test Rapide",
+            "application_slug": app.slug if app else "quick-test",
+            "dataset_name": dataset.name if dataset else "Données brutes",
+            "dataset_slug": dataset.slug if dataset else "data",
+            "analysis_types": r.analysis_types,
+            "status": r.status.value if hasattr(r.status, "value") else str(r.status),
+            "row_count": r.row_count,
+            "operator_username": r.operator_username or "Admin",
+            "created_at": r.created_at.isoformat(),
+            "has_ai": bool(r.ai_interpretation),
+            "result": r.result,
+            "ai_interpretation": r.ai_interpretation,
+        })
+    return out

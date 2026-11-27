@@ -8,15 +8,12 @@ const DEFAULT_API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 const TOKEN_KEY = 'oak_token';
 
 export function getApiBase() {
-  return localStorage.getItem('oak_api_base') || DEFAULT_API_BASE;
+  return DEFAULT_API_BASE;
 }
 
-export function setApiBase(url) {
-  if (!url) {
-    localStorage.removeItem('oak_api_base');
-  } else {
-    localStorage.setItem('oak_api_base', url.replace(/\/+$/, ''));
-  }
+export function setApiBase() {
+  // Disallowed for security / XSS prevention
+  localStorage.removeItem('oak_api_base');
 }
 
 // ─── Dashboard session (JWT from POST /auth/login) ────────────────────────
@@ -115,6 +112,23 @@ export const api = {
     }),
   me: () => request('/api/v1/auth/me'),
 
+  // Users (Multi-Admins)
+  getUsers: () => request('/api/v1/auth/users'),
+  createUser: ({ username, password, role }) =>
+    request('/api/v1/auth/users', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, role }),
+    }),
+  updateUser: (userId, data) =>
+    request(`/api/v1/auth/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteUser: (userId) =>
+    request(`/api/v1/auth/users/${userId}`, {
+      method: 'DELETE',
+    }),
+
   // Quick Analyze (No registration needed)
   quickAnalyze: ({ data, analysis = ['summary', 'trend', 'anomaly'], include_ai = true, label = 'quick-test', language = 'fr' }) =>
     request('/api/v1/analyze/quick', {
@@ -135,6 +149,18 @@ export const api = {
       body: JSON.stringify({
         period_a,
         period_b,
+        label,
+        include_ai,
+        language,
+      }),
+    }),
+
+  // Multi-Period Comparison (N periods: 2, 3, 4...)
+  quickCompareMulti: ({ periods, label, include_ai = true, language = 'fr' }) =>
+    request('/api/v1/analyze/quick/compare/multi', {
+      method: 'POST',
+      body: JSON.stringify({
+        periods,
         label,
         include_ai,
         language,
@@ -164,6 +190,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+
+  // Analysis runs & History
+  getAnalysisRuns: (limit = 50, skip = 0) =>
+    request(`/api/v1/analysis/admin/all?limit=${limit}&skip=${skip}`),
 
   // Formal Analysis
   analyze: ({ application, dataset, analysis, data, include_ai = true, group_by, language = 'fr', apiKey }) =>

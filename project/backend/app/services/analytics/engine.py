@@ -81,25 +81,38 @@ class AnalyticsEngine:
         field_dicts = [self._field_to_dict(f) for f in fields]
         results: dict[str, Any] = {}
 
-        for atype in analysis_types:
+        # Parallel dispatch across independent analytical services
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import inspect
+
+        def _run_single(atype: str) -> tuple[str, dict[str, Any] | None]:
             svc = self._services.get(atype)
             if svc is None:
                 logger.warning("Unknown analysis type: %s", atype)
-                continue
-            logger.info("Running analysis: %s", atype)
+                return atype, None
             try:
-                import inspect
                 sig = inspect.signature(svc.run)
                 if "language" in sig.parameters:
-                    partial = svc.run(df, field_dicts, language=language)
+                    res = svc.run(df, field_dicts, language=language)
                 else:
-                    partial = svc.run(df, field_dicts)
+                    res = svc.run(df, field_dicts)
+                return atype, res
             except Exception:
-                # One crashing section must not kill the whole run
-                # (PLAN.md S8): the remaining services still return results.
                 logger.exception("Analysis service crashed: %s", atype)
-                continue
-            results.update(partial)
+                return atype, None
+
+        if len(analysis_types) > 1:
+            with ThreadPoolExecutor(max_workers=min(4, len(analysis_types))) as executor:
+                futures = [executor.submit(_run_single, atype) for atype in analysis_types]
+                for f in as_completed(futures):
+                    _, partial = f.result()
+                    if partial:
+                        results.update(partial)
+        else:
+            for atype in analysis_types:
+                _, partial = _run_single(atype)
+                if partial:
+                    results.update(partial)
 
         return validation, results
 

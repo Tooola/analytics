@@ -33,6 +33,12 @@ function humanizeCol(name) {
   return label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim() + unit;
 }
 
+// Nettoie un texte pour remplacer tout nom de colonne technique avec underscore
+function cleanTextLabels(text) {
+  if (typeof text !== 'string') return text;
+  return text.replace(/\b([a-zA-Z0-9]+)(_[a-zA-Z0-9]+)+\b/g, (match) => humanizeCol(match));
+}
+
 function parseAi(raw) {
   if (!raw) return null;
   try {
@@ -43,7 +49,7 @@ function parseAi(raw) {
 }
 
 export default function ConsolidatedPanel({ res }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const syn = res?.synthesis;
   if (!syn) return null;
 
@@ -112,13 +118,19 @@ export default function ConsolidatedPanel({ res }) {
   const hasAnomalies = allAnomalies.length > 0;
 
   function getAnomalyReason(anom) {
-    if (anom.reason) return anom.reason;
+    if (anom.reason && !anom.reason.includes('Niveau anormalement élevé par rapport à la moyenne habituelle') && !anom.reason.includes('Unusually high value compared to the normal average')) {
+      return anom.reason;
+    }
     return t('report.anomaly_default', "Pic exceptionnel ou décrochage inhabituel constaté par rapport à la normale observée.");
   }
 
   function getAnomalyRecommendation(anom) {
-    if (anom.recommendation) return anom.recommendation;
-    return t('report.action_advised', "Action conseillée : ") + "Contrôler les enregistrements sources.";
+    if (anom.recommendation && !anom.recommendation.toLowerCase().includes('vérifier les données') && !anom.recommendation.toLowerCase().includes('data entry') && !anom.recommendation.toLowerCase().includes('erreur de saisie')) {
+      return anom.recommendation;
+    }
+    return language === 'fr'
+      ? "Engager un arbitrage opérationnel ciblé sur les processus associés à cette métrique."
+      : "Deploy targeted operational adjustments on processes associated with this metric.";
   }
 
   return (
@@ -157,7 +169,7 @@ export default function ConsolidatedPanel({ res }) {
                 <Sparkles className="h-3.5 w-3.5" />
                 <span>{t('consolidated.executive_summary_title', 'Synthèse Globale de Direction')}</span>
               </div>
-              {ai.summary}
+              {cleanTextLabels(ai.summary)}
             </div>
           )}
 
@@ -174,7 +186,7 @@ export default function ConsolidatedPanel({ res }) {
                   {ai.key_findings.map((finding, idx) => (
                     <li key={idx} className="text-xs text-slate-600 dark:text-slate-300 flex items-start space-x-2">
                       <span className="text-indigo-600 dark:text-indigo-400 font-bold mt-0.5">•</span>
-                      <span>{finding}</span>
+                      <span>{cleanTextLabels(finding)}</span>
                     </li>
                   ))}
                 </ul>
@@ -194,7 +206,7 @@ export default function ConsolidatedPanel({ res }) {
                   {ai.recommendations.map((rec, idx) => (
                     <li key={idx} className="text-xs text-slate-600 dark:text-slate-300 flex items-start space-x-2">
                       <span className="text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">•</span>
-                      <span>{rec}</span>
+                      <span>{cleanTextLabels(rec)}</span>
                     </li>
                   ))}
                 </ul>
@@ -215,7 +227,7 @@ export default function ConsolidatedPanel({ res }) {
                   return (
                     <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 flex items-start space-x-3">
                       <ArrowRight className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">{cleanStep}</span>
+                      <span className="leading-relaxed">{cleanTextLabels(cleanStep)}</span>
                     </div>
                   );
                 })}
@@ -231,7 +243,7 @@ export default function ConsolidatedPanel({ res }) {
                 <span className="font-semibold uppercase tracking-wider text-[11px] block">
                   {t('consolidated.risk_assessment_title', 'Évaluation Globale des Risques :')}
                 </span>
-                <span className="leading-relaxed">{ai.risk_assessment}</span>
+                <span className="leading-relaxed">{cleanTextLabels(ai.risk_assessment)}</span>
               </div>
             </div>
           )}

@@ -60,11 +60,12 @@ class TrendService(BaseAnalyticsService):
 
             is_significant = bool(p_value < 0.05 and r_squared >= self.MIN_R2_THRESHOLD)
 
-            # Determine direction based on statistical significance or clear slope
-            if is_significant:
+            # Determine direction based on actual variation and slope
+            # If net change is noticeable (|change_pct| > 1%), it is clearly an increase or decrease
+            if change_pct is not None and abs(change_pct) > 1.0:
+                direction = "up" if change_pct > 1.0 else "down"
+            elif is_significant and abs(slope) > 1e-5:
                 direction = "up" if slope > 0 else "down"
-            elif len(series) < 5 and change_pct is not None and abs(change_pct) > 1:
-                direction = "up" if change_pct > 1 else ("down" if change_pct < -1 else "stable")
             else:
                 direction = "stable"
 

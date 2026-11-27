@@ -206,6 +206,7 @@ class InsightRead(BaseModel):
     value: float | None = None
     unit: str | None = None
     confidence: float = 1.0
+    evidence: str | None = None
 
 
 class AnalysisRunRead(BaseModel):
@@ -217,6 +218,7 @@ class AnalysisRunRead(BaseModel):
     analysis_types: str
     status: AnalysisStatus
     row_count: int | None = None
+    operator_username: str | None = None
     error_message: str | None = None
     created_at: UTCDateTime
     completed_at: UTCDateTime | None = None

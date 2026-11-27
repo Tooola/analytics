@@ -43,8 +43,9 @@ function write(list) {
  *   report?, payloads? }  — `res` replaces `report` for multi.
  */
 export function saveHistory(entry) {
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const list = [{ ...entry, id, savedAt: Date.now() }, ...listHistory()];
+  const id = entry.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const existing = listHistory().filter((e) => e.id !== id);
+  const list = [{ ...entry, id, savedAt: entry.savedAt || Date.now() }, ...existing];
   write(list.slice(0, MAX_ENTRIES));
   return id;
 }

@@ -222,7 +222,22 @@
     "card_status_warn": "To review",
     "card_status_ok": "Normal",
     "card_sub_warn": "Unusual values",
-    "card_sub_ok": "All normal"
+    "card_sub_ok": "All normal",
+    "card_rows": "rows",
+    "card_indicator_one": "measured indicator",
+    "card_no_indicators": "No numeric indicators",
+    "card_dir_up": "up",
+    "card_dir_down": "down",
+    "card_dir_stable_sg": "stable",
+    "card_dir_stable_pl": "stable",
+    "card_no_trend": "No clear trend over the period",
+    "card_on": "On",
+    "card_no_anomaly": "No anomaly on",
+    "card_ai_synthesis": "AI Synthesis",
+    "card_reco_ready": "recommendations ready",
+    "card_ai_ready": "AI synthesis available",
+    "card_ai_error": "AI unavailable — statistical results kept",
+    "card_ai_na": "AI synthesis not requested"
   },
   "consolidated": {
     "title": "Consolidated Multi-Source View",
